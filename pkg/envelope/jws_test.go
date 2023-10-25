@@ -1,11 +1,11 @@
 package envelope_test
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
@@ -14,22 +14,37 @@ import (
 )
 
 func TestJWSSign(t *testing.T) {
-	payload := []byte("hahahahaha")
-	// alg := jwa.RS256
-	// key, err := rsa.GenerateKey(rand.Reader, 1024)
 	alg := jwa.ES256
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	payload := []byte("hahahahaha")
+
+	privKeyPem, err := os.ReadFile("../../credential/user1_priv_key.pem_")
 	if err != nil {
 		t.Fatal(err)
 	}
-	signed, err := envelope.Sign(payload, envelope.SignatureAlgorithm(alg), key)
+	privKeyBlock, _ := pem.Decode(privKeyPem)
+	privKey, err := x509.ParseECPrivateKey(privKeyBlock.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	certPem, err := os.ReadFile("../../credential/user1_1.crt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	certBlock, _ := pem.Decode(certPem)
+	cert, err := x509.ParseCertificate(certBlock.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	signed, err := envelope.Sign(payload, envelope.SignatureAlgorithm(alg), privKey, []*x509.Certificate{cert})
 	if err != nil {
 		t.Fatal(err)
 	}
 	fmt.Printf("%v\n", signed)
 	rawSigned, _ := json.Marshal(signed)
 
-	_, err = jws.Verify(rawSigned, jws.WithKey(jwa.SignatureAlgorithm(alg), &key.PublicKey))
+	_, err = jws.Verify(rawSigned, jws.WithKey(jwa.SignatureAlgorithm(alg), &privKey.PublicKey))
 	if err != nil {
 		t.Fatal(err)
 	}

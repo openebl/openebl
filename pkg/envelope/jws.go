@@ -1,7 +1,9 @@
 package envelope
 
 import (
+	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
@@ -41,7 +43,11 @@ func (s *JWS) GetProtectedHeader() (JOSEHeader, error) {
 	return header, nil
 }
 
-func Sign(payload []byte, algorithm SignatureAlgorithm, key any) (JWS, error) {
+func Sign(payload []byte, algorithm SignatureAlgorithm, key any, certChain []*x509.Certificate) (JWS, error) {
+	if len(certChain) == 0 {
+		return JWS{}, errors.New("missing certificate chain")
+	}
+
 	signer, err := jws.NewSigner(jwa.SignatureAlgorithm(algorithm))
 	if err != nil {
 		return JWS{}, err
@@ -49,6 +55,10 @@ func Sign(payload []byte, algorithm SignatureAlgorithm, key any) (JWS, error) {
 
 	header := JOSEHeader{}
 	header.Alg = string(algorithm)
+	header.X5C = make([]string, len(certChain))
+	for i, cert := range certChain {
+		header.X5C[i] = Base64URLEncode(cert.Raw)
+	}
 
 	signInput := genSignInput(payload, header)
 	signature, err := signer.Sign(signInput, key)

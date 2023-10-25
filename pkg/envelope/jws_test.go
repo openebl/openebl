@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
-	"fmt"
 	"os"
 	"testing"
 
@@ -13,7 +12,7 @@ import (
 	"github.com/openebl/openebl/pkg/envelope"
 )
 
-func TestJWSSign(t *testing.T) {
+func TestJWSSignAndVerify(t *testing.T) {
 	alg := jwa.ES256
 	payload := []byte("hahahahaha")
 
@@ -41,10 +40,14 @@ func TestJWSSign(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("%v\n", signed)
 	rawSigned, _ := json.Marshal(signed)
 
 	_, err = jws.Verify(rawSigned, jws.WithKey(jwa.SignatureAlgorithm(alg), &privKey.PublicKey))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = signed.VerifySignature()
 	if err != nil {
 		t.Fatal(err)
 	}

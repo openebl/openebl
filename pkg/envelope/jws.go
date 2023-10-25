@@ -11,15 +11,40 @@ import (
 )
 
 func (s *JWS) VerifySignature() error {
-	rawJWS, err := json.Marshal(s)
+	// Identify Public Key and Algorithm from X5C and Alg.
+	header, err := s.GetProtectedHeader()
+	if err != nil {
+		return err
+	}
+	if header.Alg == "" {
+		return errors.New("missing alg")
+	}
+	if len(header.X5C) == 0 {
+		return errors.New("missing x5c")
+	}
+	certDER, err := Base64URLDecode(header.X5C[0])
+	if err != nil {
+		return err
+	}
+	cert, err := x509.ParseCertificate(certDER)
 	if err != nil {
 		return err
 	}
 
-	_, err = jws.Verify(rawJWS)
+	verifier, err := jws.NewVerifier(jwa.SignatureAlgorithm(header.Alg))
 	if err != nil {
 		return err
 	}
+
+	signature, err := Base64URLDecode(s.Signature)
+	if err != nil {
+		return err
+	}
+	err = verifier.Verify([]byte(fmt.Sprintf("%s.%s", s.Protected, s.Payload)), signature, cert.PublicKey)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

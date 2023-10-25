@@ -31,7 +31,7 @@ type JWK struct {
 type JOSEHeader struct {
 	Alg  string   `json:"alg,omitempty"`
 	Enc  string   `json:"enc,omitempty"`
-	Epk  JWK      `json:"epk,omitempty"`
+	Epk  *JWK     `json:"epk,omitempty"`
 	Type string   `json:"typ,omitempty"`
 	X5C  []string `json:"x5c,omitempty"` // Base64 encoded DER PKIX certificate value
 }

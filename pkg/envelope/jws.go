@@ -10,6 +10,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jws"
 )
 
+// VerifySignature verifies the signature of the JWS with the public key of the first certificate in X5C parameter.
 func (s *JWS) VerifySignature() error {
 	// Identify Public Key and Algorithm from X5C and Alg.
 	header, err := s.GetProtectedHeader()
@@ -48,10 +49,12 @@ func (s *JWS) VerifySignature() error {
 	return nil
 }
 
+// GetPayload returns the payload (decoded) of the JWS.
 func (s *JWS) GetPayload() ([]byte, error) {
 	return Base64URLDecode(s.Payload)
 }
 
+// GetProtectedHeader returns the protected header (decoded) of the JWS.
 func (s *JWS) GetProtectedHeader() (JOSEHeader, error) {
 	protected, err := Base64URLDecode(s.Protected)
 	if err != nil {
@@ -68,6 +71,10 @@ func (s *JWS) GetProtectedHeader() (JOSEHeader, error) {
 	return header, nil
 }
 
+// Sign signs the payload with the given algorithm and key.
+//
+//	key is the private key used for signing.
+//	certChain is the certificate chain used for identifying the public key.
 func Sign(payload []byte, algorithm SignatureAlgorithm, key any, certChain []*x509.Certificate) (JWS, error) {
 	if len(certChain) == 0 {
 		return JWS{}, errors.New("missing certificate chain")

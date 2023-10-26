@@ -37,20 +37,20 @@ type JOSEHeader struct {
 }
 
 type JWS struct {
-	Protected string     `json:"protected,omitempty"` // Base64 URL encoded
-	Header    JOSEHeader `json:"header,omitempty"`
-	Payload   string     `json:"payload,omitempty"`   // Base64 URL encoded
-	Signature string     `json:"signature,omitempty"` // Base64 URL encoded
+	Protected string      `json:"protected,omitempty"` // Base64 URL encoded
+	Header    *JOSEHeader `json:"header,omitempty"`
+	Payload   string      `json:"payload,omitempty"`   // Base64 URL encoded
+	Signature string      `json:"signature,omitempty"` // Base64 URL encoded
 }
 
 type JWERecipient struct {
-	Header       JOSEHeader `json:"header,omitempty"`
-	EncryptedKey string     `json:"encrypted_key,omitempty"` // Base64 URL encoded
+	Header       *JOSEHeader `json:"header,omitempty"`
+	EncryptedKey string      `json:"encrypted_key,omitempty"` // Base64 URL encoded
 }
 
 type JWE struct {
 	Protected   string         `json:"protected,omitempty"` // Base64 URL encoded
-	Unprotected JOSEHeader     `json:"unprotected,omitempty"`
+	Unprotected *JOSEHeader    `json:"unprotected,omitempty"`
 	Recipients  []JWERecipient `json:"recipients,omitempty"`
 	IV          string         `json:"iv,omitempty"`         // Base64 URL encoded
 	AAD         string         `json:"aad,omitempty"`        // Base64 URL encoded

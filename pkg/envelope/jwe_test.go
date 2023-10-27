@@ -1,6 +1,8 @@
 package envelope_test
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -35,6 +37,42 @@ func TestJWEEncryptWithECDSA(t *testing.T) {
 			{
 				PublicKey: &privKey.PublicKey,
 				Algorithm: envelope.KeyEncryptionAlgorithm(jwa.ECDH_ES_A256KW),
+			},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("%v\n", result)
+
+	plainText, err := envelope.Decrypt(result, []any{privKey})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(plainText) != string(payload) {
+		t.Fatalf("expected %s, got %s", payload, plainText)
+	}
+}
+
+func TestJWEEncryptWithRSA(t *testing.T) {
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	payload := []byte("Hello, World!")
+
+	result, err := envelope.Encrypt(
+		payload,
+		envelope.ContentEncryptionAlgorithm(jwa.A256GCM),
+		[]envelope.KeyEncryptionSetting{
+			{
+				PublicKey: &privKey.PublicKey,
+				Algorithm: envelope.KeyEncryptionAlgorithm(jwa.RSA_OAEP_256),
+			},
+			{
+				PublicKey: &privKey.PublicKey,
+				Algorithm: envelope.KeyEncryptionAlgorithm(jwa.RSA1_5),
 			},
 		},
 	)

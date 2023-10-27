@@ -20,16 +20,12 @@ func (s *JWS) VerifySignature() error {
 	if header.Alg == "" {
 		return errors.New("missing alg")
 	}
-	if len(header.X5C) == 0 {
-		return errors.New("missing x5c")
-	}
-	certDER, err := Base64URLDecode(header.X5C[0])
+	certChain, err := s.GetCertificateChain()
 	if err != nil {
 		return err
 	}
-	cert, err := x509.ParseCertificate(certDER)
-	if err != nil {
-		return err
+	if len(certChain) == 0 {
+		return errors.New("missing certificate chain (x5c)")
 	}
 
 	verifier, err := jws.NewVerifier(jwa.SignatureAlgorithm(header.Alg))
@@ -41,7 +37,7 @@ func (s *JWS) VerifySignature() error {
 	if err != nil {
 		return err
 	}
-	err = verifier.Verify([]byte(fmt.Sprintf("%s.%s", s.Protected, s.Payload)), signature, cert.PublicKey)
+	err = verifier.Verify([]byte(fmt.Sprintf("%s.%s", s.Protected, s.Payload)), signature, certChain[0].PublicKey)
 	if err != nil {
 		return err
 	}
@@ -69,6 +65,31 @@ func (s *JWS) GetProtectedHeader() (JOSEHeader, error) {
 		return JOSEHeader{}, err
 	}
 	return header, nil
+}
+
+func (s *JWS) GetCertificateChain() ([]*x509.Certificate, error) {
+	jose, err := s.GetProtectedHeader()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(jose.X5C) == 0 {
+		return nil, nil
+	}
+
+	certChain := make([]*x509.Certificate, len(jose.X5C))
+	for i, certB64 := range jose.X5C {
+		certDER, err := Base64URLDecode(certB64)
+		if err != nil {
+			return nil, err
+		}
+		cert, err := x509.ParseCertificate(certDER)
+		if err != nil {
+			return nil, err
+		}
+		certChain[i] = cert
+	}
+	return certChain, nil
 }
 
 // Sign signs the payload with the given algorithm and key.

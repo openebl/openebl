@@ -35,12 +35,15 @@ func Encrypt(payload []byte, enc ContentEncryptionAlgorithm, keySettings []KeyEn
 }
 
 func Decrypt(in JWE, keys []any) ([]byte, error) {
-	options := make([]jwe.DecryptOption, 0, len(keys)*len(in.Recipients))
+	options := make([]jwe.DecryptOption, 0, len(keys)*(len(in.Recipients)+1))
 
 	// TODO: Generate WithKey options based on the compatibility between the keys and the key encryption algorithm.
 	for _, key := range keys {
 		for _, r := range in.Recipients {
 			options = append(options, jwe.WithKey(jwa.KeyEncryptionAlgorithm(r.Header.Alg), key))
+		}
+		if len(in.Recipients) == 0 {
+			options = append(options, jwe.WithKey(jwa.KeyEncryptionAlgorithm(in.Header.Alg), key))
 		}
 	}
 

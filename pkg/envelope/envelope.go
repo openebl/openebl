@@ -49,13 +49,19 @@ type JWERecipient struct {
 }
 
 type JWE struct {
-	Protected   string         `json:"protected,omitempty"` // Base64 URL encoded
-	Unprotected *JOSEHeader    `json:"unprotected,omitempty"`
-	Recipients  []JWERecipient `json:"recipients,omitempty"`
-	IV          string         `json:"iv,omitempty"`         // Base64 URL encoded
-	AAD         string         `json:"aad,omitempty"`        // Base64 URL encoded
-	Ciphertext  string         `json:"ciphertext,omitempty"` // Base64 URL encoded
-	Tag         string         `json:"tag,omitempty"`        // Base64 URL encoded
+	Protected   string      `json:"protected,omitempty"` // Base64 URL encoded
+	Unprotected *JOSEHeader `json:"unprotected,omitempty"`
+
+	// Header, EncryptedKey are mutual exclusive to Recipients.
+	// When Recipients is present, Header and EncryptedKey must be empty.
+	Header       *JOSEHeader    `json:"header,omitempty"`
+	EncryptedKey string         `json:"encrypted_key,omitempty"` // Base64 URL encoded
+	Recipients   []JWERecipient `json:"recipients,omitempty"`
+
+	IV         string `json:"iv,omitempty"`         // Base64 URL encoded
+	AAD        string `json:"aad,omitempty"`        // Base64 URL encoded
+	Ciphertext string `json:"ciphertext,omitempty"` // Base64 URL encoded
+	Tag        string `json:"tag,omitempty"`        // Base64 URL encoded
 }
 
 func (header JOSEHeader) Base64URLEncode() string {

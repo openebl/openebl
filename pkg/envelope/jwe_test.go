@@ -70,10 +70,6 @@ func TestJWEEncryptWithRSA(t *testing.T) {
 				PublicKey: &privKey.PublicKey,
 				Algorithm: envelope.KeyEncryptionAlgorithm(jwa.RSA_OAEP_256),
 			},
-			{
-				PublicKey: &privKey.PublicKey,
-				Algorithm: envelope.KeyEncryptionAlgorithm(jwa.RSA1_5),
-			},
 		},
 	)
 	if err != nil {

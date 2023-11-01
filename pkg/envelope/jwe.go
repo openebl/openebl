@@ -2,7 +2,6 @@ package envelope
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwe"
@@ -30,7 +29,6 @@ func Encrypt(payload []byte, enc ContentEncryptionAlgorithm, keySettings []KeyEn
 	if err := json.Unmarshal(output, &jweResult); err != nil {
 		return JWE{}, err
 	}
-	fmt.Printf("%s\n", string(output))
 	return jweResult, nil
 }
 

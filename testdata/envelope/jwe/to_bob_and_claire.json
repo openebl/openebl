@@ -1,0 +1,26 @@
+{
+    "protected": "eyJlbmMiOiJBMjU2R0NNIn0",
+    "recipients": [
+        {
+            "header": {
+                "alg": "ECDH-ES+A256KW",
+                "epk": {
+                    "kty": "EC",
+                    "crv": "P-384",
+                    "x": "vhmxepQvxmwWorSjDHpKKPYlZziFY9U_PGEQqD2zetqnBsiaS-EwydwQkoCnwhjA",
+                    "y": "eozK1HBo45A8ZuFg-RcVm0dw0-4MuLxb3_L2xEvUzLgOwe7HyGTbfFDxasugjSYL"
+                }
+            },
+            "encrypted_key": "ToMuLl3F-MjASuxNfp7C7pFYZKdzlHDovZePPiOfD8Iq4f07I2WPxw"
+        },
+        {
+            "header": {
+                "alg": "RSA-OAEP-256"
+            },
+            "encrypted_key": "lHUclOgX5F__XyYtnvcxbEzTYCz5lAl34rSiXkBXm2-YYC4W0Dy9w3G-b7eFj5KwnkXSy1DEbPDkHbCDSjdTNgAkTFawP-HjluTx744I8RSThzPyv_rK7IoFSajr1VjI6K2vpxugy-kEMCXM_8hQg5YACgmdQfs90TCkAXm2yARFlECrz3O_kpDKHZTZPg6GpSg5Dv_cY2xYcz_bh-SqqSSO74Cbzy6idXeMwathZyJYQwJB-5jz-0oIPMpLdeNMIBueCDKNNVYxuIs9DL1Xtig4na4dekVNlzEFe-3srWVZzf5xomUHj0W2USMHtc2NwL4Hvsri5IyOLPZ0kwDoqw"
+        }
+    ],
+    "iv": "lc5N3YH2g6rdDwh9",
+    "ciphertext": "3Ob0scA8yLu9gi8xpA",
+    "tag": "8QTTmbAw3Btt2GbXuorO4w"
+}

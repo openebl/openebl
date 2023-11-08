@@ -12,3 +12,15 @@ func NostrServerTLS(certFile, keyFile string) NostrServerOption {
 		s.keyFile = &keyFile
 	}
 }
+
+func NostrServerWithEventSource(source EventSource) NostrServerOption {
+	return func(s *NostrServer) {
+		s.eventSource = source
+	}
+}
+
+func NostrServerWithEventSink(sink EventSink) NostrServerOption {
+	return func(s *NostrServer) {
+		s.eventSink = sink
+	}
+}

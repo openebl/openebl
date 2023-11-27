@@ -96,10 +96,18 @@ func (s *EventStorageTestSuite) TestListEvents() {
 	s.Require().NoError(err)
 	s.Require().Equal(4, len(result.Events))
 	s.Assert().Equal(int64(103), result.MaxOffset)
-	s.Assert().Equal("event1 content", string(result.Events[0]))
-	s.Assert().Equal("cert1 content", string(result.Events[1]))
-	s.Assert().Equal("event2 content", string(result.Events[2]))
-	s.Assert().Equal("cert2 content", string(result.Events[3]))
+	s.Assert().Equal("event1 content", string(result.Events[0].Data))
+	s.Assert().EqualValues(100, result.Events[0].Offset)
+	s.Assert().EqualValues(1001, result.Events[0].Type)
+	s.Assert().Equal("cert1 content", string(result.Events[1].Data))
+	s.Assert().EqualValues(101, result.Events[1].Offset)
+	s.Assert().EqualValues(1002, result.Events[1].Type)
+	s.Assert().Equal("event2 content", string(result.Events[2].Data))
+	s.Assert().EqualValues(102, result.Events[2].Offset)
+	s.Assert().EqualValues(1001, result.Events[2].Type)
+	s.Assert().Equal("cert2 content", string(result.Events[3].Data))
+	s.Assert().EqualValues(103, result.Events[3].Offset)
+	s.Assert().EqualValues(1002, result.Events[3].Type)
 	// End of Unfiltered and unlimited query
 
 	// Limited query
@@ -112,8 +120,8 @@ func (s *EventStorageTestSuite) TestListEvents() {
 	s.Require().NoError(err)
 	s.Require().Equal(2, len(result.Events))
 	s.Assert().Equal(int64(101), result.MaxOffset)
-	s.Assert().Equal("event1 content", string(result.Events[0]))
-	s.Assert().Equal("cert1 content", string(result.Events[1]))
+	s.Assert().Equal("event1 content", string(result.Events[0].Data))
+	s.Assert().Equal("cert1 content", string(result.Events[1].Data))
 	// End of Limited query
 
 	// Filtered by EventType
@@ -126,8 +134,8 @@ func (s *EventStorageTestSuite) TestListEvents() {
 	s.Require().NoError(err)
 	s.Require().Equal(2, len(result.Events))
 	s.Assert().Equal(int64(102), result.MaxOffset)
-	s.Assert().Equal("event1 content", string(result.Events[0]))
-	s.Assert().Equal("event2 content", string(result.Events[1]))
+	s.Assert().Equal("event1 content", string(result.Events[0].Data))
+	s.Assert().Equal("event2 content", string(result.Events[1].Data))
 	// End of Filtered by EventType
 
 	// Filtered by Offset
@@ -140,6 +148,6 @@ func (s *EventStorageTestSuite) TestListEvents() {
 	s.Require().NoError(err)
 	s.Require().Equal(1, len(result.Events))
 	s.Assert().Equal(int64(103), result.MaxOffset)
-	s.Assert().Equal("cert2 content", string(result.Events[0]))
+	s.Assert().Equal("cert2 content", string(result.Events[0].Data))
 	// End of Filtered by Offset
 }

@@ -9,8 +9,16 @@ type ListEventRequest struct {
 }
 
 type ListEventResult struct {
-	Events    [][]byte
+	Events    []Event
 	MaxOffset int64
+}
+
+type Event struct {
+	ID        string
+	Timestamp int64
+	Offset    int64
+	Type      int
+	Data      []byte
 }
 
 type RelayServerDataStore interface {

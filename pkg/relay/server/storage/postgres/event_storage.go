@@ -96,15 +96,19 @@ func (s *EventStorage) ListEvents(ctx context.Context, request storage.ListEvent
 	defer tx.Rollback(ctx)
 
 	query := `
-	WITH paged_event AS (
-		SELECT "offset", "event" FROM "event"
-		WHERE
-			($2 = 0 OR "offset" > $2) AND
-			($3 = 0 OR "type" = $3)
-		ORDER BY "offset" ASC
-		LIMIT $1
-	)
-	SELECT MAX("offset") OVER(), "event" FROM paged_event ORDER BY "offset" ASC`
+	SELECT 
+		id,
+		created_at,
+		"offset",
+		"type",
+		"event"
+	FROM "event"
+	WHERE
+		($2 = 0 OR "offset" > $2) AND
+		($3 = 0 OR "type" = $3)
+	ORDER BY "offset" ASC
+	LIMIT $1`
+
 	rows, err := tx.Query(ctx, query, request.Limit, request.Offset, request.EventType)
 	if err != nil {
 		return storage.ListEventResult{}, fmt.Errorf("query: %w", err)
@@ -113,13 +117,20 @@ func (s *EventStorage) ListEvents(ctx context.Context, request storage.ListEvent
 
 	var result storage.ListEventResult
 	for rows.Next() {
-		var offset int64
-		var event []byte
-		if err := rows.Scan(&offset, &event); err != nil {
+		event := storage.Event{}
+		if err := rows.Scan(
+			&event.ID,
+			&event.Timestamp,
+			&event.Offset,
+			&event.Type,
+			&event.Data,
+		); err != nil {
 			return storage.ListEventResult{}, fmt.Errorf("scan: %w", err)
 		}
 		result.Events = append(result.Events, event)
-		result.MaxOffset = offset
+		if result.MaxOffset < event.Offset {
+			result.MaxOffset = event.Offset
+		}
 	}
 
 	if err := rows.Err(); err != nil {

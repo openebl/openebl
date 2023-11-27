@@ -2,6 +2,7 @@ package postgres_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"testing"
@@ -52,9 +53,10 @@ func (s *EventStorageTestSuite) SetupSuite() {
 
 	tableNames := []string{
 		"event",
+		"offset",
 	}
 	for _, tableName := range tableNames {
-		_, err := pool.Exec(context.Background(), "TRUNCATE TABLE "+tableName)
+		_, err := pool.Exec(context.Background(), fmt.Sprintf(`TRUNCATE TABLE %q`, tableName))
 		s.Require().NoError(err)
 	}
 }
@@ -150,4 +152,21 @@ func (s *EventStorageTestSuite) TestListEvents() {
 	s.Assert().Equal(int64(103), result.MaxOffset)
 	s.Assert().Equal("cert2 content", string(result.Events[0].Data))
 	// End of Filtered by Offset
+}
+
+func (s *EventStorageTestSuite) TestStoreOffsetAndGetOffset() {
+	ctx := context.Background()
+	offset, err := s.storage.GetOffset(ctx, "test_peer_address")
+	s.Require().NoError(err)
+	s.Assert().Zero(offset)
+
+	err = s.storage.StoreOffset(ctx, 100, "test_peer_address", 1000)
+	s.Require().NoError(err)
+	offset, err = s.storage.GetOffset(ctx, "test_peer_address")
+	s.Require().NoError(err)
+	s.Assert().Equal(int64(1000), offset)
+
+	offset, err = s.storage.GetOffset(ctx, "empty peer address")
+	s.Require().NoError(err)
+	s.Assert().Zero(offset)
 }

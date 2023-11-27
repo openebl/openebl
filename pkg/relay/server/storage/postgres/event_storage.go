@@ -140,6 +140,59 @@ func (s *EventStorage) ListEvents(ctx context.Context, request storage.ListEvent
 	return result, nil
 }
 
+func (s *EventStorage) StoreOffset(ctx context.Context, ts int64, peerAddress string, offset int64) error {
+	txOption := pgx.TxOptions{
+		IsoLevel:   pgx.Serializable,
+		AccessMode: pgx.ReadWrite,
+	}
+	tx, err := s.dbPool.BeginTx(ctx, txOption)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	query := `
+	INSERT INTO "offset" (peer, "offset", created_at, updated_at) VALUES(
+		$1,
+		$2,
+		$3,
+		$3
+	) ON CONFLICT (peer)
+	DO UPDATE
+	SET 
+		"offset" = excluded."offset",
+		updated_at = excluded.updated_at`
+
+	if _, err := tx.Exec(ctx, query, peerAddress, offset, ts); err != nil {
+		return fmt.Errorf("exec: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (s *EventStorage) GetOffset(ctx context.Context, peerAddress string) (int64, error) {
+	txOption := pgx.TxOptions{
+		AccessMode: pgx.ReadOnly,
+	}
+	tx, err := s.dbPool.BeginTx(ctx, txOption)
+	if err != nil {
+		return 0, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	query := `SELECT "offset" FROM "offset" WHERE peer = $1`
+	row := tx.QueryRow(ctx, query, peerAddress)
+	var offset int64
+	if err := row.Scan(&offset); err != nil && err != pgx.ErrNoRows {
+		return 0, fmt.Errorf("scan: %w", err)
+	}
+
+	return offset, nil
+}
+
 func (s *EventStorage) Close() error {
 	s.dbPool.Close()
 	return nil

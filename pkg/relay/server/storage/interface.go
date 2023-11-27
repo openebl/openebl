@@ -27,4 +27,10 @@ type RelayServerDataStore interface {
 
 	// ListEvents returns a list of events from the storage.
 	ListEvents(ctx context.Context, request ListEventRequest) (ListEventResult, error)
+
+	// StoreOffset stores the offset of the peer.
+	StoreOffset(ctx context.Context, ts int64, peerAddress string, offset int64) error
+
+	// GetOffset returns the offset of the peer.
+	GetOffset(ctx context.Context, peerAddress string) (int64, error)
 }

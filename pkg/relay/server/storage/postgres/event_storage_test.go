@@ -65,6 +65,13 @@ func (s *EventStorageTestSuite) TearDownSuite() {
 	s.pgPool.Close()
 }
 
+func (s *EventStorageTestSuite) TestGetIdentity() {
+	ctx := context.Background()
+	identity, err := s.storage.GetIdentity(ctx)
+	s.Require().NoError(err)
+	s.Assert().NotEmpty(identity)
+}
+
 func (s *EventStorageTestSuite) TestStoreEvent() {
 	ctx := context.Background()
 	ts := time.Now().Unix()
@@ -72,9 +79,17 @@ func (s *EventStorageTestSuite) TestStoreEvent() {
 	eventType := 1001
 	event := []byte("test_event")
 
-	offset, err := s.storage.StoreEvent(ctx, ts, eventID, eventType, event)
+	offset, err := s.storage.StoreEventWithOffsetInfo(ctx, ts, eventID, eventType, event, 0, "")
 	s.Require().NoError(err)
 	s.Require().NotZero(offset)
+
+	offset, err = s.storage.StoreEventWithOffsetInfo(ctx, ts, eventID+eventID, eventType, event, 9876, "bluex")
+	s.Require().NoError(err)
+	s.Require().NotZero(offset)
+
+	peerOffset, err := s.storage.GetOffset(ctx, "bluex")
+	s.Require().NoError(err)
+	s.Assert().Equal(int64(9876), peerOffset)
 }
 
 func (s *EventStorageTestSuite) TestListEvents() {

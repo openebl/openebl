@@ -14,3 +14,10 @@ CREATE TABLE "offset" (
     created_at BIGINT NOT NULL,
     updated_at BIGINT NOT NULL
 );
+
+CREATE TABLE storage_identify(
+    id TEXT PRIMARY KEY,
+    created_at BIGINT NOT NULL
+);
+
+INSERT INTO storage_identify (id, created_at) VALUES (gen_random_uuid()::TEXT, EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::BIGINT);

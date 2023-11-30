@@ -1,0 +1,20 @@
+- offset: 100
+  id: "event1"
+  type: 1001
+  created_at: 1700733077
+  event: "event1 content"
+- offset: 101
+  id: "cert1"
+  type: 1002
+  created_at: 1700733078
+  event: "cert1 content"
+- offset: 102
+  id: "event2"
+  type: 1001
+  created_at: 1700733079
+  event: "event2 content"
+- offset: 103
+  id: "cert2"
+  type: 1002
+  created_at: 1700733080
+  event: "cert2 content"

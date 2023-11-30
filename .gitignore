@@ -19,3 +19,5 @@
 
 # Go workspace file
 go.work
+.vscode
+pkg/relay/server/storage/postgres/migrations/schema.sql

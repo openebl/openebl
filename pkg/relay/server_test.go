@@ -2,6 +2,8 @@ package relay_test
 
 import (
 	"context"
+	"crypto/sha512"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -26,10 +28,7 @@ func (s *ServerEventSourceAndSink) GetEvents() []relay.Event {
 }
 
 func (s *ServerEventSourceAndSink) Pull(ctx context.Context, request relay.EventSourcePullingRequest) (relay.EventSourcePullingResponse, error) {
-	var offset int64
-	if request.Offset != nil {
-		offset = *request.Offset
-	}
+	offset := request.Offset
 	if offset >= int64(len(s.events)) {
 		return relay.EventSourcePullingResponse{}, nil
 	}
@@ -52,9 +51,11 @@ func (s *ServerEventSourceAndSink) AddEvents(events ...relay.Event) {
 	}
 }
 
-func (s *ServerEventSourceAndSink) Sink(ctx context.Context, event relay.Event) error {
+func (s *ServerEventSourceAndSink) Sink(ctx context.Context, event relay.Event) (string, error) {
+	sum512Result := sha512.Sum512(event.Data)
+	eventID := hex.EncodeToString(sum512Result[:])
 	s.AddEvents(event)
-	return nil
+	return eventID, nil
 }
 
 func TestNostrRelayServerTestSuite(t *testing.T) {
@@ -62,6 +63,7 @@ func TestNostrRelayServerTestSuite(t *testing.T) {
 }
 
 func (s *NostrRelayServerTestSuite) TestSubscription() {
+	serverIdentity := "test-server"
 	eventSource := &ServerEventSourceAndSink{}
 	eventSink := &ServerEventSourceAndSink{}
 
@@ -78,6 +80,7 @@ func (s *NostrRelayServerTestSuite) TestSubscription() {
 		relay.NostrServerAddress("localhost:8081"),
 		relay.NostrServerWithEventSource(eventSource.Pull),
 		relay.NostrServerWithEventSink(eventSink.Sink),
+		relay.NostrServerWithIdentity(serverIdentity),
 	)
 	go func() {
 		srv.ListenAndServe()
@@ -89,10 +92,11 @@ func (s *NostrRelayServerTestSuite) TestSubscription() {
 		relay.NostrClientWithServerURL("ws://localhost:8081"),
 		relay.NostrClientWithEventSink(clientEventSink.Sink),
 		relay.NostrClientWithConnectionStatusCallback(
-			func(ctx context.Context, client relay.RelayClient, status bool) {
+			func(ctx context.Context, client relay.RelayClient, remoteServerIdentity string, status bool) {
 				if !status {
 					return
 				}
+				assert.EqualValues(s.T(), serverIdentity, remoteServerIdentity, "server identity should be the same")
 				client.Subscribe(context.Background(), 0)
 			},
 		),
@@ -122,7 +126,7 @@ func (s *NostrRelayServerTestSuite) TestReceiveEvent() {
 		relay.NostrClientWithServerURL("ws://localhost:8082"),
 		relay.NostrClientWithEventSink(clientEventSink.Sink),
 		relay.NostrClientWithConnectionStatusCallback(
-			func(ctx context.Context, client relay.RelayClient, status bool) {},
+			func(ctx context.Context, client relay.RelayClient, serverIdentity string, status bool) {},
 		),
 	)
 	defer client.Close()
@@ -141,18 +145,22 @@ func (s *NostrRelayServerTestSuite) TestReceiveEvent() {
 	}
 
 	for _, event := range events {
-		client.Publish(context.Background(), event.Type, string(event.Data), event.Data)
+		client.Publish(context.Background(), event.Type, event.Data)
 	}
 
 	time.Sleep(2 * time.Second)
 	assert.Len(s.T(), eventSink.GetEvents(), 2)
-	assert.ElementsMatchf(s.T(), eventSink.GetEvents(), events, "client and server should have the same events")
+	receivedEvents := eventSink.GetEvents()[:]
+	for i := range receivedEvents {
+		receivedEvents[i].Timestamp = 0
+	}
+	assert.ElementsMatchf(s.T(), receivedEvents, events, "client and server should have the same events")
 }
 
 var limiter = rate.NewLimiter(0.2, 1)
 
 func eventSource(ctx context.Context, request relay.EventSourcePullingRequest) (relay.EventSourcePullingResponse, error) {
-	if request.Offset != nil && !limiter.Allow() {
+	if request.Offset != 0 && !limiter.Allow() {
 		return relay.EventSourcePullingResponse{}, nil
 	}
 
@@ -169,12 +177,12 @@ func eventSource(ctx context.Context, request relay.EventSourcePullingRequest) (
 	}, nil
 }
 
-func serverEventSink(ctx context.Context, event relay.Event) error {
+func serverEventSink(ctx context.Context, event relay.Event) (string, error) {
 	// if rand.Float32() >= 0.5 {
 	// 	return errors.New("not implemented")
 	// }
 	fmt.Printf("%s\n", string(event.Data))
-	return nil
+	return string(event.Data), nil
 }
 
 func TestNostrRelayServer(t *testing.T) {

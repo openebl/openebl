@@ -2,6 +2,7 @@ package relay
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,8 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 )
 
@@ -23,6 +22,7 @@ type NostrServer struct {
 	keyFile    *string
 
 	wsUpgrader  websocket.Upgrader
+	identity    string
 	eventSource EventSource
 	eventSink   EventSink
 
@@ -31,9 +31,10 @@ type NostrServer struct {
 }
 
 type NostrClientSubscription struct {
-	ID        string
-	Filters   []NoStrClientSubscriptionFilter
-	CloseChan chan any
+	SubscribeID string
+	Type        int
+	Offset      int64
+	CloseChan   chan any
 }
 
 type NoStrClientSubscriptionFilter struct {
@@ -138,6 +139,18 @@ func (s *NostrServer) removeClient(client *NostrClientStub) {
 func (c *NostrClientStub) Run() {
 	defer c.close()
 
+	// Send RelayServerIdentity to the client before accepting any request.
+	identifyResponse := Response{
+		RelayServerIdentifyResponse: &RelayServerIdentifyResponse{
+			Identity: c.nostrServer.identity,
+		},
+	}
+	identifyResponseRaw, _ := json.Marshal(identifyResponse)
+	if err := c.send(identifyResponseRaw, true); err != nil {
+		logrus.Errorf("failed to send identify response: %v", err)
+		return
+	}
+
 	go c.outputWorker()
 
 	for {
@@ -150,24 +163,21 @@ func (c *NostrClientStub) Run() {
 		}
 		logrus.Debugf("recv: message length %d", len(message))
 
-		nostrEnvelope := nostr.ParseMessage(message)
-		if nostrEnvelope == nil {
+		request, err := ParseRequest(message)
+		if err != nil {
 			logrus.Errorf("failed to parse message: %v", err)
 			c.sendNotice("failed to parse message")
 			continue
 		}
 
-		switch nostrEnvelope.Label() {
-		case "REQ":
-			c.subscribe(nostrEnvelope.(*nostr.ReqEnvelope))
-		case "EVENT":
-			c.receiveEvent(nostrEnvelope.(*nostr.EventEnvelope))
-		case "CLOSE":
-			c.unsubscribe(string(*(nostrEnvelope.(*nostr.CloseEnvelope))))
+		switch req := request.(type) {
+		case *EventPublishRequest:
+			c.receiveEvent(req)
+		case *SubscribeRequest:
+			c.subscribe(req)
 		default:
 			c.sendNotice("unsupported request")
 		}
-
 	}
 }
 
@@ -227,36 +237,27 @@ func (c *NostrClientStub) send(msg []byte, blocking bool) error {
 }
 
 func (c *NostrClientStub) sendNotice(msg string) error {
-	resp := nostr.NoticeEnvelope(msg)
-	respRaw, _ := resp.MarshalJSON()
+	resp := Response{
+		Notice: &RelayServerNotice{
+			Message: msg,
+		},
+	}
+	respRaw, _ := json.Marshal(resp)
 	return c.send(respRaw, true)
 }
 
-func (c *NostrClientStub) subscribe(req *nostr.ReqEnvelope) {
-	if len(req.Filters) == 0 {
-		c.sendNotice("no filters specified")
-		return
-	}
-	if len(req.Filters) > 1 {
-		c.sendNotice("multiple filters not supported")
-		return
-	}
-
+func (c *NostrClientStub) subscribe(req *SubscribeRequest) {
 	subScription := NostrClientSubscription{
-		ID:        req.SubscriptionID,
-		CloseChan: make(chan any),
+		SubscribeID: req.SubscribeID,
+		Type:        req.Type,
+		Offset:      req.Offset,
+		CloseChan:   make(chan any),
 	}
-	subScription.Filters = lo.Map(req.Filters, func(f nostr.Filter, _ int) NoStrClientSubscriptionFilter {
-		return NoStrClientSubscriptionFilter{
-			Since: (*int64)(f.Since),
-			Until: (*int64)(f.Until),
-		}
-	})
 
 	c.clientMux.Lock()
 	defer c.clientMux.Unlock()
 
-	c.subscriptions[req.SubscriptionID] = subScription
+	c.subscriptions[req.SubscribeID] = subScription
 
 	go c.subscriptionPullingTask(subScription)
 }
@@ -275,7 +276,8 @@ func (c *NostrClientStub) unsubscribe(subscriptionID string) {
 
 func (c *NostrClientStub) subscriptionPullingTask(subscription NostrClientSubscription) {
 	eventSourceRequest := EventSourcePullingRequest{
-		Offset: subscription.Filters[0].Since,
+		Offset: subscription.Offset,
+		Type:   subscription.Type,
 		Length: 100,
 	}
 
@@ -310,8 +312,13 @@ func (c *NostrClientStub) subscriptionPullingTask(subscription NostrClientSubscr
 		}
 		if len(eventSourceResponse.Events) == 0 && firstBatch {
 			// All old data is consumed by the client.
-			eos := nostr.EOSEEnvelope(subscription.ID)
-			eosRaw, _ := eos.MarshalJSON()
+			eos := Response{
+				SubscribeResponse: &SubscribeResponse{
+					SubscribeID: subscription.SubscribeID,
+					EOS:         true,
+				},
+			}
+			eosRaw, _ := json.Marshal(eos)
 			if err := c.send(eosRaw, true); err != nil {
 				logrus.Errorf("failed to send EOS: %v", err)
 			}
@@ -323,46 +330,52 @@ func (c *NostrClientStub) subscriptionPullingTask(subscription NostrClientSubscr
 
 		for _, event := range eventSourceResponse.Events {
 			// TODO: EventSource should provide enough information to generate a valid nostr.Event.
-			eventEnvelope := nostr.EventEnvelope{
-				SubscriptionID: &subscription.ID,
-				Event: nostr.Event{
-					CreatedAt: nostr.Timestamp(event.Offset),
-					Kind:      event.Type,
-					Content:   string(event.Data),
+			eventEnvelope := Response{
+				SubscribeResponse: &SubscribeResponse{
+					SubscribeID: subscription.SubscribeID,
+					Event: &Event{
+						Timestamp: event.Timestamp,
+						Offset:    event.Offset,
+						Type:      event.Type,
+						Data:      event.Data,
+					},
 				},
 			}
-			eventEnvelopeRaw, _ := eventEnvelope.MarshalJSON()
+			eventEnvelopeRaw, _ := json.Marshal(&eventEnvelope)
 			if err := c.send(eventEnvelopeRaw, false); err != nil {
 				logrus.Errorf("failed to send event: %v", err)
 				c.close()
 				return
 			}
 		}
-		newOffset := eventSourceResponse.MaxOffset + 1
-		eventSourceRequest.Offset = &newOffset
+		eventSourceRequest.Offset = eventSourceResponse.MaxOffset + 1
 	}
 }
 
-func (c *NostrClientStub) receiveEvent(evt *nostr.EventEnvelope) {
+func (c *NostrClientStub) receiveEvent(evt *EventPublishRequest) {
 	event := Event{
-		Timestamp: int64(evt.Event.CreatedAt),
-		Type:      evt.Event.Kind,
-		Data:      []byte(evt.Event.Content),
+		Timestamp: time.Now().Unix(),
+		Type:      evt.Type,
+		Data:      evt.Data,
 	}
 
-	resp := nostr.OKEnvelope{
-		EventID: evt.Event.ID,
-		OK:      true,
-		Reason:  "",
+	resp := EventPublishResponse{
+		RequestID: evt.RequestID,
 	}
 
-	if err := c.nostrServer.eventSink(context.Background(), event); err != nil {
+	if eventID, err := c.nostrServer.eventSink(context.Background(), event); err != nil {
 		logrus.Errorf("failed to sink event: %v", err)
 		resp.OK = false
 		resp.Reason = fmt.Sprintf("failed to sink event: %v", err)
+	} else {
+		resp.OK = true
+		resp.EventID = eventID
 	}
 
-	raw, _ := resp.MarshalJSON()
+	respEnvelop := Response{
+		EventPublishResponse: &resp,
+	}
+	raw, _ := json.Marshal(respEnvelop)
 	if err := c.send(raw, true); err != nil {
 		logrus.Errorf("failed to send OK: %v", err)
 		c.close()

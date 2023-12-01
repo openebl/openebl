@@ -9,14 +9,14 @@ import (
 	"github.com/openebl/openebl/pkg/relay"
 )
 
-func clientEventSink(ctx context.Context, event relay.Event) error {
+func clientEventSink(ctx context.Context, event relay.Event) (string, error) {
 	fmt.Printf("%s\n", string(event.Data))
-	return nil
+	return "", nil
 }
 
 func TestNostrRelayClient(t *testing.T) {
 	t.Skip("skip test")
-	clientConnectionStatusCallback := func(ctx context.Context, client relay.RelayClient, status bool) {
+	clientConnectionStatusCallback := func(ctx context.Context, client relay.RelayClient, serverIdentity string, status bool) {
 		fmt.Printf("connection status: %v\n", status)
 		if client != nil && status {
 			err := client.Subscribe(context.Background(), 0)
@@ -39,6 +39,6 @@ func TestNostrRelayClient(t *testing.T) {
 		time.Sleep(1 * time.Second)
 		msg := fmt.Sprintf("hello %d", count)
 		count++
-		client.Publish(context.Background(), 1001, msg, []byte(msg))
+		client.Publish(context.Background(), 1001, []byte(msg))
 	}
 }

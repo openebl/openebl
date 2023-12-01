@@ -2,6 +2,7 @@ package relay
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/url"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/nbd-wtf/go-nostr"
 	"github.com/sirupsen/logrus"
 )
 
@@ -18,8 +18,8 @@ type NostrClientOption func(s *NostrClient)
 
 type NostrClientOutputMsg struct {
 	requestID string
+	request   Request
 	result    chan any
-	data      []byte
 }
 
 type NostrClient struct {
@@ -82,7 +82,7 @@ func (c *NostrClient) outputWorker() {
 
 	cleanUp := func() {
 		if conn != nil {
-			go func() { c.connectionStatusCallback(context.Background(), c, false) }()
+			go func() { c.connectionStatusCallback(context.Background(), c, "", false) }()
 			conn.Close()
 		}
 		conn = nil
@@ -103,7 +103,6 @@ func (c *NostrClient) outputWorker() {
 			inputWorkerCtx, inputWorkerCancel = context.WithCancelCause(context.Background())
 			conn, err = c.prepareConnection(context.Background())
 			if conn != nil {
-				go func() { c.connectionStatusCallback(context.Background(), c, true) }()
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
@@ -132,7 +131,8 @@ func (c *NostrClient) outputWorker() {
 				c.addWaitingResponse(msg.requestID, msg.result)
 			}
 
-			if err := conn.WriteMessage(websocket.TextMessage, msg.data); err != nil {
+			jsonRaw, _ := json.Marshal(msg.request)
+			if err := conn.WriteMessage(websocket.TextMessage, jsonRaw); err != nil {
 				logrus.Errorf("NostrClient: failed to write message to %q: %v", c.serverURL, err)
 				cleanUp()
 			}
@@ -149,65 +149,71 @@ func (c *NostrClient) inputWorker(cancel context.CancelCauseFunc, conn *websocke
 			return
 		}
 
-		nostrMsg := nostr.ParseMessage(msg)
-		if nostrMsg == nil {
+		resp, err := ParseResponse(msg)
+		if err != nil {
 			logrus.Errorf("NostrClient: failed to parse message from %q: %v", c.serverURL, err)
 			continue
 		}
 
-		switch nostrMsg.Label() {
-		case "EVENT":
-			c.receiveEvent(nostrMsg.(*nostr.EventEnvelope))
-		case "EOSE":
-			logrus.Debugf("NostrClient: received EOS from %q", c.serverURL)
-		case "OK":
-			c.receiveOK(nostrMsg.(*nostr.OKEnvelope))
+		switch resp := resp.(type) {
+		case *EventPublishResponse:
+			c.receivePublishResponse(resp)
+		case *RelayServerIdentifyResponse:
+			c.receiveServerIdentity(resp)
+		case *SubscribeResponse:
+			c.receiveEvent(resp)
+		case *RelayServerNotice:
+			c.receiveNotice(resp)
 		default:
 			logrus.Errorf("NostrClient: unsupported message from %q: %v", c.serverURL, err)
 		}
 	}
 }
 
-func (c *NostrClient) receiveEvent(envelope *nostr.EventEnvelope) {
-	err := c.eventSink(
-		context.Background(),
-		Event{
-			// Timestamp: envelope.Timestamp,
-			// Offset:    envelope.Offset,
-			Offset: int64(envelope.CreatedAt),
-			Type:   envelope.Kind,
-			Data:   []byte(envelope.Content),
-		},
-	)
-	if err != nil {
-		logrus.Errorf("NostrClient: failed to handle event %q: %v", envelope, err)
+func (c *NostrClient) receiveEvent(resp *SubscribeResponse) {
+	event := resp.Event
+	if event != nil {
+		_, err := c.eventSink(
+			context.Background(),
+			*event,
+		)
+		if err != nil {
+			logrus.Errorf("NostrClient: failed to handle event %v: %v", resp, err)
+		}
 	}
 
-	c.replyWaitingResponse(*envelope.SubscriptionID, "OK")
+	c.replyWaitingResponse(resp.SubscribeID, "OK")
 }
 
-func (c *NostrClient) receiveOK(envelope *nostr.OKEnvelope) {
-	if !envelope.OK {
-		c.replyWaitingResponse(envelope.EventID, errors.New(envelope.Reason))
+func (c *NostrClient) receivePublishResponse(resp *EventPublishResponse) {
+	if !resp.OK {
+		c.replyWaitingResponse(resp.RequestID, errors.New(resp.Reason))
 		return
 	}
 
-	c.replyWaitingResponse(envelope.EventID, envelope.Reason)
+	c.replyWaitingResponse(resp.RequestID, resp.Reason)
 }
 
-func (c *NostrClient) Publish(ctx context.Context, evtType int, msgID string, data []byte) error {
-	nostrEnvelope := nostr.EventEnvelope{
-		Event: nostr.Event{
-			ID:      msgID,
-			Kind:    evtType,
-			Content: string(data),
-		},
-	}
-	nostrRaw, _ := nostrEnvelope.MarshalJSON()
+func (c *NostrClient) receiveServerIdentity(resp *RelayServerIdentifyResponse) {
+	go func() { c.connectionStatusCallback(context.Background(), c, resp.Identity, true) }()
+}
+
+func (c *NostrClient) receiveNotice(resp *RelayServerNotice) {
+	logrus.Errorf("NostrClient: received notice from %q: %v", c.serverURL, resp.Message)
+}
+
+func (c *NostrClient) Publish(ctx context.Context, evtType int, data []byte) error {
+	requestID := uuid.NewString()
 	msg := NostrClientOutputMsg{
-		requestID: msgID,
-		result:    make(chan any, 1),
-		data:      nostrRaw,
+		requestID: requestID,
+		request: Request{
+			Publish: &EventPublishRequest{
+				RequestID: requestID,
+				Type:      evtType,
+				Data:      data,
+			},
+		},
+		result: make(chan any, 1),
 	}
 
 	if err := c.send(ctx, msg); err != nil {
@@ -228,30 +234,24 @@ func (c *NostrClient) Publish(ctx context.Context, evtType int, msgID string, da
 
 	reason, ok := result.(string)
 	if !ok {
-		logrus.Errorf("NostrClient: Get unknown result after publishing event %q: %v", msgID, result)
+		logrus.Errorf("NostrClient: Get unknown result after publishing event %q: %v", requestID, result)
 		return nil
 	}
-	logrus.Debugf("NostrClient: Get result after publishing event %q: %v", msgID, reason)
+	logrus.Debugf("NostrClient: Get result after publishing event %q: %v", requestID, reason)
 	return nil
 }
 
 func (c *NostrClient) Subscribe(ctx context.Context, offset int64) error {
-	timestamp := nostr.Timestamp(offset)
 	subscriptionID := uuid.NewString()
-	nostrEnvelope := nostr.ReqEnvelope{
-		SubscriptionID: subscriptionID,
-		Filters: []nostr.Filter{
-			{
-				Since: &timestamp,
-			},
-		},
-	}
-
-	nostrRaw, _ := nostrEnvelope.MarshalJSON()
 	msg := NostrClientOutputMsg{
 		requestID: subscriptionID,
-		result:    make(chan any, 1),
-		data:      nostrRaw,
+		request: Request{
+			Subscribe: &SubscribeRequest{
+				SubscribeID: subscriptionID,
+				Offset:      offset,
+			},
+		},
+		result: make(chan any, 1),
 	}
 
 	if err := c.send(ctx, msg); err != nil {

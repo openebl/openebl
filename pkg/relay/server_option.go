@@ -24,3 +24,9 @@ func NostrServerWithEventSink(sink EventSink) NostrServerOption {
 		s.eventSink = sink
 	}
 }
+
+func NostrServerWithIdentity(identity string) NostrServerOption {
+	return func(s *NostrServer) {
+		s.identity = identity
+	}
+}

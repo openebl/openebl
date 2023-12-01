@@ -63,7 +63,13 @@ type RelayServerNotice struct {
 }
 
 type EventSink func(ctx context.Context, event Event) (string, error)
-type ClientConnectionStatusCallback func(ctx context.Context, client RelayClient, serverIdentity string, status bool)
+
+// ClientConnectionStatusCallback is a callback function that is called when the connection status of the client changes.
+// The implementation note:
+//  1. The callback function is called in a goroutine.
+//  2. Use *cancelFunc* to notify the caller there is something wrong of the callback. The caller should handle it.
+//  3. cancelFunc can be nil.
+type ClientConnectionStatusCallback func(ctx context.Context, cancelFunc context.CancelCauseFunc, client RelayClient, serverIdentity string, status bool)
 
 type RelayClient interface {
 	io.Closer

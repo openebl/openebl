@@ -16,7 +16,7 @@ func clientEventSink(ctx context.Context, event relay.Event) (string, error) {
 
 func TestNostrRelayClient(t *testing.T) {
 	t.Skip("skip test")
-	clientConnectionStatusCallback := func(ctx context.Context, client relay.RelayClient, serverIdentity string, status bool) {
+	clientConnectionStatusCallback := func(ctx context.Context, cancel context.CancelCauseFunc, client relay.RelayClient, serverIdentity string, status bool) {
 		fmt.Printf("connection status: %v\n", status)
 		if client != nil && status {
 			err := client.Subscribe(context.Background(), 0)

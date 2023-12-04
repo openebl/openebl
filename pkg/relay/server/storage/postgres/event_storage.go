@@ -99,10 +99,20 @@ func (s *EventStorage) StoreEventWithOffsetInfo(
 	}
 	defer tx.Rollback(ctx)
 
+	// Check if the event is already stored
+	query := `SELECT id FROM "event" WHERE id = $1`
+	row := tx.QueryRow(ctx, query, eventID)
+	var oldID string
+	if err := row.Scan(&oldID); err != nil && err != pgx.ErrNoRows {
+		return 0, fmt.Errorf("scan for old event ID: %w", err)
+	} else if err == nil {
+		return 0, storage.ErrDuplicateEvent
+	}
+
 	// Store Event
 	var newOffset int64
-	query := `INSERT INTO "event" (id, "type", created_at, "event") VALUES ($1, $2, $3, $4) RETURNING "offset"`
-	row := tx.QueryRow(ctx, query, eventID, eventType, ts, event)
+	query = `INSERT INTO "event" (id, "type", created_at, "event") VALUES ($1, $2, $3, $4) RETURNING "offset"`
+	row = tx.QueryRow(ctx, query, eventID, eventType, ts, event)
 	if err := row.Scan(&newOffset); err != nil {
 		return 0, fmt.Errorf("scan offset: %w", err)
 	}

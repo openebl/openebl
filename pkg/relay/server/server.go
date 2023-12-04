@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"io"
 
 	"github.com/openebl/openebl/pkg/relay"
@@ -73,7 +74,7 @@ func NewServer(config ServerConfig) (*Server, error) {
 	serverEventSink := func(ctx context.Context, event relay.Event) (string, error) {
 		evtID := GetEventID(event.Data)
 		_, err := dataStore.StoreEventWithOffsetInfo(ctx, event.Timestamp, evtID, event.Type, event.Data, 0, "")
-		if err != nil {
+		if err != nil && !errors.Is(err, storage.ErrDuplicateEvent) {
 			return "", err
 		}
 		return evtID, nil

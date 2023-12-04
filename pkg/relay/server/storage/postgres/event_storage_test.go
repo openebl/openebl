@@ -161,7 +161,7 @@ func (s *EventStorageTestSuite) TestListEvents() {
 
 	// Filtered by Offset
 	request = storage.ListEventRequest{
-		Offset:    102,
+		Offset:    103,
 		EventType: 0,
 		Limit:     10,
 	}

@@ -99,6 +99,13 @@ func (s *EventStorage) StoreEventWithOffsetInfo(
 	}
 	defer tx.Rollback(ctx)
 
+	// Store Offset information when it's available
+	if peerId != "" {
+		if err := s.storeOffset(ctx, tx, ts, peerId, offset); err != nil {
+			return 0, err
+		}
+	}
+
 	// Check if the event is already stored
 	query := `SELECT id FROM "event" WHERE id = $1`
 	row := tx.QueryRow(ctx, query, eventID)
@@ -115,13 +122,6 @@ func (s *EventStorage) StoreEventWithOffsetInfo(
 	row = tx.QueryRow(ctx, query, eventID, eventType, ts, event)
 	if err := row.Scan(&newOffset); err != nil {
 		return 0, fmt.Errorf("scan offset: %w", err)
-	}
-
-	// Store Offset information when it's available
-	if peerId != "" {
-		if err := s.storeOffset(ctx, tx, ts, peerId, offset); err != nil {
-			return 0, err
-		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -150,7 +150,7 @@ func (s *EventStorage) ListEvents(ctx context.Context, request storage.ListEvent
 		"event"
 	FROM "event"
 	WHERE
-		($2 = 0 OR "offset" > $2) AND
+		($2 = 0 OR "offset" >= $2) AND
 		($3 = 0 OR "type" = $3)
 	ORDER BY "offset" ASC
 	LIMIT $1`

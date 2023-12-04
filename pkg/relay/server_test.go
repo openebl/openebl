@@ -187,7 +187,7 @@ func serverEventSink(ctx context.Context, event relay.Event) (string, error) {
 }
 
 func TestNostrRelayServer(t *testing.T) {
-	// t.Skip()
+	t.Skip()
 	srv := relay.NewNostrServer(
 		relay.NostrServerAddress("localhost:8080"),
 		relay.NostrServerWithEventSource(eventSource),

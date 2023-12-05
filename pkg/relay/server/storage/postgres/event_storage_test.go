@@ -94,6 +94,13 @@ func (s *EventStorageTestSuite) TestStoreEvent() {
 	// Check if duplicated event ID can get ErrDuplicateEvent error.
 	_, err = s.storage.StoreEventWithOffsetInfo(ctx, ts, eventID, eventType, event, 0, "")
 	s.Require().ErrorIs(err, storage.ErrDuplicateEvent)
+
+	// Check if duplicated event ID can get ErrDuplicateEvent error and store offset correctly.
+	_, err = s.storage.StoreEventWithOffsetInfo(ctx, ts, eventID, eventType, event, 9877, "bluex")
+	s.Require().ErrorIs(err, storage.ErrDuplicateEvent)
+	offset, err = s.storage.GetOffset(ctx, "bluex")
+	s.Require().NoError(err)
+	s.Assert().Equal(int64(9877), offset)
 }
 
 func (s *EventStorageTestSuite) TestListEvents() {

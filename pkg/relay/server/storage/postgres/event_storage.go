@@ -110,10 +110,24 @@ func (s *EventStorage) StoreEventWithOffsetInfo(
 	query := `SELECT id FROM "event" WHERE id = $1`
 	row := tx.QueryRow(ctx, query, eventID)
 	var oldID string
-	if err := row.Scan(&oldID); err != nil && err != pgx.ErrNoRows {
+	err = row.Scan(&oldID)
+	if err != nil && err != pgx.ErrNoRows {
 		return 0, fmt.Errorf("scan for old event ID: %w", err)
 	} else if err == nil {
-		return 0, storage.ErrDuplicateEvent
+		err = storage.ErrDuplicateEvent
+	} else if err == pgx.ErrNoRows {
+		err = nil
+	}
+
+	if peerId != "" && err == storage.ErrDuplicateEvent {
+		// Commit the transaction if the offset is already stored.
+		if err := tx.Commit(ctx); err != nil {
+			return 0, fmt.Errorf("commit transaction: %w", err)
+		}
+		return 0, err
+	}
+	if err != nil {
+		return 0, err
 	}
 
 	// Store Event

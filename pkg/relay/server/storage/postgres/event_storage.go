@@ -54,10 +54,19 @@ type EventStorage struct {
 	dbPool *pgxpool.Pool
 }
 
-func NewEventStorage(dbPool *pgxpool.Pool) *EventStorage {
+func NewEventStorageWithPool(dbPool *pgxpool.Pool) *EventStorage {
 	return &EventStorage{
 		dbPool: dbPool,
 	}
+}
+
+func NewEventStorageWithConfig(config DatabaseConfig) (*EventStorage, error) {
+	dbPool, err := NewDBPool(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewEventStorageWithPool(dbPool), nil
 }
 
 func (s *EventStorage) GetIdentity(ctx context.Context) (string, error) {

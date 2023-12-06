@@ -21,10 +21,11 @@ type ServerConfig struct {
 type Server struct {
 	io.Closer
 
-	dataStore   storage.RelayServerDataStore
-	dataStoreID string
-	eventSink   relay.EventSink
-	relayServer *relay.NostrServer
+	localAddress string
+	dataStore    storage.RelayServerDataStore
+	dataStoreID  string
+	eventSink    relay.EventSink
+	relayServer  *relay.NostrServer
 
 	otherPeers map[string]*ClientCallback // map[remote address]RelayClient
 }
@@ -69,17 +70,18 @@ func (c *ClientCallback) EventSink(ctx context.Context, event relay.Event) (stri
 	return evtID, nil
 }
 
-func NewServer(config ServerConfig) (*Server, error) {
-	// Prepare data storage
-	dbPool, err := postgres.NewDBPool(config.DbConfig)
+func NewServer(options ...ServerOption) (*Server, error) {
+	server := &Server{}
+	for _, option := range options {
+		option(server)
+	}
+
+	// Get data storage identity
+	dataStoreID, err := server.dataStore.GetIdentity(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	dataStore := postgres.NewEventStorage(dbPool)
-	dataStoreID, err := dataStore.GetIdentity(context.Background())
-	if err != nil {
-		return nil, err
-	}
+	server.dataStoreID = dataStoreID
 
 	// Prepare event source
 	eventSource := func(ctx context.Context, request relay.EventSourcePullingRequest) (relay.EventSourcePullingResponse, error) {
@@ -87,7 +89,7 @@ func NewServer(config ServerConfig) (*Server, error) {
 			Limit:  int64(request.Length),
 			Offset: int64(request.Offset),
 		}
-		dsResult, err := dataStore.ListEvents(ctx, dsRequest)
+		dsResult, err := server.dataStore.ListEvents(ctx, dsRequest)
 		if err != nil {
 			return relay.EventSourcePullingResponse{}, err
 		}
@@ -113,31 +115,22 @@ func NewServer(config ServerConfig) (*Server, error) {
 	// Prepare EventSink
 	serverEventSink := func(ctx context.Context, event relay.Event) (string, error) {
 		evtID := GetEventID(event.Data)
-		_, err := dataStore.StoreEventWithOffsetInfo(ctx, event.Timestamp, evtID, event.Type, event.Data, 0, "")
+		_, err := server.dataStore.StoreEventWithOffsetInfo(ctx, event.Timestamp, evtID, event.Type, event.Data, 0, "")
 		if err != nil && !errors.Is(err, storage.ErrDuplicateEvent) {
 			return "", err
 		}
 		return evtID, nil
 	}
+	server.eventSink = serverEventSink
 
 	// Prepare NostrServer
 	relayServer := relay.NewNostrServer(
-		relay.NostrServerAddress(config.LocalAddress),
+		relay.NostrServerAddress(server.localAddress),
 		relay.NostrServerWithEventSource(eventSource),
 		relay.NostrServerWithEventSink(serverEventSink),
 		relay.NostrServerWithIdentity(dataStoreID),
 	)
-
-	server := &Server{
-		dataStore:   dataStore,
-		dataStoreID: dataStoreID,
-		relayServer: relayServer,
-		eventSink:   serverEventSink,
-		otherPeers:  make(map[string]*ClientCallback),
-	}
-	for _, peerAddress := range config.OtherPeers {
-		server.otherPeers[peerAddress] = nil
-	}
+	server.relayServer = relayServer
 
 	return server, nil
 }

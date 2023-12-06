@@ -48,7 +48,7 @@ func (s *EventStorageTestSuite) SetupSuite() {
 
 	pool, err := postgres.NewDBPool(config)
 	s.Require().NoError(err)
-	s.storage = postgres.NewEventStorage(pool)
+	s.storage = postgres.NewEventStorageWithPool(pool)
 	s.pgPool = pool
 
 	tableNames := []string{

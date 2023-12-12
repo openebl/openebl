@@ -1,6 +1,11 @@
 package storage
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+var ErrDuplicateEvent = errors.New("duplicate event")
 
 type ListEventRequest struct {
 	Offset    int64

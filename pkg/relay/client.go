@@ -82,7 +82,7 @@ func (c *NostrClient) outputWorker() {
 
 	cleanUp := func() {
 		if conn != nil {
-			go func() { c.connectionStatusCallback(context.Background(), c, "", false) }()
+			go func() { c.connectionStatusCallback(context.Background(), nil, c, "", false) }()
 			conn.Close()
 		}
 		conn = nil
@@ -159,7 +159,7 @@ func (c *NostrClient) inputWorker(cancel context.CancelCauseFunc, conn *websocke
 		case *EventPublishResponse:
 			c.receivePublishResponse(resp)
 		case *RelayServerIdentifyResponse:
-			c.receiveServerIdentity(resp)
+			c.receiveServerIdentity(cancel, resp)
 		case *SubscribeResponse:
 			c.receiveEvent(resp)
 		case *RelayServerNotice:
@@ -194,8 +194,8 @@ func (c *NostrClient) receivePublishResponse(resp *EventPublishResponse) {
 	c.replyWaitingResponse(resp.RequestID, resp.Reason)
 }
 
-func (c *NostrClient) receiveServerIdentity(resp *RelayServerIdentifyResponse) {
-	go func() { c.connectionStatusCallback(context.Background(), c, resp.Identity, true) }()
+func (c *NostrClient) receiveServerIdentity(cancel context.CancelCauseFunc, resp *RelayServerIdentifyResponse) {
+	go func() { c.connectionStatusCallback(context.Background(), cancel, c, resp.Identity, true) }()
 }
 
 func (c *NostrClient) receiveNotice(resp *RelayServerNotice) {

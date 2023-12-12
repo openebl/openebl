@@ -54,10 +54,19 @@ type EventStorage struct {
 	dbPool *pgxpool.Pool
 }
 
-func NewEventStorage(dbPool *pgxpool.Pool) *EventStorage {
+func NewEventStorageWithPool(dbPool *pgxpool.Pool) *EventStorage {
 	return &EventStorage{
 		dbPool: dbPool,
 	}
+}
+
+func NewEventStorageWithConfig(config DatabaseConfig) (*EventStorage, error) {
+	dbPool, err := NewDBPool(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewEventStorageWithPool(dbPool), nil
 }
 
 func (s *EventStorage) GetIdentity(ctx context.Context) (string, error) {
@@ -99,19 +108,43 @@ func (s *EventStorage) StoreEventWithOffsetInfo(
 	}
 	defer tx.Rollback(ctx)
 
-	// Store Event
-	var newOffset int64
-	query := `INSERT INTO "event" (id, "type", created_at, "event") VALUES ($1, $2, $3, $4) RETURNING "offset"`
-	row := tx.QueryRow(ctx, query, eventID, eventType, ts, event)
-	if err := row.Scan(&newOffset); err != nil {
-		return 0, fmt.Errorf("scan offset: %w", err)
-	}
-
 	// Store Offset information when it's available
 	if peerId != "" {
 		if err := s.storeOffset(ctx, tx, ts, peerId, offset); err != nil {
 			return 0, err
 		}
+	}
+
+	// Check if the event is already stored
+	query := `SELECT id FROM "event" WHERE id = $1`
+	row := tx.QueryRow(ctx, query, eventID)
+	var oldID string
+	err = row.Scan(&oldID)
+	if err != nil && err != pgx.ErrNoRows {
+		return 0, fmt.Errorf("scan for old event ID: %w", err)
+	} else if err == nil {
+		err = storage.ErrDuplicateEvent
+	} else if err == pgx.ErrNoRows {
+		err = nil
+	}
+
+	if peerId != "" && err == storage.ErrDuplicateEvent {
+		// Commit the transaction if the offset is already stored.
+		if err := tx.Commit(ctx); err != nil {
+			return 0, fmt.Errorf("commit transaction: %w", err)
+		}
+		return 0, err
+	}
+	if err != nil {
+		return 0, err
+	}
+
+	// Store Event
+	var newOffset int64
+	query = `INSERT INTO "event" (id, "type", created_at, "event") VALUES ($1, $2, $3, $4) RETURNING "offset"`
+	row = tx.QueryRow(ctx, query, eventID, eventType, ts, event)
+	if err := row.Scan(&newOffset); err != nil {
+		return 0, fmt.Errorf("scan offset: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -140,7 +173,7 @@ func (s *EventStorage) ListEvents(ctx context.Context, request storage.ListEvent
 		"event"
 	FROM "event"
 	WHERE
-		($2 = 0 OR "offset" > $2) AND
+		($2 = 0 OR "offset" >= $2) AND
 		($3 = 0 OR "type" = $3)
 	ORDER BY "offset" ASC
 	LIMIT $1`

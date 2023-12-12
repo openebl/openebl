@@ -92,7 +92,7 @@ func (s *NostrRelayServerTestSuite) TestSubscription() {
 		relay.NostrClientWithServerURL("ws://localhost:8081"),
 		relay.NostrClientWithEventSink(clientEventSink.Sink),
 		relay.NostrClientWithConnectionStatusCallback(
-			func(ctx context.Context, client relay.RelayClient, remoteServerIdentity string, status bool) {
+			func(ctx context.Context, cancel context.CancelCauseFunc, client relay.RelayClient, remoteServerIdentity string, status bool) {
 				if !status {
 					return
 				}
@@ -126,7 +126,8 @@ func (s *NostrRelayServerTestSuite) TestReceiveEvent() {
 		relay.NostrClientWithServerURL("ws://localhost:8082"),
 		relay.NostrClientWithEventSink(clientEventSink.Sink),
 		relay.NostrClientWithConnectionStatusCallback(
-			func(ctx context.Context, client relay.RelayClient, serverIdentity string, status bool) {},
+			func(ctx context.Context, cancel context.CancelCauseFunc, client relay.RelayClient, serverIdentity string, status bool) {
+			},
 		),
 	)
 	defer client.Close()
@@ -191,6 +192,7 @@ func TestNostrRelayServer(t *testing.T) {
 		relay.NostrServerAddress("localhost:8080"),
 		relay.NostrServerWithEventSource(eventSource),
 		relay.NostrServerWithEventSink(serverEventSink),
+		relay.NostrServerWithIdentity("test-server"),
 	)
 
 	// go func() {

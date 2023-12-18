@@ -3,6 +3,8 @@ module github.com/openebl/openebl
 go 1.21.1
 
 require (
+	github.com/alecthomas/kong v0.8.1
+	github.com/bluexlab/logrus-formatter v0.1.0
 	github.com/go-testfixtures/testfixtures/v3 v3.9.0
 	github.com/google/uuid v1.4.0
 	github.com/gorilla/websocket v1.5.1
@@ -12,6 +14,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/time v0.4.0
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -43,7 +46,7 @@ require (
 	go.opentelemetry.io/otel v1.15.0 // indirect
 	go.opentelemetry.io/otel/trace v1.15.0 // indirect
 	golang.org/x/crypto v0.14.0 // indirect
-	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
+	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect

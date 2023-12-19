@@ -9,6 +9,7 @@ import (
 	"github.com/alecthomas/kong"
 	formatter "github.com/bluexlab/logrus-formatter"
 	"github.com/gobuffalo/pop"
+	"github.com/gobuffalo/pop/logging"
 	"github.com/openebl/openebl/pkg/config"
 	"github.com/openebl/openebl/pkg/relay/server/storage/postgres"
 	"github.com/sirupsen/logrus"
@@ -82,6 +83,7 @@ func (r *RelayServerApp) runServer(cli RelayServerCli) error {
 }
 
 func (r *RelayServerApp) runMigrate(cli RelayServerCli) error {
+	pop.SetLogger(popLogger)
 	cfg := RelayServerConfig{}
 	if err := config.FromFile(cli.Config, &cfg); err != nil {
 		logrus.Errorf("failed to load config: %v", err)
@@ -102,11 +104,18 @@ func (r *RelayServerApp) runMigrate(cli RelayServerCli) error {
 		os.Exit(1)
 	}
 
+	if err := conn.Dialect.CreateDB(); err != nil {
+		logrus.Warnf("failed to create database: %v", err)
+	}
+
 	migrator, err := pop.NewFileMigrator(cli.Migrate.Migrations, conn)
 	if err != nil {
 		logrus.Errorf("failed to create migrator: %v", err)
 		os.Exit(1)
 	}
+	// Remove SchemaPath to prevent migrator try to dump schema.
+	migrator.SchemaPath = ""
+
 	if err := migrator.Up(); err != nil {
 		logrus.Errorf("failed to migrate: %v", err)
 		os.Exit(1)
@@ -120,4 +129,19 @@ func (r *RelayServerApp) waitForInterrupt() {
 	signal.Notify(quit, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	logrus.Info("Shutting down server......")
+}
+
+func popLogger(lvl logging.Level, s string, args ...interface{}) {
+	switch lvl {
+	case logging.Debug:
+		logrus.Debugf(s, args...)
+	case logging.Info:
+		logrus.Infof(s, args...)
+	case logging.Warn:
+		logrus.Warnf(s, args...)
+	case logging.Error:
+		logrus.Errorf(s, args...)
+	case logging.SQL:
+		// Do nothing because we don't want to log SQL queries.
+	}
 }

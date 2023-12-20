@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
 
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/relay/server/storage"
@@ -152,7 +153,11 @@ func (s *Server) Run() error {
 		s.otherPeers[peerAddress] = clientCallback
 	}
 
-	return s.relayServer.ListenAndServe()
+	err := s.relayServer.ListenAndServe()
+	if err != nil && err != http.ErrServerClosed {
+		return err
+	}
+	return nil
 }
 
 func (s *Server) Close() error {

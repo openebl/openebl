@@ -102,9 +102,19 @@ func (s *NostrServer) Close() error {
 }
 
 func (s *NostrServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	logrus.Debugf("Receive connection to %q.", r.RequestURI)
+
+	// A brief checking about if the client wants to upgrade to websocket.
+	// If not, just return a 200 OK.
+	if r.Header.Get("Upgrade") == "" {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Nostr Relay Server is working."))
+		return
+	}
+
 	c, err := s.wsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
-		logrus.Errorf("failed to upgrade websocket: %v", err)
+		logrus.Errorf("(%q)failed to upgrade websocket: %v", r.RequestURI, err)
 		return
 	}
 

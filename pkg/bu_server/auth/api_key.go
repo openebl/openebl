@@ -1,11 +1,14 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"strings"
 
+	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -29,15 +32,63 @@ type APIKeyString string
 type APIKeyHashedString string
 
 type APIKey struct {
-	ID          string             `json:"id"`
-	HashString  APIKeyHashedString `json:"hash_string"`
-	Version     int                `json:"version"`
-	Application string             `json:"application"`
-	Scopes      []string           `json:"scopes"`
-	Status      APIKeyStatus       `json:"status"`
+	ID            string             `json:"id"`
+	HashString    APIKeyHashedString `json:"hash_string"`
+	Version       int                `json:"version"`
+	ApplicationID string             `json:"application_id"`
+	Scopes        []APIKeyScope      `json:"scopes"`
+	Status        APIKeyStatus       `json:"status"`
 
-	UpdatedAt int64  `json:"updated_at"`
+	CreatedAt int64  `json:"created_at"` // Unix Time (in second)
+	CreatedBy string `json:"created_by"`
+	UpdatedAt int64  `json:"updated_at"` // Unix Time (in second)
 	UpdatedBy string `json:"updated_by"`
+}
+
+// APIKeyAuthenticator is the interface that wraps the basic API key authentication methods
+// and other management methods.
+type APIKeyAuthenticator interface {
+	CreateAPIKey(
+		ctx context.Context,
+		applicationId string,
+		scopes []APIKeyScope,
+		ts int64,
+		createdBy string,
+	) (APIKey, APIKeyString, error)
+
+	// RevokeAPIKey revokes the API key with the given ID.
+	// The error can be ErrAPIKeyNotFound and others.
+	RevokeAPIKey(
+		ctx context.Context,
+		id string,
+		ts int64,
+		revokedBy string,
+	) error
+
+	// Authenticate authenticates the given API key string. It returns the API key if the authentication is successful.
+	// The error can be ErrAPIKeyNotFound, ErrMismatchAPIKey, ErrRevokedAPIKey and others.
+	Authenticate(ctx context.Context, key APIKeyString) (APIKey, error)
+}
+
+// APIKeyStorage is the interface that APIKeyAuthenticator relies on to persist the API key data.
+type APIKeyStorage interface {
+	CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.TxWrapper, error)
+	StoreAPIKey(ctx context.Context, tx storage.TxWrapper, key APIKey) error
+	GetAPIKey(ctx context.Context, tx storage.TxWrapper, id string) (APIKey, error)
+	ListAPIKeys(ctx context.Context, tx storage.TxWrapper, req ListAPIKeysRequest) (ListAPIKeysResult, error)
+}
+
+type ListAPIKeysRequest struct {
+	Offset int
+	Limit  int
+
+	ApplicationIDs []string       // Filter by application ID.
+	Statuses       []APIKeyStatus // Filter by status.
+
+}
+type ListAPIKeysResult struct {
+	Total int
+	Keys  []APIKey
 }
 
 func (ks APIKeyString) ID() (string, error) {
@@ -86,4 +137,123 @@ func VerifyAPIKeyString(ks APIKeyString, hashedKs APIKeyHashedString) error {
 	}
 
 	return err
+}
+
+type _APIKeyAuthenticator struct {
+	storage APIKeyStorage
+}
+
+func NewAPIKeyAuthenticator(storage APIKeyStorage) APIKeyAuthenticator {
+	return &_APIKeyAuthenticator{
+		storage: storage,
+	}
+}
+
+func (a *_APIKeyAuthenticator) CreateAPIKey(
+	ctx context.Context,
+	applicationId string,
+	scopes []APIKeyScope,
+	ts int64,
+	createdBy string,
+) (APIKey, APIKeyString, error) {
+	apiKeyString, err := NewAPIKeyString()
+	if err != nil {
+		return APIKey{}, "", nil
+	}
+	apiKeyID, err := apiKeyString.ID()
+	if err != nil {
+		return APIKey{}, "", err
+	}
+	apiKeyHashedString, err := apiKeyString.Hash()
+	if err != nil {
+		return APIKey{}, "", err
+	}
+
+	apiKey := APIKey{
+		ID:            apiKeyID,
+		Version:       1,
+		HashString:    apiKeyHashedString,
+		ApplicationID: applicationId,
+		Scopes:        scopes,
+		Status:        APIKeyStatusActive,
+		CreatedAt:     ts,
+		CreatedBy:     createdBy,
+		UpdatedAt:     ts,
+		UpdatedBy:     createdBy,
+	}
+
+	tx, err := a.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return APIKey{}, "", err
+	}
+	defer tx.Rollback()
+
+	if err := a.storage.StoreAPIKey(ctx, tx, apiKey); err != nil {
+		return APIKey{}, "", err
+	}
+	if err := tx.Commit(); err != nil {
+		return APIKey{}, "", err
+	}
+
+	return apiKey, apiKeyString, nil
+}
+
+func (a *_APIKeyAuthenticator) RevokeAPIKey(ctx context.Context, id string, ts int64, revokedBy string) error {
+	tx, err := a.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	apiKey, err := a.storage.GetAPIKey(ctx, tx, id)
+	if err != nil && err == sql.ErrNoRows {
+		return ErrAPIKeyNotFound
+	} else if err != nil {
+		return err
+	}
+
+	apiKey.Status = APIKeyStatusRevoked
+	apiKey.Version += 1
+	apiKey.UpdatedAt = ts
+	apiKey.UpdatedBy = revokedBy
+
+	if err := a.storage.StoreAPIKey(ctx, tx, apiKey); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Authenticate authenticates the given API key string. It returns the API key if the authentication is successful.
+func (a *_APIKeyAuthenticator) Authenticate(ctx context.Context, key APIKeyString) (APIKey, error) {
+	apiKeyID, err := key.ID()
+	if err != nil {
+		return APIKey{}, err
+	}
+
+	tx, err := a.storage.CreateTx(ctx, storage.TxOptionWithWrite(false))
+	if err != nil {
+		return APIKey{}, err
+	}
+	defer tx.Rollback()
+
+	apiKey, err := a.storage.GetAPIKey(ctx, tx, apiKeyID)
+	if err != nil && err == sql.ErrNoRows {
+		return APIKey{}, ErrAPIKeyNotFound
+	} else if err != nil {
+		return APIKey{}, err
+	}
+
+	if err := VerifyAPIKeyString(key, apiKey.HashString); err != nil {
+		return APIKey{}, err
+	}
+
+	if apiKey.Status != APIKeyStatusActive {
+		return APIKey{}, ErrRevokedAPIKey
+	}
+
+	apiKey.HashString = ""
+	return apiKey, nil
 }

@@ -7,6 +7,7 @@ require (
 	github.com/bluexlab/logrus-formatter v0.1.0
 	github.com/go-testfixtures/testfixtures/v3 v3.9.0
 	github.com/gobuffalo/pop v4.13.1+incompatible
+	github.com/golang/mock v1.5.0
 	github.com/google/uuid v1.4.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/jackc/pgx/v5 v5.5.0
@@ -14,6 +15,7 @@ require (
 	github.com/samber/lo v1.38.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
+	golang.org/x/crypto v0.14.0
 	golang.org/x/time v0.4.0
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -79,7 +81,6 @@ require (
 	github.com/sourcegraph/syntaxhighlight v0.0.0-20170531221838-bd320f5d308e // indirect
 	go.opentelemetry.io/otel v1.15.0 // indirect
 	go.opentelemetry.io/otel/trace v1.15.0 // indirect
-	golang.org/x/crypto v0.14.0 // indirect
 	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2 // indirect
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/net v0.17.0 // indirect

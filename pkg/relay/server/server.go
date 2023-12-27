@@ -8,15 +8,15 @@ import (
 
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/relay/server/storage"
-	"github.com/openebl/openebl/pkg/relay/server/storage/postgres"
+	"github.com/openebl/openebl/pkg/util"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 )
 
 type ServerConfig struct {
-	DbConfig     postgres.DatabaseConfig `yaml:"db_config"`
-	LocalAddress string                  `yaml:"local_address"`
-	OtherPeers   []string                `yaml:"other_peers"` // Set the server to connect to other servers to pull data from them.
+	DbConfig     util.PostgresDatabaseConfig `yaml:"db_config"`
+	LocalAddress string                      `yaml:"local_address"`
+	OtherPeers   []string                    `yaml:"other_peers"` // Set the server to connect to other servers to pull data from them.
 }
 
 type Server struct {

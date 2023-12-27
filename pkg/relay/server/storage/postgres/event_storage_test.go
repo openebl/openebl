@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/openebl/openebl/pkg/relay/server/storage"
 	"github.com/openebl/openebl/pkg/relay/server/storage/postgres"
+	"github.com/openebl/openebl/pkg/util"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -36,7 +37,7 @@ func (s *EventStorageTestSuite) SetupSuite() {
 	userName := os.Getenv("DATABASE_USER")
 	password := os.Getenv("DATABASE_PASSWORD")
 
-	config := postgres.DatabaseConfig{
+	config := util.PostgresDatabaseConfig{
 		Host:     dbHost,
 		Port:     dbPort,
 		Database: dbName,
@@ -46,7 +47,7 @@ func (s *EventStorageTestSuite) SetupSuite() {
 		PoolSize: 5,
 	}
 
-	pool, err := postgres.NewDBPool(config)
+	pool, err := util.NewPostgresDBPool(config)
 	s.Require().NoError(err)
 	s.storage = postgres.NewEventStorageWithPool(pool)
 	s.pgPool = pool

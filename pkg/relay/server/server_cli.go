@@ -12,6 +12,7 @@ import (
 	"github.com/gobuffalo/pop/logging"
 	"github.com/openebl/openebl/pkg/config"
 	"github.com/openebl/openebl/pkg/relay/server/storage/postgres"
+	"github.com/openebl/openebl/pkg/util"
 	"github.com/sirupsen/logrus"
 )
 
@@ -26,9 +27,9 @@ type RelayServerCli struct {
 }
 
 type RelayServerConfig struct {
-	Database     postgres.DatabaseConfig `yaml:"database"`
-	LocalAddress string                  `yaml:"local_address"`
-	OtherPeers   []string                `yaml:"other_peers"`
+	Database     util.PostgresDatabaseConfig `yaml:"database"`
+	LocalAddress string                      `yaml:"local_address"`
+	OtherPeers   []string                    `yaml:"other_peers"`
 }
 
 func (r *RelayServerApp) Run() error {

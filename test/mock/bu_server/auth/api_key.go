@@ -105,14 +105,14 @@ func (m *MockAPIKeyStorage) EXPECT() *MockAPIKeyStorageMockRecorder {
 }
 
 // CreateTx mocks base method.
-func (m *MockAPIKeyStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.TxWrapper, error) {
+func (m *MockAPIKeyStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx}
 	for _, a := range options {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "CreateTx", varargs...)
-	ret0, _ := ret[0].(storage.TxWrapper)
+	ret0, _ := ret[0].(storage.Tx)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -125,7 +125,7 @@ func (mr *MockAPIKeyStorageMockRecorder) CreateTx(ctx interface{}, options ...in
 }
 
 // GetAPIKey mocks base method.
-func (m *MockAPIKeyStorage) GetAPIKey(ctx context.Context, tx storage.TxWrapper, id string) (auth.APIKey, error) {
+func (m *MockAPIKeyStorage) GetAPIKey(ctx context.Context, tx storage.Tx, id string) (auth.APIKey, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAPIKey", ctx, tx, id)
 	ret0, _ := ret[0].(auth.APIKey)
@@ -140,7 +140,7 @@ func (mr *MockAPIKeyStorageMockRecorder) GetAPIKey(ctx, tx, id interface{}) *gom
 }
 
 // ListAPIKeys mocks base method.
-func (m *MockAPIKeyStorage) ListAPIKeys(ctx context.Context, tx storage.TxWrapper, req auth.ListAPIKeysRequest) (auth.ListAPIKeysResult, error) {
+func (m *MockAPIKeyStorage) ListAPIKeys(ctx context.Context, tx storage.Tx, req auth.ListAPIKeysRequest) (auth.ListAPIKeysResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListAPIKeys", ctx, tx, req)
 	ret0, _ := ret[0].(auth.ListAPIKeysResult)
@@ -155,7 +155,7 @@ func (mr *MockAPIKeyStorageMockRecorder) ListAPIKeys(ctx, tx, req interface{}) *
 }
 
 // StoreAPIKey mocks base method.
-func (m *MockAPIKeyStorage) StoreAPIKey(ctx context.Context, tx storage.TxWrapper, key auth.APIKey) error {
+func (m *MockAPIKeyStorage) StoreAPIKey(ctx context.Context, tx storage.Tx, key auth.APIKey) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreAPIKey", ctx, tx, key)
 	ret0, _ := ret[0].(error)

@@ -72,10 +72,10 @@ type APIKeyAuthenticator interface {
 
 // APIKeyStorage is the interface that APIKeyAuthenticator relies on to persist the API key data.
 type APIKeyStorage interface {
-	CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.TxWrapper, error)
-	StoreAPIKey(ctx context.Context, tx storage.TxWrapper, key APIKey) error
-	GetAPIKey(ctx context.Context, tx storage.TxWrapper, id string) (APIKey, error)
-	ListAPIKeys(ctx context.Context, tx storage.TxWrapper, req ListAPIKeysRequest) (ListAPIKeysResult, error)
+	CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, error)
+	StoreAPIKey(ctx context.Context, tx storage.Tx, key APIKey) error
+	GetAPIKey(ctx context.Context, tx storage.Tx, id string) (APIKey, error)
+	ListAPIKeys(ctx context.Context, tx storage.Tx, req ListAPIKeysRequest) (ListAPIKeysResult, error)
 }
 
 type ListAPIKeysRequest struct {
@@ -186,12 +186,12 @@ func (a *_APIKeyAuthenticator) CreateAPIKey(
 	if err != nil {
 		return APIKey{}, "", err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(ctx)
 
 	if err := a.storage.StoreAPIKey(ctx, tx, apiKey); err != nil {
 		return APIKey{}, "", err
 	}
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return APIKey{}, "", err
 	}
 
@@ -203,7 +203,7 @@ func (a *_APIKeyAuthenticator) RevokeAPIKey(ctx context.Context, id string, ts i
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(ctx)
 
 	apiKey, err := a.storage.GetAPIKey(ctx, tx, id)
 	if err != nil && err == sql.ErrNoRows {
@@ -220,7 +220,7 @@ func (a *_APIKeyAuthenticator) RevokeAPIKey(ctx context.Context, id string, ts i
 	if err := a.storage.StoreAPIKey(ctx, tx, apiKey); err != nil {
 		return err
 	}
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
 	return nil
@@ -237,7 +237,7 @@ func (a *_APIKeyAuthenticator) Authenticate(ctx context.Context, key APIKeyStrin
 	if err != nil {
 		return APIKey{}, err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(ctx)
 
 	apiKey, err := a.storage.GetAPIKey(ctx, tx, apiKeyID)
 	if err != nil && err == sql.ErrNoRows {

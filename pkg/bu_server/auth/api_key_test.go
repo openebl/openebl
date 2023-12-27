@@ -47,7 +47,7 @@ type APIAuthenticatorTestSuite struct {
 	ctx           context.Context
 	ctrl          *gomock.Controller
 	storage       *mock_auth.MockAPIKeyStorage
-	tx            *mock_storage.MockTxWrapper
+	tx            *mock_storage.MockTx
 	authenticator auth.APIKeyAuthenticator
 }
 
@@ -59,7 +59,7 @@ func (s *APIAuthenticatorTestSuite) SetupTest() {
 	s.ctx = context.Background()
 	s.ctrl = gomock.NewController(s.T())
 	s.storage = mock_auth.NewMockAPIKeyStorage(s.ctrl)
-	s.tx = mock_storage.NewMockTxWrapper(s.ctrl)
+	s.tx = mock_storage.NewMockTx(s.ctrl)
 	s.authenticator = auth.NewAPIKeyAuthenticator(s.storage)
 }
 
@@ -78,13 +78,13 @@ func (s *APIAuthenticatorTestSuite) TestCreateAPIKey() {
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
 		s.storage.EXPECT().StoreAPIKey(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, tx storage.TxWrapper, key auth.APIKey) error {
+			func(ctx context.Context, tx storage.Tx, key auth.APIKey) error {
 				receivedAPIKey = key
 				return nil
 			},
 		),
-		s.tx.EXPECT().Commit().Return(nil),
-		s.tx.EXPECT().Rollback().Return(nil),
+		s.tx.EXPECT().Commit(gomock.Eq(s.ctx)).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
 
 	returnedAPIKey, apiKeyString, err := s.authenticator.CreateAPIKey(s.ctx, applicationID, scopes, ts, createdBy)
@@ -127,8 +127,8 @@ func (s *APIAuthenticatorTestSuite) TestRevokeAPIKey() {
 		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
 		s.storage.EXPECT().GetAPIKey(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(id)).Return(oldAPIKey, nil),
 		s.storage.EXPECT().StoreAPIKey(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(newAPIKey)).Return(nil),
-		s.tx.EXPECT().Commit().Return(nil),
-		s.tx.EXPECT().Rollback().Return(nil),
+		s.tx.EXPECT().Commit(gomock.Eq(s.ctx)).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
 
 	err := s.authenticator.RevokeAPIKey(s.ctx, id, ts, revokedBy)
@@ -143,7 +143,7 @@ func (s *APIAuthenticatorTestSuite) TestRevokeAPIKeyWithNonExistAPIKey() {
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
 		s.storage.EXPECT().GetAPIKey(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(id)).Return(auth.APIKey{}, sql.ErrNoRows),
-		s.tx.EXPECT().Rollback().Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
 
 	err := s.authenticator.RevokeAPIKey(s.ctx, id, ts, revokedBy)
@@ -174,7 +174,7 @@ func (s *APIAuthenticatorTestSuite) TestAuthenticate() {
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, nil),
 		s.storage.EXPECT().GetAPIKey(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(apiKeyID)).Return(oldAPIKey, nil),
-		s.tx.EXPECT().Rollback().Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
 
 	returnedAPIKey, err := s.authenticator.Authenticate(s.ctx, apiKeyString)
@@ -188,7 +188,7 @@ func (s *APIAuthenticatorTestSuite) TestAuthenticate() {
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, nil),
 		s.storage.EXPECT().GetAPIKey(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(apiKeyID)).Return(oldAPIKey, nil),
-		s.tx.EXPECT().Rollback().Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
 
 	returnedAPIKey, err = s.authenticator.Authenticate(s.ctx, apiKeyString)
@@ -200,7 +200,7 @@ func (s *APIAuthenticatorTestSuite) TestAuthenticate() {
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, nil),
 		s.storage.EXPECT().GetAPIKey(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(apiKeyID)).Return(auth.APIKey{}, sql.ErrNoRows),
-		s.tx.EXPECT().Rollback().Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
 
 	returnedAPIKey, err = s.authenticator.Authenticate(s.ctx, apiKeyString)

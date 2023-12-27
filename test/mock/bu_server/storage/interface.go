@@ -6,76 +6,280 @@ package mock_storage
 
 import (
 	context "context"
-	sql "database/sql"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
 	storage "github.com/openebl/openebl/pkg/bu_server/storage"
 )
 
-// MockTxWrapper is a mock of TxWrapper interface.
-type MockTxWrapper struct {
+// MockTx is a mock of Tx interface.
+type MockTx struct {
 	ctrl     *gomock.Controller
-	recorder *MockTxWrapperMockRecorder
+	recorder *MockTxMockRecorder
 }
 
-// MockTxWrapperMockRecorder is the mock recorder for MockTxWrapper.
-type MockTxWrapperMockRecorder struct {
-	mock *MockTxWrapper
+// MockTxMockRecorder is the mock recorder for MockTx.
+type MockTxMockRecorder struct {
+	mock *MockTx
 }
 
-// NewMockTxWrapper creates a new mock instance.
-func NewMockTxWrapper(ctrl *gomock.Controller) *MockTxWrapper {
-	mock := &MockTxWrapper{ctrl: ctrl}
-	mock.recorder = &MockTxWrapperMockRecorder{mock}
+// NewMockTx creates a new mock instance.
+func NewMockTx(ctrl *gomock.Controller) *MockTx {
+	mock := &MockTx{ctrl: ctrl}
+	mock.recorder = &MockTxMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockTxWrapper) EXPECT() *MockTxWrapperMockRecorder {
+func (m *MockTx) EXPECT() *MockTxMockRecorder {
 	return m.recorder
 }
 
 // Commit mocks base method.
-func (m *MockTxWrapper) Commit() error {
+func (m *MockTx) Commit(ctx context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Commit")
+	ret := m.ctrl.Call(m, "Commit", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Commit indicates an expected call of Commit.
-func (mr *MockTxWrapperMockRecorder) Commit() *gomock.Call {
+func (mr *MockTxMockRecorder) Commit(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockTxWrapper)(nil).Commit))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockTx)(nil).Commit), ctx)
 }
 
-// GetTx mocks base method.
-func (m *MockTxWrapper) GetTx() *sql.Tx {
+// Exec mocks base method.
+func (m *MockTx) Exec(ctx context.Context, sql string, arguments ...any) (storage.Result, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTx")
-	ret0, _ := ret[0].(*sql.Tx)
+	varargs := []interface{}{ctx, sql}
+	for _, a := range arguments {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Exec", varargs...)
+	ret0, _ := ret[0].(storage.Result)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Exec indicates an expected call of Exec.
+func (mr *MockTxMockRecorder) Exec(ctx, sql interface{}, arguments ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, sql}, arguments...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exec", reflect.TypeOf((*MockTx)(nil).Exec), varargs...)
+}
+
+// Query mocks base method.
+func (m *MockTx) Query(ctx context.Context, sql string, args ...any) (storage.Rows, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, sql}
+	for _, a := range args {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Query", varargs...)
+	ret0, _ := ret[0].(storage.Rows)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Query indicates an expected call of Query.
+func (mr *MockTxMockRecorder) Query(ctx, sql interface{}, args ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, sql}, args...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Query", reflect.TypeOf((*MockTx)(nil).Query), varargs...)
+}
+
+// QueryRow mocks base method.
+func (m *MockTx) QueryRow(ctx context.Context, sql string, args ...any) storage.Row {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, sql}
+	for _, a := range args {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "QueryRow", varargs...)
+	ret0, _ := ret[0].(storage.Row)
 	return ret0
 }
 
-// GetTx indicates an expected call of GetTx.
-func (mr *MockTxWrapperMockRecorder) GetTx() *gomock.Call {
+// QueryRow indicates an expected call of QueryRow.
+func (mr *MockTxMockRecorder) QueryRow(ctx, sql interface{}, args ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTx", reflect.TypeOf((*MockTxWrapper)(nil).GetTx))
+	varargs := append([]interface{}{ctx, sql}, args...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryRow", reflect.TypeOf((*MockTx)(nil).QueryRow), varargs...)
 }
 
 // Rollback mocks base method.
-func (m *MockTxWrapper) Rollback() error {
+func (m *MockTx) Rollback(ctx context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Rollback")
+	ret := m.ctrl.Call(m, "Rollback", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Rollback indicates an expected call of Rollback.
-func (mr *MockTxWrapperMockRecorder) Rollback() *gomock.Call {
+func (mr *MockTxMockRecorder) Rollback(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockTxWrapper)(nil).Rollback))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockTx)(nil).Rollback), ctx)
+}
+
+// MockRows is a mock of Rows interface.
+type MockRows struct {
+	ctrl     *gomock.Controller
+	recorder *MockRowsMockRecorder
+}
+
+// MockRowsMockRecorder is the mock recorder for MockRows.
+type MockRowsMockRecorder struct {
+	mock *MockRows
+}
+
+// NewMockRows creates a new mock instance.
+func NewMockRows(ctrl *gomock.Controller) *MockRows {
+	mock := &MockRows{ctrl: ctrl}
+	mock.recorder = &MockRowsMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockRows) EXPECT() *MockRowsMockRecorder {
+	return m.recorder
+}
+
+// Close mocks base method.
+func (m *MockRows) Close() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Close")
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockRowsMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockRows)(nil).Close))
+}
+
+// Err mocks base method.
+func (m *MockRows) Err() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Err")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Err indicates an expected call of Err.
+func (mr *MockRowsMockRecorder) Err() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Err", reflect.TypeOf((*MockRows)(nil).Err))
+}
+
+// Next mocks base method.
+func (m *MockRows) Next() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Next")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Next indicates an expected call of Next.
+func (mr *MockRowsMockRecorder) Next() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Next", reflect.TypeOf((*MockRows)(nil).Next))
+}
+
+// Scan mocks base method.
+func (m *MockRows) Scan(dest ...any) error {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{}
+	for _, a := range dest {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Scan", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Scan indicates an expected call of Scan.
+func (mr *MockRowsMockRecorder) Scan(dest ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Scan", reflect.TypeOf((*MockRows)(nil).Scan), dest...)
+}
+
+// MockRow is a mock of Row interface.
+type MockRow struct {
+	ctrl     *gomock.Controller
+	recorder *MockRowMockRecorder
+}
+
+// MockRowMockRecorder is the mock recorder for MockRow.
+type MockRowMockRecorder struct {
+	mock *MockRow
+}
+
+// NewMockRow creates a new mock instance.
+func NewMockRow(ctrl *gomock.Controller) *MockRow {
+	mock := &MockRow{ctrl: ctrl}
+	mock.recorder = &MockRowMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockRow) EXPECT() *MockRowMockRecorder {
+	return m.recorder
+}
+
+// Scan mocks base method.
+func (m *MockRow) Scan(dest ...any) error {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{}
+	for _, a := range dest {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Scan", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Scan indicates an expected call of Scan.
+func (mr *MockRowMockRecorder) Scan(dest ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Scan", reflect.TypeOf((*MockRow)(nil).Scan), dest...)
+}
+
+// MockResult is a mock of Result interface.
+type MockResult struct {
+	ctrl     *gomock.Controller
+	recorder *MockResultMockRecorder
+}
+
+// MockResultMockRecorder is the mock recorder for MockResult.
+type MockResultMockRecorder struct {
+	mock *MockResult
+}
+
+// NewMockResult creates a new mock instance.
+func NewMockResult(ctrl *gomock.Controller) *MockResult {
+	mock := &MockResult{ctrl: ctrl}
+	mock.recorder = &MockResultMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockResult) EXPECT() *MockResultMockRecorder {
+	return m.recorder
+}
+
+// RowsAffected mocks base method.
+func (m *MockResult) RowsAffected() (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RowsAffected")
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RowsAffected indicates an expected call of RowsAffected.
+func (mr *MockResultMockRecorder) RowsAffected() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RowsAffected", reflect.TypeOf((*MockResult)(nil).RowsAffected))
 }
 
 // MockTransactionInterface is a mock of TransactionInterface interface.
@@ -102,14 +306,14 @@ func (m *MockTransactionInterface) EXPECT() *MockTransactionInterfaceMockRecorde
 }
 
 // CreateTx mocks base method.
-func (m *MockTransactionInterface) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.TxWrapper, error) {
+func (m *MockTransactionInterface) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx}
 	for _, a := range options {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "CreateTx", varargs...)
-	ret0, _ := ret[0].(storage.TxWrapper)
+	ret0, _ := ret[0].(storage.Tx)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

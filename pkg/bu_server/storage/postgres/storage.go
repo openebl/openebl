@@ -32,7 +32,7 @@ func NewStorageWithPool(dbPool *pgxpool.Pool) *_Storage {
 	}
 }
 
-func NewEventStorageWithConfig(config util.PostgresDatabaseConfig) (*_Storage, error) {
+func NewStorageWithConfig(config util.PostgresDatabaseConfig) (*_Storage, error) {
 	dbPool, err := util.NewPostgresDBPool(config)
 	if err != nil {
 		return nil, err

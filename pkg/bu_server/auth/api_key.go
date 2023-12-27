@@ -84,7 +84,6 @@ type ListAPIKeysRequest struct {
 
 	ApplicationIDs []string       // Filter by application ID.
 	Statuses       []APIKeyStatus // Filter by status.
-
 }
 type ListAPIKeysResult struct {
 	Total int

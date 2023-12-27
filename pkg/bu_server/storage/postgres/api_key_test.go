@@ -1,0 +1,205 @@
+package postgres_test
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"os"
+	"strconv"
+	"testing"
+
+	"github.com/go-testfixtures/testfixtures/v3"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/openebl/openebl/pkg/bu_server/auth"
+	"github.com/openebl/openebl/pkg/bu_server/storage"
+	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
+	"github.com/openebl/openebl/pkg/util"
+	"github.com/stretchr/testify/suite"
+)
+
+type APIKeyStorageTestSuite struct {
+	suite.Suite
+	ctx     context.Context
+	storage auth.APIKeyStorage
+	pgPool  *pgxpool.Pool
+}
+
+func TestEventStorage(t *testing.T) {
+	suite.Run(t, new(APIKeyStorageTestSuite))
+}
+
+func (s *APIKeyStorageTestSuite) SetupSuite() {
+	s.ctx = context.Background()
+	dbHost := os.Getenv("DATABASE_HOST")
+	dbPort, err := strconv.Atoi(os.Getenv("DATABASE_PORT"))
+	if err != nil {
+		dbPort = 5432
+	}
+	dbName := os.Getenv("DATABASE_NAME")
+	userName := os.Getenv("DATABASE_USER")
+	password := os.Getenv("DATABASE_PASSWORD")
+
+	config := util.PostgresDatabaseConfig{
+		Host:     dbHost,
+		Port:     dbPort,
+		Database: dbName,
+		User:     userName,
+		Password: password,
+		SSLMode:  "disable",
+		PoolSize: 5,
+	}
+
+	pool, err := util.NewPostgresDBPool(config)
+	s.Require().NoError(err)
+	s.storage = postgres.NewStorageWithPool(pool)
+	s.pgPool = pool
+
+	tableNames := []string{
+		"api_key",
+		"api_key_history",
+	}
+	for _, tableName := range tableNames {
+		_, err := pool.Exec(context.Background(), fmt.Sprintf(`TRUNCATE TABLE %q`, tableName))
+		s.Require().NoError(err)
+	}
+}
+
+func (s *APIKeyStorageTestSuite) TearDownSuite() {
+	s.pgPool.Close()
+}
+
+func (s *APIKeyStorageTestSuite) TestCreateAPIKey() {
+	query := `SELECT api_key FROM api_key WHERE id = $1 AND "version" = $2 AND application_id = $3 AND status = $4`
+	historyQuery := `SELECT api_key FROM api_key_history WHERE id = $1 AND "version" = $2`
+	apiKeyFromDB := auth.APIKey{}
+
+	apiKey := auth.APIKey{
+		ID:            "test-api-key",
+		HashString:    "test-api-key-hash-string",
+		Version:       1,
+		ApplicationID: "test-application-id",
+		Scopes:        []auth.APIKeyScope{auth.APIKeyScopeAll},
+		Status:        auth.APIKeyStatusActive,
+		CreatedBy:     "test-created-by",
+		UpdatedBy:     "test-updated-by",
+		CreatedAt:     123,
+		UpdatedAt:     456,
+	}
+	newVersionAPIKey := apiKey
+	newVersionAPIKey.Version += 1
+	newVersionAPIKey.Status = auth.APIKeyStatusRevoked
+	newVersionAPIKey.UpdatedAt = 789
+	newVersionAPIKey.UpdatedBy = "test-updated-by-2"
+
+	tx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	s.Require().NoError(err)
+	defer tx.Rollback(s.ctx)
+
+	// First version of APIKey
+	s.Require().NoError(s.storage.StoreAPIKey(s.ctx, tx, apiKey))
+	err = tx.QueryRow(s.ctx, query, apiKey.ID, apiKey.Version, apiKey.ApplicationID, apiKey.Status).Scan(&apiKeyFromDB)
+	s.Require().NoError(err)
+	s.Assert().Equal(apiKey, apiKeyFromDB)
+	err = tx.QueryRow(s.ctx, historyQuery, apiKey.ID, apiKey.Version).Scan(&apiKeyFromDB)
+	s.Require().NoError(err)
+	s.Assert().Equal(apiKey, apiKeyFromDB)
+	// End of first version of APIKey
+
+	// Second version of APIKey
+	s.Require().NoError(s.storage.StoreAPIKey(s.ctx, tx, newVersionAPIKey))
+	err = tx.QueryRow(s.ctx, query, newVersionAPIKey.ID, newVersionAPIKey.Version, newVersionAPIKey.ApplicationID, newVersionAPIKey.Status).Scan(&apiKeyFromDB)
+	s.Require().NoError(err)
+	s.Assert().Equal(newVersionAPIKey, apiKeyFromDB)
+	err = tx.QueryRow(s.ctx, historyQuery, newVersionAPIKey.ID, newVersionAPIKey.Version).Scan(&apiKeyFromDB)
+	s.Require().NoError(err)
+	s.Assert().Equal(newVersionAPIKey, apiKeyFromDB)
+	// End of second version of APIKey
+
+	s.Require().NoError(tx.Commit(s.ctx))
+}
+
+func (s *APIKeyStorageTestSuite) TestGetAPIKey() {
+	db := stdlib.OpenDBFromPool(s.pgPool)
+	fixtures, err := testfixtures.New(
+		testfixtures.Database(db),
+		testfixtures.Dialect("postgres"),
+		testfixtures.Directory("testdata/api_key"),
+	)
+	s.Require().NoError(err)
+	s.Require().NoError(fixtures.Load())
+
+	tx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(false))
+	s.Require().NoError(err)
+	defer tx.Rollback(s.ctx)
+
+	apiKey, err := s.storage.GetAPIKey(s.ctx, tx, "key_1")
+	s.Require().NoError(err)
+	s.Assert().Equal("key_1", apiKey.ID)
+	s.Assert().Equal(auth.APIKeyHashedString("hashed_key1"), apiKey.HashString)
+	s.Assert().Equal(1, apiKey.Version)
+	s.Assert().Equal("app_1", apiKey.ApplicationID)
+	s.Assert().Equal([]auth.APIKeyScope{auth.APIKeyScopeAll}, apiKey.Scopes)
+	s.Assert().Equal(auth.APIKeyStatusActive, apiKey.Status)
+
+	apiKey, err = s.storage.GetAPIKey(s.ctx, tx, "key_2")
+	s.Require().NoError(err)
+	s.Assert().Equal("key_2", apiKey.ID)
+	s.Assert().Equal(auth.APIKeyHashedString("hashed_key2"), apiKey.HashString)
+	s.Assert().Equal(1, apiKey.Version)
+	s.Assert().Equal("app_2", apiKey.ApplicationID)
+	s.Assert().Equal([]auth.APIKeyScope{auth.APIKeyScopeAll}, apiKey.Scopes)
+	s.Assert().Equal(auth.APIKeyStatusActive, apiKey.Status)
+}
+
+func (s *APIKeyStorageTestSuite) TestListAPIKey() {
+	db := stdlib.OpenDBFromPool(s.pgPool)
+	fixtures, err := testfixtures.New(
+		testfixtures.Database(db),
+		testfixtures.Dialect("postgres"),
+		testfixtures.Directory("testdata/api_key"),
+	)
+	s.Require().NoError(err)
+	s.Require().NoError(fixtures.Load())
+
+	tx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(false))
+	s.Require().NoError(err)
+	defer tx.Rollback(s.ctx)
+
+	apiKeysOnDB := []auth.APIKey{}
+	err = tx.QueryRow(s.ctx, `SELECT jsonb_agg(api_key ORDER BY rec_id) FROM api_key`).Scan(&apiKeysOnDB)
+	s.Require().NoError(err)
+
+	// Offset and Limit
+	req := auth.ListAPIKeysRequest{
+		Offset: 1,
+		Limit:  1,
+	}
+	result, err := s.storage.ListAPIKeys(s.ctx, tx, req)
+	s.Require().NoError(err)
+	s.Assert().Equal(3, result.Total)
+	s.Assert().Equal(apiKeysOnDB[1:2], result.Keys)
+	// End of Offset and Limit
+
+	// Filter by ApplicationID
+	req = auth.ListAPIKeysRequest{
+		Limit:          10,
+		ApplicationIDs: []string{"app_1"},
+	}
+	result, err = s.storage.ListAPIKeys(s.ctx, tx, req)
+	s.Require().NoError(err)
+	s.Assert().Equal(1, result.Total)
+	s.Assert().Equal(apiKeysOnDB[0:1], result.Keys)
+	// End of Filter by ApplicationID
+
+	// Filter by Status
+	req = auth.ListAPIKeysRequest{
+		Limit:    10,
+		Statuses: []auth.APIKeyStatus{auth.APIKeyStatusActive},
+	}
+	result, err = s.storage.ListAPIKeys(s.ctx, tx, req)
+	s.Require().NoError(err)
+	s.Assert().Equal(2, result.Total)
+	s.Assert().Equal(apiKeysOnDB[0:2], result.Keys)
+	// End of Filter by Status
+}

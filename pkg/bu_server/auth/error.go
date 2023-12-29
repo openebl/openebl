@@ -1,8 +1,12 @@
 package auth
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
-var ErrInvalidAPIKeyString = errors.New("invalid API key string")
-var ErrMismatchAPIKey = errors.New("mismatch API key")
-var ErrRevokedAPIKey = errors.New("revoked API key")
-var ErrAPIKeyNotFound = errors.New("API key not found")
+var ErrAPIKeyError = errors.New("") // Base error for API key
+var ErrInvalidAPIKeyString = fmt.Errorf("invalid API key string%w", ErrAPIKeyError)
+var ErrMismatchAPIKey = fmt.Errorf("mismatch API key%w", ErrAPIKeyError)
+var ErrRevokedAPIKey = fmt.Errorf("revoked API key%w", ErrAPIKeyError)
+var ErrAPIKeyNotFound = fmt.Errorf("API key not found%w", ErrAPIKeyError)

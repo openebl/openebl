@@ -8,6 +8,7 @@ CREATE TABLE api_key (
     updated_at BIGINT NOT NULL,
     api_key JSONB NOT NULL
 );
+CREATE INDEX api_key_application_id_idx ON api_key (application_id);
 
 CREATE TABLE api_key_history (
     rec_id BIGSERIAL NOT NULL,

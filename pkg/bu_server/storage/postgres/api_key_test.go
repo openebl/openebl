@@ -1,72 +1,33 @@
 package postgres_test
 
 import (
-	"context"
 	"database/sql"
-	"fmt"
-	"os"
-	"strconv"
 	"testing"
 
 	"github.com/go-testfixtures/testfixtures/v3"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
-	"github.com/openebl/openebl/pkg/util"
 	"github.com/stretchr/testify/suite"
 )
 
 type APIKeyStorageTestSuite struct {
-	suite.Suite
-	ctx     context.Context
+	BaseTestSuite
 	storage auth.APIKeyStorage
-	pgPool  *pgxpool.Pool
 }
 
 func TestEventStorage(t *testing.T) {
 	suite.Run(t, new(APIKeyStorageTestSuite))
 }
 
-func (s *APIKeyStorageTestSuite) SetupSuite() {
-	s.ctx = context.Background()
-	dbHost := os.Getenv("DATABASE_HOST")
-	dbPort, err := strconv.Atoi(os.Getenv("DATABASE_PORT"))
-	if err != nil {
-		dbPort = 5432
-	}
-	dbName := os.Getenv("DATABASE_NAME")
-	userName := os.Getenv("DATABASE_USER")
-	password := os.Getenv("DATABASE_PASSWORD")
-
-	config := util.PostgresDatabaseConfig{
-		Host:     dbHost,
-		Port:     dbPort,
-		Database: dbName,
-		User:     userName,
-		Password: password,
-		SSLMode:  "disable",
-		PoolSize: 5,
-	}
-
-	pool, err := util.NewPostgresDBPool(config)
-	s.Require().NoError(err)
-	s.storage = postgres.NewStorageWithPool(pool)
-	s.pgPool = pool
-
-	tableNames := []string{
-		"api_key",
-		"api_key_history",
-	}
-	for _, tableName := range tableNames {
-		_, err := pool.Exec(context.Background(), fmt.Sprintf(`TRUNCATE TABLE %q`, tableName))
-		s.Require().NoError(err)
-	}
+func (s *APIKeyStorageTestSuite) SetupTest() {
+	s.BaseTestSuite.SetupTest()
+	s.storage = postgres.NewStorageWithPool(s.pgPool)
 }
 
-func (s *APIKeyStorageTestSuite) TearDownSuite() {
-	s.pgPool.Close()
+func (s *APIKeyStorageTestSuite) TearDownTest() {
+	s.BaseTestSuite.TearDownTest()
 }
 
 func (s *APIKeyStorageTestSuite) TestCreateAPIKey() {

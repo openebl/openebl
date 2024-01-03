@@ -87,7 +87,11 @@ type ListAPIKeysRequest struct {
 }
 type ListAPIKeysResult struct {
 	Total int
-	Keys  []APIKey
+	Keys  []ListAPIKeyRecord
+}
+type ListAPIKeyRecord struct {
+	APIKey      APIKey
+	Application Application
 }
 
 func (ks APIKeyString) ID() (string, error) {

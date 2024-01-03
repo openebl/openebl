@@ -76,8 +76,8 @@ type ListApplicationRequest struct {
 	Offset int // Offset for pagination.
 	Limit  int // Limit for pagination.
 
-	ApplicationIDs []string            // Filter by application ID.
-	Statuses       []ApplicationStatus // Filter by status.
+	IDs      []string            // Filter by application ID.
+	Statuses []ApplicationStatus // Filter by status.
 }
 type ListApplicationResult struct {
 	Total        int           // Total number of applications.
@@ -215,8 +215,8 @@ func (m *_ApplicationManager) DeactivateApplication(ctx context.Context, ts int6
 
 func (m *_ApplicationManager) getApplication(ctx context.Context, tx storage.Tx, id string) (Application, error) {
 	req := ListApplicationRequest{
-		Limit:          1,
-		ApplicationIDs: []string{id},
+		Limit: 1,
+		IDs:   []string{id},
 	}
 	res, err := m.storage.ListApplication(ctx, tx, req)
 	if err != nil {

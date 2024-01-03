@@ -22,6 +22,7 @@ WITH new_data AS (
 )
 INSERT INTO api_key_history (id, "version", created_at, api_key)
 SELECT * FROM new_data`
+
 	_, err := tx.Exec(ctx, query, key.ID, key.Version, key.ApplicationID, key.Status, key.CreatedAt, key)
 	if err != nil {
 		return err
@@ -58,8 +59,8 @@ OFFSET $1 LIMIT $2`
 
 	result := auth.ListAPIKeysResult{}
 	for rows.Next() {
-		apiKey := auth.APIKey{}
-		if err := rows.Scan(&result.Total, &apiKey); err != nil {
+		apiKey := auth.ListAPIKeyRecord{}
+		if err := rows.Scan(&result.Total, &(apiKey.APIKey)); err != nil {
 			return auth.ListAPIKeysResult{}, err
 		}
 		result.Keys = append(result.Keys, apiKey)

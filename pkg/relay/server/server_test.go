@@ -13,6 +13,7 @@ import (
 	"github.com/openebl/openebl/pkg/relay/server"
 	"github.com/openebl/openebl/pkg/relay/server/storage"
 	"github.com/openebl/openebl/pkg/relay/server/storage/postgres"
+	"github.com/openebl/openebl/pkg/util"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -228,7 +229,7 @@ func (s *ServerTestSuite) TestClientServerServerClientInteraction() {
 
 func TestServer(t *testing.T) {
 	t.Skip()
-	dbConfig1 := postgres.DatabaseConfig{
+	dbConfig1 := util.PostgresDatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,
 		User:     "xdlai",
@@ -237,7 +238,7 @@ func TestServer(t *testing.T) {
 		PoolSize: 5,
 	}
 
-	dbConfig2 := postgres.DatabaseConfig{
+	dbConfig2 := util.PostgresDatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,
 		User:     "xdlai",

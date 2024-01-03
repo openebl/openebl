@@ -6,7 +6,7 @@ import (
 )
 
 var ErrAPIKeyError = errors.New("")      // Base error for API key
-var ErrApplicationError = errors.New("") // Base error for application
+var ErrApplicationError = errors.New("") // Base error for Application
 
 var ErrInvalidAPIKeyString = fmt.Errorf("invalid API key string%w", ErrAPIKeyError)
 var ErrMismatchAPIKey = fmt.Errorf("mismatch API key%w", ErrAPIKeyError)

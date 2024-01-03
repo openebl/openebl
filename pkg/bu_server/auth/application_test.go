@@ -117,8 +117,8 @@ func (s *ApplicationManagerTestSuite) TestUpdateApplication() {
 	// Set expectations
 	// Prepare the expected ListApplicationRequest
 	expectedReq := auth.ListApplicationRequest{
-		Limit:          1,
-		ApplicationIDs: []string{"test_application_id"},
+		Limit: 1,
+		IDs:   []string{"test_application_id"},
 	}
 	listAppResult := auth.ListApplicationResult{
 		Total:        1,

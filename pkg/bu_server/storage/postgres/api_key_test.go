@@ -96,21 +96,23 @@ func (s *APIKeyStorageTestSuite) TestGetAPIKey() {
 
 	apiKey, err := s.storage.GetAPIKey(s.ctx, tx, "key_1")
 	s.Require().NoError(err)
-	s.Assert().Equal("key_1", apiKey.ID)
-	s.Assert().Equal(auth.APIKeyHashedString("hashed_key1"), apiKey.HashString)
-	s.Assert().Equal(1, apiKey.Version)
-	s.Assert().Equal("app_1", apiKey.ApplicationID)
-	s.Assert().Equal([]auth.APIKeyScope{auth.APIKeyScopeAll}, apiKey.Scopes)
-	s.Assert().Equal(auth.APIKeyStatusActive, apiKey.Status)
+	s.Assert().Equal("key_1", apiKey.APIKey.ID)
+	s.Assert().Equal(auth.APIKeyHashedString("hashed_key1"), apiKey.APIKey.HashString)
+	s.Assert().Equal(1, apiKey.APIKey.Version)
+	s.Assert().Equal("app_1", apiKey.APIKey.ApplicationID)
+	s.Assert().Equal([]auth.APIKeyScope{auth.APIKeyScopeAll}, apiKey.APIKey.Scopes)
+	s.Assert().Equal(auth.APIKeyStatusActive, apiKey.APIKey.Status)
+	s.Assert().Equal("BBBBBB", apiKey.Application.CompanyName)
 
 	apiKey, err = s.storage.GetAPIKey(s.ctx, tx, "key_2")
 	s.Require().NoError(err)
-	s.Assert().Equal("key_2", apiKey.ID)
-	s.Assert().Equal(auth.APIKeyHashedString("hashed_key2"), apiKey.HashString)
-	s.Assert().Equal(1, apiKey.Version)
-	s.Assert().Equal("app_2", apiKey.ApplicationID)
-	s.Assert().Equal([]auth.APIKeyScope{auth.APIKeyScopeAll}, apiKey.Scopes)
-	s.Assert().Equal(auth.APIKeyStatusActive, apiKey.Status)
+	s.Assert().Equal("key_2", apiKey.APIKey.ID)
+	s.Assert().Equal(auth.APIKeyHashedString("hashed_key2"), apiKey.APIKey.HashString)
+	s.Assert().Equal(1, apiKey.APIKey.Version)
+	s.Assert().Equal("app_2", apiKey.APIKey.ApplicationID)
+	s.Assert().Equal([]auth.APIKeyScope{auth.APIKeyScopeAll}, apiKey.APIKey.Scopes)
+	s.Assert().Equal(auth.APIKeyStatusActive, apiKey.APIKey.Status)
+	s.Assert().Equal("AAAAAA", apiKey.Application.CompanyName)
 }
 
 func (s *APIKeyStorageTestSuite) TestListAPIKey() {
@@ -127,9 +129,20 @@ func (s *APIKeyStorageTestSuite) TestListAPIKey() {
 	s.Require().NoError(err)
 	defer tx.Rollback(s.ctx)
 
-	apiKeysOnDB := []auth.APIKey{}
-	err = tx.QueryRow(s.ctx, `SELECT jsonb_agg(api_key ORDER BY rec_id) FROM api_key`).Scan(&apiKeysOnDB)
+	apiKeysOnDB := []auth.ListAPIKeyRecord{}
+	rows, err := tx.Query(s.ctx, `SELECT api_key, application FROM api_key JOIN application ON application.id = api_key.application_id ORDER by api_key.rec_id`)
 	s.Require().NoError(err)
+	defer rows.Close()
+	for rows.Next() {
+		apiKeyRecord := auth.ListAPIKeyRecord{}
+		if err := rows.Scan(&(apiKeyRecord.APIKey), &(apiKeyRecord.Application)); err != nil {
+			s.Require().NoError(err)
+		}
+		apiKeysOnDB = append(apiKeysOnDB, apiKeyRecord)
+	}
+	if err := rows.Err(); err != nil {
+		s.Require().NoError(err)
+	}
 
 	// Offset and Limit
 	req := auth.ListAPIKeysRequest{

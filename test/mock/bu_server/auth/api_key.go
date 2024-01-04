@@ -125,10 +125,10 @@ func (mr *MockAPIKeyStorageMockRecorder) CreateTx(ctx interface{}, options ...in
 }
 
 // GetAPIKey mocks base method.
-func (m *MockAPIKeyStorage) GetAPIKey(ctx context.Context, tx storage.Tx, id string) (auth.APIKey, error) {
+func (m *MockAPIKeyStorage) GetAPIKey(ctx context.Context, tx storage.Tx, id string) (auth.ListAPIKeyRecord, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAPIKey", ctx, tx, id)
-	ret0, _ := ret[0].(auth.APIKey)
+	ret0, _ := ret[0].(auth.ListAPIKeyRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

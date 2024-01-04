@@ -1,0 +1,30 @@
+- rec_id: 1
+  id: "app_1"
+  version: 1
+  status: "active"
+  name: "app_1"
+  company_name: "BBBBBB"
+  created_at: 999
+  updated_at: 999
+  application:
+    '{"id": "app_1", "version": 1, "name": "app_1", "company_name": "BBBBBB", "status": "active", "created_at": 999, "updated_at": 999, "addresses": ["Addr1", "Addr2"], "emails": ["email1@email1", "email2@email2"], "phone_numbers":["111", "222"]}'
+- rec_id: 2
+  id: "app_2"
+  version: 1
+  status: "active"
+  name: "app_2"
+  company_name: "AAAAAA"
+  created_at: 999
+  updated_at: 999
+  application:
+    '{"id": "app_2", "version": 1, "name": "app_2", "company_name": "AAAAAA", "status": "active", "created_at": 999, "updated_at": 999, "addresses": ["Addr1", "Addr2"], "emails": ["email1@email1", "email2@email2"], "phone_numbers":["111", "222"]}'
+- rec_id: 3
+  id: "app_3"
+  version: 1
+  status: "inactive"
+  name: "app_3"
+  company_name: "CCCCCC"
+  created_at: 999
+  updated_at: 999
+  application:
+    '{"id": "app_3", "version": 1, "name": "app_3", "company_name": "CCCCCC", "status": "inactive", "created_at": 999, "updated_at": 999, "addresses": ["Addr1", "Addr2"], "emails": ["email1@email1", "email2@email2"], "phone_numbers":["111", "222"]}'

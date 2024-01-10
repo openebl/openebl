@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
@@ -471,6 +472,8 @@ func (s *UserManagerTestSuite) TestDeactivateUserWithNonExistingUser() {
 }
 
 func (s *UserManagerTestSuite) TestAuthenticate() {
+	ts := time.Now().Unix()
+
 	req := auth.AuthenticateUserRequest{
 		UserID:   "user1",
 		Password: "old_password",
@@ -482,27 +485,41 @@ func (s *UserManagerTestSuite) TestAuthenticate() {
 	}
 
 	// Test with correct password.
+	storedUserToken := auth.UserToken{}
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{Total: 1, Users: []auth.User{s.oldUser}}, nil),
+		s.storage.EXPECT().StoreUserToken(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, userToken auth.UserToken) error {
+				storedUserToken = userToken
+				return nil
+			},
+		),
+		s.tx.EXPECT().Commit(gomock.Eq(s.ctx)).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
-	err := s.manager.Authenticate(s.ctx, req)
+	userToken, err := s.manager.Authenticate(s.ctx, ts, req)
 	s.Require().NoError(err)
+	s.Assert().EqualValues(req.UserID, userToken.UserID)
+	s.Assert().NotEmpty(userToken.Token)
+	s.Assert().EqualValues(storedUserToken, userToken)
 	// End of Test with correct password.
 
 	// Test with incorrect password.
 	req.Password = "incorrect_password"
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{Total: 1, Users: []auth.User{s.oldUser}}, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
-	err = s.manager.Authenticate(s.ctx, req)
+	userToken, err = s.manager.Authenticate(s.ctx, ts, req)
 	s.Require().ErrorIs(err, auth.ErrUserAuthenticationFail)
+	s.Assert().Empty(userToken)
 }
 
 func (s *UserManagerTestSuite) TestAuthenticateWithNonExistingUser() {
+	ts := time.Now().Unix()
+
 	req := auth.AuthenticateUserRequest{
 		UserID:   "nonexistinguser",
 		Password: "old_password",
@@ -514,12 +531,59 @@ func (s *UserManagerTestSuite) TestAuthenticateWithNonExistingUser() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{}, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
-	err := s.manager.Authenticate(s.ctx, req)
+	userToken, err := s.manager.Authenticate(s.ctx, ts, req)
 	s.Require().ErrorIs(err, auth.ErrUserAuthenticationFail)
+	s.Assert().Empty(userToken)
+}
+
+func (s *UserManagerTestSuite) TestTokenAuthorization() {
+	ts := time.Now().Unix()
+	token := "token1"
+
+	userToken := auth.UserToken{
+		UserID:    "user1",
+		Token:     token,
+		CreatedAt: ts - 1000,
+		ExpiredAt: ts + 1000,
+	}
+
+	// Test with valid token.
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, nil),
+		s.storage.EXPECT().GetUserToken(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(token)).Return(userToken, nil),
+		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
+	)
+	err := s.manager.TokenAuthorization(s.ctx, ts, token)
+	s.Assert().NoError(err)
+	// End of Test with valid token.
+
+	// Test with expired token.
+	userToken.ExpiredAt = ts - 1000
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, nil),
+		s.storage.EXPECT().GetUserToken(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(token)).Return(userToken, nil),
+		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
+	)
+	err = s.manager.TokenAuthorization(s.ctx, ts, token)
+	s.Assert().ErrorIs(err, auth.ErrUserTokenExpired)
+}
+
+func (s *UserManagerTestSuite) TestTokenAuthorizationWithNonExistingToken() {
+	ts := time.Now().Unix()
+	token := "token1"
+
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, nil),
+		s.storage.EXPECT().GetUserToken(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(token)).Return(auth.UserToken{}, sql.ErrNoRows),
+		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
+	)
+
+	err := s.manager.TokenAuthorization(s.ctx, ts, token)
+	s.Assert().ErrorIs(err, auth.ErrUserTokenInvalid)
 }
 
 func (s *UserManagerTestSuite) TestListUsers() {

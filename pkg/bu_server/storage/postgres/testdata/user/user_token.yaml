@@ -1,0 +1,8 @@
+- token: "user1_token"
+  user_id: "user1"
+  created_at: 50000
+  expired_at: 60000
+- token: "user2_token"
+  user_id: "user2"
+  created_at: 50000
+  expired_at: 60000

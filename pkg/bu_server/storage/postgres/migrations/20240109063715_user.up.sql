@@ -42,3 +42,11 @@ INSERT INTO "user" (
 		'updated_at', extract(epoch FROM now())::BIGINT
 	)
 );
+
+CREATE TABLE user_token (
+	token TEXT PRIMARY KEY,
+	user_id TEXT NOT NULL,
+	created_at BIGINT NOT NULL,
+	expired_at BIGINT NOT NULL,
+	FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE
+);

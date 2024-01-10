@@ -2,7 +2,10 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 )
@@ -35,7 +38,9 @@ func (s *_Storage) GetAPIKey(ctx context.Context, tx storage.Tx, id string) (aut
 	query := `SELECT api_key, application FROM api_key JOIN application app ON app.id = api_key.application_id WHERE api_key.id = $1`
 	row := tx.QueryRow(ctx, query, id)
 	key := auth.ListAPIKeyRecord{}
-	if err := row.Scan(&(key.APIKey), &(key.Application)); err != nil {
+	if err := row.Scan(&(key.APIKey), &(key.Application)); errors.Is(err, pgx.ErrNoRows) {
+		return auth.ListAPIKeyRecord{}, sql.ErrNoRows
+	} else if err != nil {
 		return auth.ListAPIKeyRecord{}, err
 	}
 

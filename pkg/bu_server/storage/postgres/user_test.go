@@ -136,3 +136,61 @@ func (s *UserStorageTestSuite) TestListUsers() {
 	s.Assert().EqualValues(usersOnDB[0], result.Users[0])
 	s.Assert().EqualValues(usersOnDB[2], result.Users[1])
 }
+
+func (s *UserStorageTestSuite) TestStoreUserToken() {
+	db := stdlib.OpenDBFromPool(s.pgPool)
+	fixtures, err := testfixtures.New(
+		testfixtures.Database(db),
+		testfixtures.Dialect("postgres"),
+		testfixtures.Directory("testdata/user"),
+	)
+	s.Require().NoError(err)
+	s.Require().NoError(fixtures.Load())
+
+	userToken := auth.UserToken{
+		Token:     "toooooooooooken",
+		UserID:    "user1",
+		CreatedAt: 1600000000,
+		ExpiredAt: 1700000000,
+	}
+
+	tx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	s.Require().NoError(err)
+	defer tx.Rollback(s.ctx)
+
+	s.Require().NoError(s.storage.StoreUserToken(s.ctx, tx, userToken))
+	storedToken, err := s.storage.GetUserToken(s.ctx, tx, userToken.Token)
+	s.Require().NoError(err)
+	s.Assert().EqualValues(userToken, storedToken)
+
+	s.Require().NoError(tx.Commit(s.ctx))
+}
+
+func (s *UserStorageTestSuite) TestGetUserToken() {
+	db := stdlib.OpenDBFromPool(s.pgPool)
+	fixtures, err := testfixtures.New(
+		testfixtures.Database(db),
+		testfixtures.Dialect("postgres"),
+		testfixtures.Directory("testdata/user"),
+	)
+	s.Require().NoError(err)
+	s.Require().NoError(fixtures.Load())
+
+	tx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(false))
+	s.Require().NoError(err)
+	defer tx.Rollback(s.ctx)
+
+	expectedUserToken := auth.UserToken{
+		Token:     "user1_token",
+		UserID:    "user1",
+		CreatedAt: 50000,
+		ExpiredAt: 60000,
+	}
+	userToken, err := s.storage.GetUserToken(s.ctx, tx, "user1_token")
+	s.Require().NoError(err)
+	s.Assert().EqualValues(expectedUserToken, userToken)
+
+	userToken, err = s.storage.GetUserToken(s.ctx, tx, "not_exist_token")
+	s.Require().ErrorIs(err, sql.ErrNoRows)
+	s.Assert().Empty(userToken)
+}

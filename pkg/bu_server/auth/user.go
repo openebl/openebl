@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -33,6 +35,13 @@ type User struct {
 	UpdatedBy string `json:"updated_by"`
 }
 
+type UserToken struct {
+	Token     string `json:"token"`
+	UserID    string `json:"user_id"`
+	CreatedAt int64  `json:"created_at"`
+	ExpiredAt int64  `json:"expired_at"`
+}
+
 type UserManager interface {
 	CreateUser(ctx context.Context, ts int64, req CreateUserRequest) (User, error)
 	ChangePassword(ctx context.Context, ts int64, req ChangePasswordRequest) (User, error)
@@ -40,8 +49,10 @@ type UserManager interface {
 	UpdateUser(ctx context.Context, ts int64, req UpdateUserRequest) (User, error)
 	ActivateUser(ctx context.Context, ts int64, req ActivateUserRequest) (User, error)
 	DeactivateUser(ctx context.Context, ts int64, req ActivateUserRequest) (User, error)
-	Authenticate(ctx context.Context, req AuthenticateUserRequest) error
+	Authenticate(ctx context.Context, ts int64, req AuthenticateUserRequest) (UserToken, error)
 	ListUsers(ctx context.Context, req ListUserRequest) (ListUserResult, error)
+
+	TokenAuthorization(ctx context.Context, ts int64, token string) error
 }
 type CreateUserRequest struct {
 	RequestUser string      `json:"request_user"`
@@ -91,6 +102,8 @@ type UserStorage interface {
 	CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, error)
 	StoreUser(ctx context.Context, tx storage.Tx, user User) error
 	ListUsers(ctx context.Context, tx storage.Tx, req ListUserRequest) (ListUserResult, error)
+	StoreUserToken(ctx context.Context, tx storage.Tx, token UserToken) error
+	GetUserToken(ctx context.Context, tx storage.Tx, token string) (UserToken, error)
 }
 
 type _UserManager struct {
@@ -329,27 +342,64 @@ func (m *_UserManager) DeactivateUser(ctx context.Context, ts int64, req Activat
 	return user, nil
 }
 
-func (m *_UserManager) Authenticate(ctx context.Context, req AuthenticateUserRequest) error {
+func (m *_UserManager) Authenticate(ctx context.Context, ts int64, req AuthenticateUserRequest) (UserToken, error) {
 	if err := ValidateAuthenticateUserRequest(req); err != nil {
-		return err
+		return UserToken{}, err
 	}
 
+	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return UserToken{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	user, err := m._GetUser(ctx, tx, req.UserID)
+	if errors.Is(err, ErrUserNotFound) {
+		return UserToken{}, ErrUserAuthenticationFail
+	}
+	if err != nil {
+		return UserToken{}, err
+	}
+
+	if err := VerifyUserPassword(req.Password, user.Password); err != nil {
+		return UserToken{}, err
+	}
+
+	// Create a token for this user.
+	token := UserToken{
+		Token:     fmt.Sprintf("%s_%s", uuid.NewString(), uuid.NewString()),
+		UserID:    user.ID,
+		CreatedAt: ts,
+		ExpiredAt: ts + 86400,
+	}
+	if err := m.storage.StoreUserToken(ctx, tx, token); err != nil {
+		return UserToken{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return UserToken{}, err
+	}
+
+	return token, nil
+}
+
+func (m *_UserManager) TokenAuthorization(ctx context.Context, ts int64, token string) error {
 	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(false))
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
 
-	user, err := m._GetUser(ctx, tx, req.UserID)
-	if errors.Is(err, ErrUserNotFound) {
-		return ErrUserAuthenticationFail
+	userToken, err := m.storage.GetUserToken(ctx, tx, token)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrUserTokenInvalid
 	}
 	if err != nil {
 		return err
 	}
 
-	if err := VerifyUserPassword(req.Password, user.Password); err != nil {
-		return err
+	if userToken.ExpiredAt < ts {
+		return ErrUserTokenExpired
 	}
 
 	return nil

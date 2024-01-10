@@ -2,7 +2,10 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 )
@@ -58,4 +61,25 @@ OFFSET $1 LIMIT $2`
 	}
 
 	return result, nil
+}
+
+func (s *_Storage) StoreUserToken(ctx context.Context, tx storage.Tx, token auth.UserToken) error {
+	query := `INSERT INTO user_token (token, user_id, created_at, expired_at) VALUES ($1, $2, $3, $4)`
+	_, err := tx.Exec(ctx, query, token.Token, token.UserID, token.CreatedAt, token.ExpiredAt)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *_Storage) GetUserToken(ctx context.Context, tx storage.Tx, token string) (auth.UserToken, error) {
+	query := `SELECT token, user_id, created_at, expired_at FROM user_token WHERE token = $1`
+	var userToken auth.UserToken
+	err := tx.QueryRow(ctx, query, token).Scan(&userToken.Token, &userToken.UserID, &userToken.CreatedAt, &userToken.ExpiredAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return auth.UserToken{}, sql.ErrNoRows
+	} else if err != nil {
+		return auth.UserToken{}, err
+	}
+	return userToken, nil
 }

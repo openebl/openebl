@@ -52,17 +52,18 @@ func (mr *MockUserManagerMockRecorder) ActivateUser(ctx, ts, req interface{}) *g
 }
 
 // Authenticate mocks base method.
-func (m *MockUserManager) Authenticate(ctx context.Context, req auth.AuthenticateUserRequest) error {
+func (m *MockUserManager) Authenticate(ctx context.Context, ts int64, req auth.AuthenticateUserRequest) (auth.UserToken, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Authenticate", ctx, req)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "Authenticate", ctx, ts, req)
+	ret0, _ := ret[0].(auth.UserToken)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Authenticate indicates an expected call of Authenticate.
-func (mr *MockUserManagerMockRecorder) Authenticate(ctx, req interface{}) *gomock.Call {
+func (mr *MockUserManagerMockRecorder) Authenticate(ctx, ts, req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authenticate", reflect.TypeOf((*MockUserManager)(nil).Authenticate), ctx, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authenticate", reflect.TypeOf((*MockUserManager)(nil).Authenticate), ctx, ts, req)
 }
 
 // ChangePassword mocks base method.
@@ -140,6 +141,20 @@ func (mr *MockUserManagerMockRecorder) ResetPassword(ctx, ts, req interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetPassword", reflect.TypeOf((*MockUserManager)(nil).ResetPassword), ctx, ts, req)
 }
 
+// TokenAuthorization mocks base method.
+func (m *MockUserManager) TokenAuthorization(ctx context.Context, ts int64, token string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TokenAuthorization", ctx, ts, token)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// TokenAuthorization indicates an expected call of TokenAuthorization.
+func (mr *MockUserManagerMockRecorder) TokenAuthorization(ctx, ts, token interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TokenAuthorization", reflect.TypeOf((*MockUserManager)(nil).TokenAuthorization), ctx, ts, token)
+}
+
 // UpdateUser mocks base method.
 func (m *MockUserManager) UpdateUser(ctx context.Context, ts int64, req auth.UpdateUserRequest) (auth.User, error) {
 	m.ctrl.T.Helper()
@@ -198,6 +213,21 @@ func (mr *MockUserStorageMockRecorder) CreateTx(ctx interface{}, options ...inte
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTx", reflect.TypeOf((*MockUserStorage)(nil).CreateTx), varargs...)
 }
 
+// GetUserToken mocks base method.
+func (m *MockUserStorage) GetUserToken(ctx context.Context, tx storage.Tx, token string) (auth.UserToken, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserToken", ctx, tx, token)
+	ret0, _ := ret[0].(auth.UserToken)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserToken indicates an expected call of GetUserToken.
+func (mr *MockUserStorageMockRecorder) GetUserToken(ctx, tx, token interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserToken", reflect.TypeOf((*MockUserStorage)(nil).GetUserToken), ctx, tx, token)
+}
+
 // ListUsers mocks base method.
 func (m *MockUserStorage) ListUsers(ctx context.Context, tx storage.Tx, req auth.ListUserRequest) (auth.ListUserResult, error) {
 	m.ctrl.T.Helper()
@@ -225,4 +255,18 @@ func (m *MockUserStorage) StoreUser(ctx context.Context, tx storage.Tx, user aut
 func (mr *MockUserStorageMockRecorder) StoreUser(ctx, tx, user interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreUser", reflect.TypeOf((*MockUserStorage)(nil).StoreUser), ctx, tx, user)
+}
+
+// StoreUserToken mocks base method.
+func (m *MockUserStorage) StoreUserToken(ctx context.Context, tx storage.Tx, token auth.UserToken) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StoreUserToken", ctx, tx, token)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StoreUserToken indicates an expected call of StoreUserToken.
+func (mr *MockUserStorageMockRecorder) StoreUserToken(ctx, tx, token interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreUserToken", reflect.TypeOf((*MockUserStorage)(nil).StoreUserToken), ctx, tx, token)
 }

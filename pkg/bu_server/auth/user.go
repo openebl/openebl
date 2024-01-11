@@ -104,6 +104,9 @@ type UserStorage interface {
 	ListUsers(ctx context.Context, tx storage.Tx, req ListUserRequest) (ListUserResult, error)
 	StoreUserToken(ctx context.Context, tx storage.Tx, token UserToken) error
 	GetUserToken(ctx context.Context, tx storage.Tx, token string) (UserToken, error)
+
+	// This function should be called periodically to prevent the database from growing too large due to expired tokens.
+	RemoveUserTokenByExpiredAt(ctx context.Context, tx storage.Tx, expiredAt int64) error
 }
 
 type _UserManager struct {

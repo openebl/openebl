@@ -83,3 +83,12 @@ func (s *_Storage) GetUserToken(ctx context.Context, tx storage.Tx, token string
 	}
 	return userToken, nil
 }
+
+func (s *_Storage) RemoveUserTokenByExpiredAt(ctx context.Context, tx storage.Tx, expiredAt int64) error {
+	query := `DELETE FROM user_token WHERE expired_at <= $1`
+	_, err := tx.Exec(ctx, query, expiredAt)
+	if err != nil {
+		return err
+	}
+	return nil
+}

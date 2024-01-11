@@ -244,6 +244,20 @@ func (mr *MockUserStorageMockRecorder) ListUsers(ctx, tx, req interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListUsers", reflect.TypeOf((*MockUserStorage)(nil).ListUsers), ctx, tx, req)
 }
 
+// RemoveUserTokenByExpiredAt mocks base method.
+func (m *MockUserStorage) RemoveUserTokenByExpiredAt(ctx context.Context, tx storage.Tx, expiredAt int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveUserTokenByExpiredAt", ctx, tx, expiredAt)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveUserTokenByExpiredAt indicates an expected call of RemoveUserTokenByExpiredAt.
+func (mr *MockUserStorageMockRecorder) RemoveUserTokenByExpiredAt(ctx, tx, expiredAt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveUserTokenByExpiredAt", reflect.TypeOf((*MockUserStorage)(nil).RemoveUserTokenByExpiredAt), ctx, tx, expiredAt)
+}
+
 // StoreUser mocks base method.
 func (m *MockUserStorage) StoreUser(ctx context.Context, tx storage.Tx, user auth.User) error {
 	m.ctrl.T.Helper()

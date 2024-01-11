@@ -22,6 +22,7 @@ WITH new_data AS (
 )
 INSERT INTO api_key_history (id, "version", created_at, api_key)
 SELECT * FROM new_data`
+
 	_, err := tx.Exec(ctx, query, key.ID, key.Version, key.ApplicationID, key.Status, key.CreatedAt, key)
 	if err != nil {
 		return err
@@ -30,12 +31,12 @@ SELECT * FROM new_data`
 	return nil
 }
 
-func (s *_Storage) GetAPIKey(ctx context.Context, tx storage.Tx, id string) (auth.APIKey, error) {
-	query := `SELECT api_key FROM api_key WHERE id = $1`
+func (s *_Storage) GetAPIKey(ctx context.Context, tx storage.Tx, id string) (auth.ListAPIKeyRecord, error) {
+	query := `SELECT api_key, application FROM api_key JOIN application app ON app.id = api_key.application_id WHERE api_key.id = $1`
 	row := tx.QueryRow(ctx, query, id)
-	key := auth.APIKey{}
-	if err := row.Scan(&key); err != nil {
-		return auth.APIKey{}, err
+	key := auth.ListAPIKeyRecord{}
+	if err := row.Scan(&(key.APIKey), &(key.Application)); err != nil {
+		return auth.ListAPIKeyRecord{}, err
 	}
 
 	return key, nil
@@ -43,11 +44,13 @@ func (s *_Storage) GetAPIKey(ctx context.Context, tx storage.Tx, id string) (aut
 
 func (s *_Storage) ListAPIKeys(ctx context.Context, tx storage.Tx, req auth.ListAPIKeysRequest) (auth.ListAPIKeysResult, error) {
 	query := `
-SELECT count(*) OVER () , api_key FROM api_key
+SELECT count(*) OVER (), api_key, application
+FROM api_key 
+JOIN application app ON app.id = api_key.application_id
 WHERE
-	(COALESCE(array_length($3::TEXT[], 1), 0) = 0 OR application_id = ANY($3)) AND
-	(COALESCE(array_length($4::TEXT[], 1), 0) = 0 OR status = ANY($4))
-ORDER BY rec_id ASC
+	(COALESCE(array_length($3::TEXT[], 1), 0) = 0 OR api_key.application_id = ANY($3)) AND
+	(COALESCE(array_length($4::TEXT[], 1), 0) = 0 OR api_key.status = ANY($4))
+ORDER BY api_key.rec_id ASC
 OFFSET $1 LIMIT $2`
 
 	rows, err := tx.Query(ctx, query, req.Offset, req.Limit, req.ApplicationIDs, req.Statuses)
@@ -58,8 +61,8 @@ OFFSET $1 LIMIT $2`
 
 	result := auth.ListAPIKeysResult{}
 	for rows.Next() {
-		apiKey := auth.APIKey{}
-		if err := rows.Scan(&result.Total, &apiKey); err != nil {
+		apiKey := auth.ListAPIKeyRecord{}
+		if err := rows.Scan(&result.Total, &(apiKey.APIKey), &(apiKey.Application)); err != nil {
 			return auth.ListAPIKeysResult{}, err
 		}
 		result.Keys = append(result.Keys, apiKey)

@@ -74,7 +74,7 @@ type APIKeyAuthenticator interface {
 type APIKeyStorage interface {
 	CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, error)
 	StoreAPIKey(ctx context.Context, tx storage.Tx, key APIKey) error
-	GetAPIKey(ctx context.Context, tx storage.Tx, id string) (APIKey, error)
+	GetAPIKey(ctx context.Context, tx storage.Tx, id string) (ListAPIKeyRecord, error)
 	ListAPIKeys(ctx context.Context, tx storage.Tx, req ListAPIKeysRequest) (ListAPIKeysResult, error)
 }
 
@@ -87,7 +87,11 @@ type ListAPIKeysRequest struct {
 }
 type ListAPIKeysResult struct {
 	Total int
-	Keys  []APIKey
+	Keys  []ListAPIKeyRecord
+}
+type ListAPIKeyRecord struct {
+	APIKey      APIKey
+	Application Application
 }
 
 func (ks APIKeyString) ID() (string, error) {
@@ -211,12 +215,12 @@ func (a *_APIKeyAuthenticator) RevokeAPIKey(ctx context.Context, id string, ts i
 		return err
 	}
 
-	apiKey.Status = APIKeyStatusRevoked
-	apiKey.Version += 1
-	apiKey.UpdatedAt = ts
-	apiKey.UpdatedBy = revokedBy
+	apiKey.APIKey.Status = APIKeyStatusRevoked
+	apiKey.APIKey.Version += 1
+	apiKey.APIKey.UpdatedAt = ts
+	apiKey.APIKey.UpdatedBy = revokedBy
 
-	if err := a.storage.StoreAPIKey(ctx, tx, apiKey); err != nil {
+	if err := a.storage.StoreAPIKey(ctx, tx, apiKey.APIKey); err != nil {
 		return err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -245,14 +249,18 @@ func (a *_APIKeyAuthenticator) Authenticate(ctx context.Context, key APIKeyStrin
 		return APIKey{}, err
 	}
 
-	if err := VerifyAPIKeyString(key, apiKey.HashString); err != nil {
+	if err := VerifyAPIKeyString(key, apiKey.APIKey.HashString); err != nil {
 		return APIKey{}, err
 	}
 
-	if apiKey.Status != APIKeyStatusActive {
+	if apiKey.APIKey.Status != APIKeyStatusActive {
 		return APIKey{}, ErrRevokedAPIKey
 	}
 
-	apiKey.HashString = ""
-	return apiKey, nil
+	if apiKey.Application.Status != ApplicationStatusActive {
+		return APIKey{}, ErrApplicationInactive
+	}
+
+	apiKey.APIKey.HashString = ""
+	return apiKey.APIKey, nil
 }

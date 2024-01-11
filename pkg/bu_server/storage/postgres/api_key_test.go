@@ -1,72 +1,33 @@
 package postgres_test
 
 import (
-	"context"
 	"database/sql"
-	"fmt"
-	"os"
-	"strconv"
 	"testing"
 
 	"github.com/go-testfixtures/testfixtures/v3"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
-	"github.com/openebl/openebl/pkg/util"
 	"github.com/stretchr/testify/suite"
 )
 
 type APIKeyStorageTestSuite struct {
-	suite.Suite
-	ctx     context.Context
+	BaseTestSuite
 	storage auth.APIKeyStorage
-	pgPool  *pgxpool.Pool
 }
 
 func TestEventStorage(t *testing.T) {
 	suite.Run(t, new(APIKeyStorageTestSuite))
 }
 
-func (s *APIKeyStorageTestSuite) SetupSuite() {
-	s.ctx = context.Background()
-	dbHost := os.Getenv("DATABASE_HOST")
-	dbPort, err := strconv.Atoi(os.Getenv("DATABASE_PORT"))
-	if err != nil {
-		dbPort = 5432
-	}
-	dbName := os.Getenv("DATABASE_NAME")
-	userName := os.Getenv("DATABASE_USER")
-	password := os.Getenv("DATABASE_PASSWORD")
-
-	config := util.PostgresDatabaseConfig{
-		Host:     dbHost,
-		Port:     dbPort,
-		Database: dbName,
-		User:     userName,
-		Password: password,
-		SSLMode:  "disable",
-		PoolSize: 5,
-	}
-
-	pool, err := util.NewPostgresDBPool(config)
-	s.Require().NoError(err)
-	s.storage = postgres.NewStorageWithPool(pool)
-	s.pgPool = pool
-
-	tableNames := []string{
-		"api_key",
-		"api_key_history",
-	}
-	for _, tableName := range tableNames {
-		_, err := pool.Exec(context.Background(), fmt.Sprintf(`TRUNCATE TABLE %q`, tableName))
-		s.Require().NoError(err)
-	}
+func (s *APIKeyStorageTestSuite) SetupTest() {
+	s.BaseTestSuite.SetupTest()
+	s.storage = postgres.NewStorageWithPool(s.pgPool)
 }
 
-func (s *APIKeyStorageTestSuite) TearDownSuite() {
-	s.pgPool.Close()
+func (s *APIKeyStorageTestSuite) TearDownTest() {
+	s.BaseTestSuite.TearDownTest()
 }
 
 func (s *APIKeyStorageTestSuite) TestCreateAPIKey() {
@@ -135,21 +96,23 @@ func (s *APIKeyStorageTestSuite) TestGetAPIKey() {
 
 	apiKey, err := s.storage.GetAPIKey(s.ctx, tx, "key_1")
 	s.Require().NoError(err)
-	s.Assert().Equal("key_1", apiKey.ID)
-	s.Assert().Equal(auth.APIKeyHashedString("hashed_key1"), apiKey.HashString)
-	s.Assert().Equal(1, apiKey.Version)
-	s.Assert().Equal("app_1", apiKey.ApplicationID)
-	s.Assert().Equal([]auth.APIKeyScope{auth.APIKeyScopeAll}, apiKey.Scopes)
-	s.Assert().Equal(auth.APIKeyStatusActive, apiKey.Status)
+	s.Assert().Equal("key_1", apiKey.APIKey.ID)
+	s.Assert().Equal(auth.APIKeyHashedString("hashed_key1"), apiKey.APIKey.HashString)
+	s.Assert().Equal(1, apiKey.APIKey.Version)
+	s.Assert().Equal("app_1", apiKey.APIKey.ApplicationID)
+	s.Assert().Equal([]auth.APIKeyScope{auth.APIKeyScopeAll}, apiKey.APIKey.Scopes)
+	s.Assert().Equal(auth.APIKeyStatusActive, apiKey.APIKey.Status)
+	s.Assert().Equal("BBBBBB", apiKey.Application.CompanyName)
 
 	apiKey, err = s.storage.GetAPIKey(s.ctx, tx, "key_2")
 	s.Require().NoError(err)
-	s.Assert().Equal("key_2", apiKey.ID)
-	s.Assert().Equal(auth.APIKeyHashedString("hashed_key2"), apiKey.HashString)
-	s.Assert().Equal(1, apiKey.Version)
-	s.Assert().Equal("app_2", apiKey.ApplicationID)
-	s.Assert().Equal([]auth.APIKeyScope{auth.APIKeyScopeAll}, apiKey.Scopes)
-	s.Assert().Equal(auth.APIKeyStatusActive, apiKey.Status)
+	s.Assert().Equal("key_2", apiKey.APIKey.ID)
+	s.Assert().Equal(auth.APIKeyHashedString("hashed_key2"), apiKey.APIKey.HashString)
+	s.Assert().Equal(1, apiKey.APIKey.Version)
+	s.Assert().Equal("app_2", apiKey.APIKey.ApplicationID)
+	s.Assert().Equal([]auth.APIKeyScope{auth.APIKeyScopeAll}, apiKey.APIKey.Scopes)
+	s.Assert().Equal(auth.APIKeyStatusActive, apiKey.APIKey.Status)
+	s.Assert().Equal("AAAAAA", apiKey.Application.CompanyName)
 }
 
 func (s *APIKeyStorageTestSuite) TestListAPIKey() {
@@ -166,9 +129,20 @@ func (s *APIKeyStorageTestSuite) TestListAPIKey() {
 	s.Require().NoError(err)
 	defer tx.Rollback(s.ctx)
 
-	apiKeysOnDB := []auth.APIKey{}
-	err = tx.QueryRow(s.ctx, `SELECT jsonb_agg(api_key ORDER BY rec_id) FROM api_key`).Scan(&apiKeysOnDB)
+	apiKeysOnDB := []auth.ListAPIKeyRecord{}
+	rows, err := tx.Query(s.ctx, `SELECT api_key, application FROM api_key JOIN application ON application.id = api_key.application_id ORDER by api_key.rec_id`)
 	s.Require().NoError(err)
+	defer rows.Close()
+	for rows.Next() {
+		apiKeyRecord := auth.ListAPIKeyRecord{}
+		if err := rows.Scan(&(apiKeyRecord.APIKey), &(apiKeyRecord.Application)); err != nil {
+			s.Require().NoError(err)
+		}
+		apiKeysOnDB = append(apiKeysOnDB, apiKeyRecord)
+	}
+	if err := rows.Err(); err != nil {
+		s.Require().NoError(err)
+	}
 
 	// Offset and Limit
 	req := auth.ListAPIKeysRequest{

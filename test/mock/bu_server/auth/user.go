@@ -142,11 +142,12 @@ func (mr *MockUserManagerMockRecorder) ResetPassword(ctx, ts, req interface{}) *
 }
 
 // TokenAuthorization mocks base method.
-func (m *MockUserManager) TokenAuthorization(ctx context.Context, ts int64, token string) error {
+func (m *MockUserManager) TokenAuthorization(ctx context.Context, ts int64, token string) (auth.UserToken, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TokenAuthorization", ctx, ts, token)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(auth.UserToken)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // TokenAuthorization indicates an expected call of TokenAuthorization.

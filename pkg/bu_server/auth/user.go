@@ -52,7 +52,7 @@ type UserManager interface {
 	Authenticate(ctx context.Context, ts int64, req AuthenticateUserRequest) (UserToken, error)
 	ListUsers(ctx context.Context, req ListUserRequest) (ListUserResult, error)
 
-	TokenAuthorization(ctx context.Context, ts int64, token string) error
+	TokenAuthorization(ctx context.Context, ts int64, token string) (UserToken, error)
 }
 type CreateUserRequest struct {
 	RequestUser string      `json:"request_user"`
@@ -383,26 +383,26 @@ func (m *_UserManager) Authenticate(ctx context.Context, ts int64, req Authentic
 	return token, nil
 }
 
-func (m *_UserManager) TokenAuthorization(ctx context.Context, ts int64, token string) error {
+func (m *_UserManager) TokenAuthorization(ctx context.Context, ts int64, token string) (UserToken, error) {
 	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(false))
 	if err != nil {
-		return err
+		return UserToken{}, err
 	}
 	defer tx.Rollback(ctx)
 
 	userToken, err := m.storage.GetUserToken(ctx, tx, token)
 	if errors.Is(err, sql.ErrNoRows) {
-		return ErrUserTokenInvalid
+		return UserToken{}, ErrUserTokenInvalid
 	}
 	if err != nil {
-		return err
+		return UserToken{}, err
 	}
 
 	if userToken.ExpiredAt < ts {
-		return ErrUserTokenExpired
+		return UserToken{}, ErrUserTokenExpired
 	}
 
-	return nil
+	return userToken, nil
 }
 
 func (m *_UserManager) ListUsers(ctx context.Context, req ListUserRequest) (ListUserResult, error) {

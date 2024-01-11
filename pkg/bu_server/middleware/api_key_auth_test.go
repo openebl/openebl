@@ -31,14 +31,14 @@ var OkHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 })
 
-func (s *APIKeyAuthTestSuite) SetupSuite() {
+func (s *APIKeyAuthTestSuite) SetupTest() {
 	s.ctx = context.Background()
 	s.ctrl = gomock.NewController(s.T())
 	s.authenticator = mock_auth.NewMockAPIKeyAuthenticator(s.ctrl)
 	s.auth = middleware.NewAPIKeyAuth(s.authenticator)
 }
 
-func (s *APIKeyAuthTestSuite) TearDownSuite() {
+func (s *APIKeyAuthTestSuite) TearDownTest() {
 	s.ctrl.Finish()
 }
 

@@ -557,8 +557,9 @@ func (s *UserManagerTestSuite) TestTokenAuthorization() {
 		s.storage.EXPECT().GetUserToken(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(token)).Return(userToken, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
-	err := s.manager.TokenAuthorization(s.ctx, ts, token)
+	returnedUserToken, err := s.manager.TokenAuthorization(s.ctx, ts, token)
 	s.Assert().NoError(err)
+	s.Assert().EqualValues(userToken, returnedUserToken)
 	// End of Test with valid token.
 
 	// Test with expired token.
@@ -568,8 +569,9 @@ func (s *UserManagerTestSuite) TestTokenAuthorization() {
 		s.storage.EXPECT().GetUserToken(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(token)).Return(userToken, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
-	err = s.manager.TokenAuthorization(s.ctx, ts, token)
+	returnedUserToken, err = s.manager.TokenAuthorization(s.ctx, ts, token)
 	s.Assert().ErrorIs(err, auth.ErrUserTokenExpired)
+	s.Assert().Empty(returnedUserToken)
 }
 
 func (s *UserManagerTestSuite) TestTokenAuthorizationWithNonExistingToken() {
@@ -582,8 +584,9 @@ func (s *UserManagerTestSuite) TestTokenAuthorizationWithNonExistingToken() {
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
 
-	err := s.manager.TokenAuthorization(s.ctx, ts, token)
+	userToken, err := s.manager.TokenAuthorization(s.ctx, ts, token)
 	s.Assert().ErrorIs(err, auth.ErrUserTokenInvalid)
+	s.Assert().Empty(userToken)
 }
 
 func (s *UserManagerTestSuite) TestListUsers() {

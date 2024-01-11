@@ -23,7 +23,7 @@ func NewAPIKeyAuth(auth auth.APIKeyAuthenticator) *APIKeyAuth {
 func (a *APIKeyAuth) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		apiKeyString := getBearerToken(r)
+		apiKeyString := auth.APIKeyString(getBearerToken(r))
 		if apiKeyString == "" {
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte("missing API key"))
@@ -47,7 +47,7 @@ func (a *APIKeyAuth) Authenticate(next http.Handler) http.Handler {
 	})
 }
 
-func getBearerToken(r *http.Request) auth.APIKeyString {
+func getBearerToken(r *http.Request) string {
 	h := r.Header.Get("Authorization")
 	if h == "" {
 		return ""
@@ -56,5 +56,5 @@ func getBearerToken(r *http.Request) auth.APIKeyString {
 	if len(parts) != 2 {
 		return ""
 	}
-	return auth.APIKeyString(strings.TrimSpace(parts[1]))
+	return strings.TrimSpace(parts[1])
 }

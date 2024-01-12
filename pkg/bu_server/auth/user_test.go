@@ -90,7 +90,7 @@ func (s *UserManagerTestSuite) TestCreateUser() {
 
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
-		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{}, auth.ErrUserNotFound),
+		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{}, nil),
 		s.storage.EXPECT().StoreUser(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, user auth.User) error {
 				expectedUser.Password = user.Password

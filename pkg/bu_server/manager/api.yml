@@ -3,8 +3,15 @@ info:
   title: BU Server Management API
   version: '0.1'
 servers:
-  - url: http://localhost:8080
+  - url: http://localhost:9100
     description: Local server
+tags:
+  - name: user
+    description: User management
+  - name: application
+    description: Application management
+  - name: api_key
+    description: API key management
 components:
   schemas:
     User:
@@ -41,8 +48,6 @@ components:
     CreateUserRequest:
       type: object
       properties:
-        request_user:
-          type: string
         user_id:
           type: string
         password:
@@ -56,7 +61,6 @@ components:
         note:
           type: string
       required:
-        - request_user
         - user_id
         - password
         - name
@@ -197,6 +201,7 @@ components:
 paths:
   /login:
     get:
+      tags: [user]
       summary: Get a token for the other APIs.
       security:
         - basicAuth: []
@@ -217,6 +222,7 @@ paths:
               example: user name/password mismatch
   /user:
     get:
+      tags: [user]
       summary: List all users.
       parameters:
         - name: offset
@@ -259,6 +265,7 @@ paths:
                 type: string
               example: invalid token
     post:
+      tags: [user]
       summary: Create a user.
       security:
         - bearerAuth: []
@@ -290,6 +297,7 @@ paths:
               example: user ID already exists
   /user/{id}:
     get:
+      tags: [user]
       summary: Get user by ID
       parameters:
         - name: id
@@ -322,6 +330,7 @@ paths:
                 type: string
               example: user ID does not exist
     post:
+      tags: [user]
       summary: Update a user.
       parameters:
         - name: id
@@ -360,6 +369,7 @@ paths:
               example: user ID does not exist
   /user/{id}/status:
     post:
+      tags: [user]
       summary: Update user status.
       parameters:
         - name: id
@@ -407,6 +417,7 @@ paths:
               example: user ID does not exist
   /application:
     get:
+      tags: [application]
       summary: List all applications.
       parameters:
         - name: offset
@@ -449,6 +460,7 @@ paths:
                 type: string
               example: invalid token
     post:
+      tags: [application]
       summary: Create a application.
       security:
         - bearerAuth: []
@@ -462,6 +474,7 @@ paths:
           description: OK
   /application/{id}:
     get:
+      tags: [application]
       summary: Get application by ID
       parameters:
         - name: id
@@ -494,6 +507,7 @@ paths:
                 type: string
               example: application ID does not exist
     post:
+      tags: [application]
       summary: Update a application.
       parameters:
         - name: id
@@ -530,8 +544,57 @@ paths:
               schema:
                 type: string
               example: application ID does not exist
+  /application/{id}/status:
+    post:
+      tags: [application]
+      summary: Update application status.
+      parameters:
+        - name: id
+          in: path
+          description: Application ID to update
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                request_user:
+                  type: string
+                status:
+                  type: string
+                  enum: [active, inactive]
+              required:
+                - request_user
+                - status
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+        '404':
+          description: The application ID does not exist.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: application ID does not exist
   /api_key:
     post:
+      tags: [api_key]
       summary: Create an API key for the application.
       security:
         - bearerAuth: []
@@ -573,8 +636,9 @@ paths:
                 type: string
               example: invalid token
   /api_key/{key_id}:
-    summary: Revoke an API key.
     delete:
+      tags: [api_key]
+      summary: Revoke an API key.
       parameters:
         - name: key_id
           in: path

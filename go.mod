@@ -10,6 +10,7 @@ require (
 	github.com/gobuffalo/pop v4.13.1+incompatible
 	github.com/golang/mock v1.5.0
 	github.com/google/uuid v1.4.0
+	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.1
 	github.com/jackc/pgx/v5 v5.5.0
 	github.com/lestrrat-go/jwx/v2 v2.0.15

@@ -1,0 +1,30 @@
+- rec_id: 1
+  id: "user1"
+  version: 1
+  status: "active"
+  created_at: 12345
+  updated_at: 12345
+  user:
+    id: "user1"
+    name: "user1"
+    status: "active"
+- rec_id: 2
+  id: "user2"
+  version: 1
+  status: "active"
+  created_at: 12345
+  updated_at: 12345
+  user:
+    id: "user2"
+    name: "user2"
+    status: "active"
+- rec_id: 3
+  id: "user3"
+  version: 1
+  status: "inactive"
+  created_at: 12345
+  updated_at: 12345
+  user:
+    id: "user3"
+    name: "user3"
+    status: "inactive"

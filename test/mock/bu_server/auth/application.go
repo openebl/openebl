@@ -81,6 +81,21 @@ func (mr *MockApplicationManagerMockRecorder) DeactivateApplication(ctx, ts, req
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeactivateApplication", reflect.TypeOf((*MockApplicationManager)(nil).DeactivateApplication), ctx, ts, req)
 }
 
+// ListApplications mocks base method.
+func (m *MockApplicationManager) ListApplications(ctx context.Context, req auth.ListApplicationRequest) (auth.ListApplicationResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListApplications", ctx, req)
+	ret0, _ := ret[0].(auth.ListApplicationResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListApplications indicates an expected call of ListApplications.
+func (mr *MockApplicationManagerMockRecorder) ListApplications(ctx, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListApplications", reflect.TypeOf((*MockApplicationManager)(nil).ListApplications), ctx, req)
+}
+
 // UpdateApplication mocks base method.
 func (m *MockApplicationManager) UpdateApplication(ctx context.Context, ts int64, req auth.UpdateApplicationRequest) (auth.Application, error) {
 	m.ctrl.T.Helper()

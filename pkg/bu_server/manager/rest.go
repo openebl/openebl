@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,7 +49,7 @@ func NewManagerAPI(cfg ManagerAPIConfig) (*ManagerAPI, error) {
 
 	mgrRouter := r.NewRoute().Subrouter()
 	mgrRouter.Use(userTokenMiddleware.Authenticate)
-	mgrRouter.HandleFunc("/user", apiServer.getUserList).Methods(http.MethodGet).Queries()
+	mgrRouter.HandleFunc("/user", apiServer.getUserList).Methods(http.MethodGet)
 	mgrRouter.HandleFunc("/user", apiServer.createUser).Methods(http.MethodPost)
 	mgrRouter.HandleFunc("/user/{id}", apiServer.getUser).Methods(http.MethodGet)
 	mgrRouter.HandleFunc("/user/{id}", apiServer.updateUser).Methods(http.MethodPost)
@@ -158,6 +159,10 @@ func (s *ManagerAPI) createUser(w http.ResponseWriter, r *http.Request) {
 		logrus.Warnf("failed to create user %q: %v", req.UserID, err)
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
+	} else if errors.Is(err, auth.ErrInvalidParameter) {
+		logrus.Warnf("failed to create user %q: %v", req.UserID, err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	} else if err != nil {
 		logrus.Errorf("failed to create user %q: %v", req.UserID, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -169,45 +174,355 @@ func (s *ManagerAPI) createUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
-func (s *ManagerAPI) getUserList(http.ResponseWriter, *http.Request) {
+func (s *ManagerAPI) getUserList(w http.ResponseWriter, r *http.Request) {
+	listReq := auth.ListUserRequest{
+		Offset: 0,
+		Limit:  10,
+	}
+
+	offsetStr := r.URL.Query().Get("offset")
+	limitStr := r.URL.Query().Get("limit")
+	if offsetStr != "" {
+		offset, err := strconv.ParseInt(offsetStr, 10, 32)
+		if err != nil || offset < 0 {
+			http.Error(w, "offset is invalid", http.StatusBadRequest)
+			return
+		}
+		listReq.Offset = int(offset)
+	}
+	if limitStr != "" {
+		limit, err := strconv.ParseInt(limitStr, 10, 32)
+		if err != nil || limit < 1 {
+			http.Error(w, "limit is invalid", http.StatusBadRequest)
+			return
+		}
+		listReq.Limit = int(limit)
+	}
+
+	result, err := s.userMgr.ListUsers(r.Context(), listReq)
+	if err != nil {
+		logrus.Errorf("failed to list users: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
 }
 
-func (s *ManagerAPI) getUser(http.ResponseWriter, *http.Request) {
+func (s *ManagerAPI) getUser(w http.ResponseWriter, r *http.Request) {
+	userID := mux.Vars(r)["id"]
 
+	listReq := auth.ListUserRequest{
+		Limit: 1,
+		IDs:   []string{userID},
+	}
+	reuslt, err := s.userMgr.ListUsers(r.Context(), listReq)
+	if err != nil {
+		logrus.Errorf("failed to get user %q: %v", userID, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if len(reuslt.Users) == 0 {
+		http.Error(w, "user not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(reuslt.Users[0])
 }
 
-func (s *ManagerAPI) updateUser(http.ResponseWriter, *http.Request) {
+func (s *ManagerAPI) updateUser(w http.ResponseWriter, r *http.Request) {
+	userToken, _ := r.Context().Value(middleware.USER_TOKEN).(auth.UserToken)
+	userID := mux.Vars(r)["id"]
+	updateRequest := auth.UpdateUserRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	updateRequest.RequestUser = userToken.UserID
+	updateRequest.UserID = userID
 
+	newUser, err := s.userMgr.UpdateUser(r.Context(), time.Now().Unix(), updateRequest)
+	if errors.Is(err, auth.ErrUserNotFound) {
+		logrus.Warnf("failed to update user %q: %v", userID, err)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		logrus.Errorf("failed to update user %q: %v", userID, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(newUser)
 }
 
-func (s *ManagerAPI) updateUserStatus(http.ResponseWriter, *http.Request) {
+func (s *ManagerAPI) updateUserStatus(w http.ResponseWriter, r *http.Request) {
+	userToken, _ := r.Context().Value(middleware.USER_TOKEN).(auth.UserToken)
+	userID := mux.Vars(r)["id"]
 
+	type _Request struct {
+		Status string `json:"status"`
+	}
+
+	request := _Request{}
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	updateRequest := auth.ActivateUserRequest{}
+	updateRequest.RequestUser = userToken.UserID
+	updateRequest.UserID = userID
+	var err error
+	var newUser auth.User
+	if request.Status == "active" {
+		newUser, err = s.userMgr.ActivateUser(r.Context(), time.Now().Unix(), updateRequest)
+	} else if request.Status == "inactive" {
+		newUser, err = s.userMgr.DeactivateUser(r.Context(), time.Now().Unix(), updateRequest)
+	} else {
+		http.Error(w, "invalid status", http.StatusBadRequest)
+		return
+	}
+	if errors.Is(err, auth.ErrUserNotFound) {
+		logrus.Warnf("failed to update user %q: %v", userID, err)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	} else if err != nil {
+		logrus.Errorf("failed to update user %q: %v", userID, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(newUser)
 }
 
-func (s *ManagerAPI) createApplication(http.ResponseWriter, *http.Request) {
+func (s *ManagerAPI) createApplication(w http.ResponseWriter, r *http.Request) {
+	userToken, _ := r.Context().Value(middleware.USER_TOKEN).(auth.UserToken)
 
+	var req auth.CreateApplicationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	req.User = userToken.UserID
+
+	app, err := s.appMgr.CreateApplication(r.Context(), time.Now().Unix(), req)
+	if errors.Is(err, auth.ErrInvalidParameter) {
+		logrus.Warnf("failed to create application %q: %v", req.Name, err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	} else if err != nil {
+		logrus.Errorf("failed to create application %q: %v", req.Name, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(app)
 }
 
-func (s *ManagerAPI) getApplicationList(http.ResponseWriter, *http.Request) {
+func (s *ManagerAPI) getApplicationList(w http.ResponseWriter, r *http.Request) {
+	listRequest := auth.ListApplicationRequest{
+		Limit: 10,
+	}
 
+	// Get the offset and limit from the query parameters
+	offsetStr := r.URL.Query().Get("offset")
+	limitStr := r.URL.Query().Get("limit")
+
+	if offsetStr != "" {
+		// Convert offset and limit to integers
+		offset, err := strconv.Atoi(offsetStr)
+		if err != nil || offset < 0 {
+			http.Error(w, "offset is invalid", http.StatusBadRequest)
+			return
+		}
+		listRequest.Offset = offset
+	}
+	if limitStr != "" {
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil || limit < 1 {
+			http.Error(w, "limit is invalid", http.StatusBadRequest)
+			return
+		}
+		listRequest.Limit = limit
+	}
+
+	result, err := s.appMgr.ListApplications(r.Context(), listRequest)
+	if err != nil {
+		logrus.Errorf("failed to list applications: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
 }
 
-func (s *ManagerAPI) getApplication(http.ResponseWriter, *http.Request) {
+func (s *ManagerAPI) getApplication(w http.ResponseWriter, r *http.Request) {
+	appID := mux.Vars(r)["id"]
 
+	listRequest := auth.ListApplicationRequest{
+		Limit: 1,
+		IDs:   []string{appID},
+	}
+	result, err := s.appMgr.ListApplications(r.Context(), listRequest)
+	if err != nil {
+		logrus.Errorf("failed to get application %q: %v", appID, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if len(result.Applications) == 0 {
+		http.Error(w, "application not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result.Applications[0])
 }
 
-func (s *ManagerAPI) updateApplication(http.ResponseWriter, *http.Request) {
+func (s *ManagerAPI) updateApplication(w http.ResponseWriter, r *http.Request) {
+	userToken, _ := r.Context().Value(middleware.USER_TOKEN).(auth.UserToken)
+	appID := mux.Vars(r)["id"]
 
+	updateRequest := auth.UpdateApplicationRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	updateRequest.ID = appID
+	updateRequest.RequestUser.User = userToken.UserID
+
+	newApp, err := s.appMgr.UpdateApplication(r.Context(), time.Now().Unix(), updateRequest)
+	if errors.Is(err, auth.ErrInvalidParameter) {
+		logrus.Warnf("failed to update application %q: %v", appID, err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if errors.Is(err, auth.ErrApplicationNotFound) {
+		logrus.Warnf("failed to update application %q: %v", appID, err)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		logrus.Errorf("failed to update application %q: %v", appID, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(newApp)
 }
 
-func (s *ManagerAPI) updateApplicationStatus(http.ResponseWriter, *http.Request) {
+func (s *ManagerAPI) updateApplicationStatus(w http.ResponseWriter, r *http.Request) {
+	userToken, _ := r.Context().Value(middleware.USER_TOKEN).(auth.UserToken)
+	appID := mux.Vars(r)["id"]
 
+	type _Request struct {
+		Status string `json:"status"`
+	}
+
+	request := _Request{}
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if request.Status != string(auth.ApplicationStatusActive) && request.Status != string(auth.ApplicationStatusInactive) {
+		http.Error(w, "invalid status", http.StatusBadRequest)
+		return
+	}
+
+	updateRequest := auth.ActivateApplicationRequest{
+		RequestUser: auth.RequestUser{
+			User: userToken.UserID,
+		},
+		ApplicationID: appID,
+	}
+
+	var newApp auth.Application
+	var err error
+	if request.Status == string(auth.ApplicationStatusActive) {
+		newApp, err = s.appMgr.ActivateApplication(r.Context(), time.Now().Unix(), updateRequest)
+	} else {
+		newApp, err = s.appMgr.DeactivateApplication(r.Context(), time.Now().Unix(), auth.DeactivateApplicationRequest(updateRequest))
+	}
+	if errors.Is(err, auth.ErrInvalidParameter) {
+		logrus.Warnf("failed to update application %q: %v", appID, err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	} else if errors.Is(err, auth.ErrApplicationNotFound) {
+		logrus.Warnf("failed to update application %q: %v", appID, err)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(newApp)
 }
 
-func (s *ManagerAPI) createAPIKey(http.ResponseWriter, *http.Request) {
+func (s *ManagerAPI) createAPIKey(w http.ResponseWriter, r *http.Request) {
+	userToken, _ := r.Context().Value(middleware.USER_TOKEN).(auth.UserToken)
 
+	request := auth.CreateAPIKeyRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	request.RequestUser = auth.RequestUser{
+		User: userToken.UserID,
+	}
+
+	_, apiKeyString, err := s.apiKeyMgr.CreateAPIKey(r.Context(), time.Now().Unix(), request)
+	if errors.Is(err, auth.ErrInvalidParameter) {
+		logrus.Warnf("failed to create API key: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	} else if err != nil {
+		logrus.Errorf("failed to create API key: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(apiKeyString))
 }
 
-func (s *ManagerAPI) revokeAPIKey(http.ResponseWriter, *http.Request) {
+func (s *ManagerAPI) revokeAPIKey(w http.ResponseWriter, r *http.Request) {
+	userToken, _ := r.Context().Value(middleware.USER_TOKEN).(auth.UserToken)
+	apiKeyID := mux.Vars(r)["key_id"]
 
+	request := auth.RevokeAPIKeyRequest{
+		ID: apiKeyID,
+		RequestUser: auth.RequestUser{
+			User: userToken.UserID,
+		},
+	}
+
+	err := s.apiKeyMgr.RevokeAPIKey(r.Context(), time.Now().Unix(), request)
+	if errors.Is(err, auth.ErrInvalidParameter) {
+		logrus.Warnf("failed to revoke API key %q: %v", apiKeyID, err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	} else if err != nil {
+		logrus.Errorf("failed to revoke API key %q: %v", apiKeyID, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

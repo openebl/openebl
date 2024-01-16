@@ -77,6 +77,23 @@ components:
           type: string
       required:
         - name
+    ChangePasswordRequest:
+      type: object
+      properties:
+        old_password:
+          type: string
+        password:
+          type: string
+      required:
+        - old_password
+        - password
+    ResetPasswordRequest:
+      type: object
+      properties:
+        password:
+          type: string
+      required:
+        - password
     Application:
       type: object
       properties:
@@ -391,6 +408,76 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+        '404':
+          description: The user ID does not exist.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: user ID does not exist
+  /user/{id}/reset_password:
+    post:
+      tags: [user]
+      summary: Reset user password.
+      parameters:
+        - name: id
+          in: path
+          description: User ID to reset password
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+        '404':
+          description: The user ID does not exist.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: user ID does not exist
+  /user/{id}/change_password:
+    post:
+      tags: [user]
+      summary: Change user password.
+      parameters:
+        - name: id
+          in: path
+          description: User ID to change password
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: OK
         '401':
           description: The token is invalid or not provided.
           content:

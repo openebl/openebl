@@ -54,6 +54,8 @@ func NewManagerAPI(cfg ManagerAPIConfig) (*ManagerAPI, error) {
 	mgrRouter.HandleFunc("/user/{id}", apiServer.getUser).Methods(http.MethodGet)
 	mgrRouter.HandleFunc("/user/{id}", apiServer.updateUser).Methods(http.MethodPost)
 	mgrRouter.HandleFunc("/user/{id}/status", apiServer.updateUserStatus).Methods(http.MethodPost)
+	mgrRouter.HandleFunc("/user/{id}/change_password", apiServer.changeUserPassword).Methods(http.MethodPost)
+	mgrRouter.HandleFunc("/user/{id}/reset_password", apiServer.resetUserPassword).Methods(http.MethodPost)
 	mgrRouter.HandleFunc("/application", apiServer.createApplication).Methods(http.MethodPost)
 	mgrRouter.HandleFunc("/application", apiServer.getApplicationList).Methods(http.MethodGet)
 	mgrRouter.HandleFunc("/application/{id}", apiServer.getApplication).Methods(http.MethodGet)
@@ -170,6 +172,7 @@ func (s *ManagerAPI) createUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return the created user to the client
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)
 }
@@ -302,6 +305,56 @@ func (s *ManagerAPI) updateUserStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(newUser)
+}
+
+func (s *ManagerAPI) changeUserPassword(w http.ResponseWriter, r *http.Request) {
+	userID := mux.Vars(r)["id"]
+
+	req := auth.ChangePasswordRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	req.UserID = userID
+
+	_, err := s.userMgr.ChangePassword(r.Context(), time.Now().Unix(), req)
+	if errors.Is(err, auth.ErrUserNotFound) {
+		logrus.Warnf("failed to change password for user %q: %v", userID, err)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	} else if errors.Is(err, auth.ErrUserAuthenticationFail) || errors.Is(err, auth.ErrInvalidParameter) {
+		logrus.Warnf("failed to change password for user %q: %v", userID, err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *ManagerAPI) resetUserPassword(w http.ResponseWriter, r *http.Request) {
+	userToken, _ := r.Context().Value(middleware.USER_TOKEN).(auth.UserToken)
+	userID := mux.Vars(r)["id"]
+
+	req := auth.ResetPasswordRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	req.RequestUser = userToken.UserID
+	req.UserID = userID
+
+	_, err := s.userMgr.ResetPassword(r.Context(), time.Now().Unix(), req)
+	if errors.Is(err, auth.ErrUserNotFound) {
+		logrus.Warnf("failed to reset password for user %q: %v", userID, err)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	} else if err != nil {
+		logrus.Errorf("failed to reset password for user %q: %v", userID, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *ManagerAPI) createApplication(w http.ResponseWriter, r *http.Request) {

@@ -231,6 +231,11 @@ func (a *_APIKeyAuthenticator) RevokeAPIKey(
 		return err
 	}
 
+	if apiKey.APIKey.Status == APIKeyStatusRevoked {
+		// Already revoked.
+		return nil
+	}
+
 	apiKey.APIKey.Status = APIKeyStatusRevoked
 	apiKey.APIKey.Version += 1
 	apiKey.APIKey.UpdatedAt = ts

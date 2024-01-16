@@ -488,7 +488,7 @@ func (s *ManagerAPI) createAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, apiKeyString, err := s.apiKeyMgr.CreateAPIKey(r.Context(), time.Now().Unix(), request)
-	if errors.Is(err, auth.ErrInvalidParameter) {
+	if errors.Is(err, auth.ErrInvalidParameter) || errors.Is(err, auth.ErrApplicationNotFound) {
 		logrus.Warnf("failed to create API key: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

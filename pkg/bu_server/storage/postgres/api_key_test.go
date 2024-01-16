@@ -14,7 +14,8 @@ import (
 
 type APIKeyStorageTestSuite struct {
 	BaseTestSuite
-	storage auth.APIKeyStorage
+	storage    auth.APIKeyStorage
+	appStorage auth.ApplicationStorage
 }
 
 func TestEventStorage(t *testing.T) {
@@ -23,7 +24,9 @@ func TestEventStorage(t *testing.T) {
 
 func (s *APIKeyStorageTestSuite) SetupTest() {
 	s.BaseTestSuite.SetupTest()
-	s.storage = postgres.NewStorageWithPool(s.pgPool)
+	storage := postgres.NewStorageWithPool(s.pgPool)
+	s.storage = storage
+	s.appStorage = storage
 }
 
 func (s *APIKeyStorageTestSuite) TearDownTest() {
@@ -56,6 +59,18 @@ func (s *APIKeyStorageTestSuite) TestCreateAPIKey() {
 	tx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	s.Require().NoError(err)
 	defer tx.Rollback(s.ctx)
+
+	// StoreAPIKey with un-existing application ID.
+	s.Require().ErrorIs(s.storage.StoreAPIKey(s.ctx, tx, apiKey), auth.ErrApplicationNotFound)
+
+	// Insert the associated application before inserting the APIKey
+	app := auth.Application{
+		ID:          "test-application-id",
+		Status:      auth.ApplicationStatusActive,
+		Version:     1,
+		CompanyName: "test-company-name",
+	}
+	s.Require().NoError(s.appStorage.StoreApplication(s.ctx, tx, app))
 
 	// First version of APIKey
 	s.Require().NoError(s.storage.StoreAPIKey(s.ctx, tx, apiKey))

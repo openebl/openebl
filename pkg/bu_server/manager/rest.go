@@ -61,8 +61,9 @@ func NewManagerAPI(cfg ManagerAPIConfig) (*ManagerAPI, error) {
 	mgrRouter.HandleFunc("/application/{id}", apiServer.getApplication).Methods(http.MethodGet)
 	mgrRouter.HandleFunc("/application/{id}", apiServer.updateApplication).Methods(http.MethodPost)
 	mgrRouter.HandleFunc("/application/{id}/status", apiServer.updateApplicationStatus).Methods(http.MethodPost)
-	mgrRouter.HandleFunc("/api_key", apiServer.createAPIKey).Methods(http.MethodPost)
-	mgrRouter.HandleFunc("/api_key/{key_id}", apiServer.revokeAPIKey).Methods(http.MethodDelete)
+	mgrRouter.HandleFunc("/application/{id}/api_key", apiServer.createAPIKey).Methods(http.MethodPost)
+	mgrRouter.HandleFunc("/application/{id}/api_key", apiServer.listAPIKey).Methods(http.MethodGet)
+	mgrRouter.HandleFunc("/application/{id}/api_key/{key_id}", apiServer.revokeAPIKey).Methods(http.MethodDelete)
 
 	httpServer := &http.Server{
 		Addr:         cfg.LocalAddress,
@@ -529,12 +530,14 @@ func (s *ManagerAPI) updateApplicationStatus(w http.ResponseWriter, r *http.Requ
 
 func (s *ManagerAPI) createAPIKey(w http.ResponseWriter, r *http.Request) {
 	userToken, _ := r.Context().Value(middleware.USER_TOKEN).(auth.UserToken)
+	appID := mux.Vars(r)["id"]
 
 	request := auth.CreateAPIKeyRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	request.ApplicationID = appID
 
 	request.RequestUser = auth.RequestUser{
 		User: userToken.UserID,
@@ -556,12 +559,50 @@ func (s *ManagerAPI) createAPIKey(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(apiKeyString))
 }
 
+func (s *ManagerAPI) listAPIKey(w http.ResponseWriter, r *http.Request) {
+	listRequest := auth.ListAPIKeysRequest{
+		Limit: 10,
+	}
+
+	offsetStr := r.URL.Query().Get("offset")
+	limitStr := r.URL.Query().Get("limit")
+	if offsetStr != "" {
+		offset, err := strconv.ParseInt(offsetStr, 10, 32)
+		if err != nil || offset < 0 {
+			http.Error(w, "offset is invalid", http.StatusBadRequest)
+			return
+		}
+		listRequest.Offset = int(offset)
+	}
+	if limitStr != "" {
+		limit, err := strconv.ParseInt(limitStr, 10, 32)
+		if err != nil || limit < 1 {
+			http.Error(w, "limit is invalid", http.StatusBadRequest)
+			return
+		}
+		listRequest.Limit = int(limit)
+	}
+
+	result, err := s.apiKeyMgr.ListAPIKeys(r.Context(), listRequest)
+	if err != nil {
+		logrus.Errorf("failed to list API keys: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
+}
+
 func (s *ManagerAPI) revokeAPIKey(w http.ResponseWriter, r *http.Request) {
 	userToken, _ := r.Context().Value(middleware.USER_TOKEN).(auth.UserToken)
+	appID := mux.Vars(r)["id"]
 	apiKeyID := mux.Vars(r)["key_id"]
 
 	request := auth.RevokeAPIKeyRequest{
-		ID: apiKeyID,
+		ID:            apiKeyID,
+		ApplicationID: appID,
 		RequestUser: auth.RequestUser{
 			User: userToken.UserID,
 		},

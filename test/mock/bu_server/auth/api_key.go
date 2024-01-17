@@ -67,6 +67,21 @@ func (mr *MockAPIKeyAuthenticatorMockRecorder) CreateAPIKey(ctx, ts, request int
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAPIKey", reflect.TypeOf((*MockAPIKeyAuthenticator)(nil).CreateAPIKey), ctx, ts, request)
 }
 
+// ListAPIKeys mocks base method.
+func (m *MockAPIKeyAuthenticator) ListAPIKeys(ctx context.Context, req auth.ListAPIKeysRequest) (auth.ListAPIKeysResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListAPIKeys", ctx, req)
+	ret0, _ := ret[0].(auth.ListAPIKeysResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListAPIKeys indicates an expected call of ListAPIKeys.
+func (mr *MockAPIKeyAuthenticatorMockRecorder) ListAPIKeys(ctx, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAPIKeys", reflect.TypeOf((*MockAPIKeyAuthenticator)(nil).ListAPIKeys), ctx, req)
+}
+
 // RevokeAPIKey mocks base method.
 func (m *MockAPIKeyAuthenticator) RevokeAPIKey(ctx context.Context, ts int64, request auth.RevokeAPIKeyRequest) error {
 	m.ctrl.T.Helper()

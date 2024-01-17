@@ -201,6 +201,22 @@ components:
           type: integer
         updated_by:
           type: string
+    ListAPIKeysResult:
+      type: object
+      properties:
+        total:
+          type: integer
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/ListAPIKeyRecord'
+    ListAPIKeyRecord:
+      type: object
+      properties:
+        api_key:
+          $ref: '#/components/schemas/APIKey'
+        application:
+          $ref: '#/components/schemas/Application'
   securitySchemes:
     basicAuth:
       type: http
@@ -666,10 +682,60 @@ paths:
               schema:
                 type: string
               example: application ID does not exist
-  /api_key:
+  /application/{id}/api_key:
+    get:
+      tags: [api_key]
+      summary: List all API keys.
+      parameters:
+        - name: id
+          in: path
+          description: Application ID to retrieve API keys
+          required: true
+          schema:
+            type: string
+        - name: offset
+          in: query
+          description: The offset of the first API key to return.
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          description: The maximum number of API keys to return.
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                $ref: "#/components/schemas/ListAPIKeysResult"
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: invalid token
     post:
       tags: [api_key]
       summary: Create an API key for the application.
+      parameters:
+        - name: id
+          in: path
+          description: Application ID to retrieve API keys
+          required: true
+          schema:
+            type: string
       security:
         - bearerAuth: []
       requestBody:
@@ -678,15 +744,12 @@ paths:
             schema:
               type: object
               properties:
-                application_id:
-                  type: string
                 scopes:
                   type: array
                   items:
                     type: string
                     enum: [all]
               required:
-                - application_id
                 - scopes
       responses:
         '200':
@@ -706,11 +769,59 @@ paths:
               schema:
                 type: string
               example: invalid token
-  /api_key/{key_id}:
+  /application/{id}/api_key/{key_id}:
+    get:
+      tags: [api_key]
+      summary: Get API key by ID
+      parameters:
+        - name: id
+          in: path
+          description: Application ID to retrieve API key
+          required: true
+          schema:
+            type: string
+        - name: key_id
+          in: path
+          description: API key ID to retrieve
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description:
+            OK. The response body contains the API key. The client must stored the API key securely.
+            The system does not store the API key. It's unrecoverable if lost.
+            The format of the API key is {key_id}:{key_secret}.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKey'
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: invalid token
+        '404':
+          description: The API key does not exist.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: API key does not exist
     delete:
       tags: [api_key]
       summary: Revoke an API key.
       parameters:
+        - name: id
+          in: path
+          description: Application ID to revoke API key
+          required: true
+          schema:
+            type: string
         - name: key_id
           in: path
           description: ID of API key to be revoked.

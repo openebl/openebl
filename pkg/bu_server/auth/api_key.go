@@ -65,6 +65,8 @@ type APIKeyAuthenticator interface {
 	// Authenticate authenticates the given API key string. It returns the API key if the authentication is successful.
 	// The error can be ErrAPIKeyNotFound, ErrMismatchAPIKey, ErrRevokedAPIKey and others.
 	Authenticate(ctx context.Context, key APIKeyString) (APIKey, error)
+
+	ListAPIKeys(ctx context.Context, req ListAPIKeysRequest) (ListAPIKeysResult, error)
 }
 type CreateAPIKeyRequest struct {
 	RequestUser
@@ -73,7 +75,8 @@ type CreateAPIKeyRequest struct {
 }
 type RevokeAPIKeyRequest struct {
 	RequestUser
-	ID string `json:"id"`
+	ApplicationID string `json:"application_id"`
+	ID            string `json:"id"`
 }
 
 // APIKeyStorage is the interface that APIKeyAuthenticator relies on to persist the API key data.
@@ -92,12 +95,12 @@ type ListAPIKeysRequest struct {
 	Statuses       []APIKeyStatus // Filter by status.
 }
 type ListAPIKeysResult struct {
-	Total int
-	Keys  []ListAPIKeyRecord
+	Total int                `json:"total"`
+	Keys  []ListAPIKeyRecord `json:"keys"`
 }
 type ListAPIKeyRecord struct {
-	APIKey      APIKey
-	Application Application
+	APIKey      APIKey      `json:"api_key"`
+	Application Application `json:"application"`
 }
 
 func (ks APIKeyString) ID() (string, error) {
@@ -235,6 +238,9 @@ func (a *_APIKeyAuthenticator) RevokeAPIKey(
 		// Already revoked.
 		return nil
 	}
+	if apiKey.Application.ID != request.ApplicationID {
+		return ErrAPIKeyNotFound
+	}
 
 	apiKey.APIKey.Status = APIKeyStatusRevoked
 	apiKey.APIKey.Version += 1
@@ -284,4 +290,13 @@ func (a *_APIKeyAuthenticator) Authenticate(ctx context.Context, key APIKeyStrin
 
 	apiKey.APIKey.HashString = ""
 	return apiKey.APIKey, nil
+}
+
+func (a *_APIKeyAuthenticator) ListAPIKeys(ctx context.Context, req ListAPIKeysRequest) (ListAPIKeysResult, error) {
+	tx, err := a.storage.CreateTx(ctx, storage.TxOptionWithWrite(false))
+	if err != nil {
+		return ListAPIKeysResult{}, err
+	}
+	defer tx.Rollback(ctx)
+	return a.storage.ListAPIKeys(ctx, tx, req)
 }

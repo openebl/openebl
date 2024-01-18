@@ -24,24 +24,38 @@ type ManagerAPIConfig struct {
 }
 
 type ManagerAPI struct {
-	userMgr   auth.UserManager
-	appMgr    auth.ApplicationManager
-	apiKeyMgr auth.APIKeyAuthenticator
+	userMgr    auth.UserManager
+	appMgr     auth.ApplicationManager
+	apiKeyMgr  auth.APIKeyAuthenticator
+	httpServer *http.Server
 }
 
 func NewManagerAPI(cfg ManagerAPIConfig) (*ManagerAPI, error) {
-	apiServer := &ManagerAPI{}
-
 	storage, err := postgres.NewStorageWithConfig(cfg.Database)
 	if err != nil {
 		logrus.Errorf("failed to create storage: %v", err)
 		return nil, err
 	}
 
-	apiServer.userMgr = auth.NewUserManager(storage)
+	userMgr := auth.NewUserManager(storage)
+	appMgr := auth.NewApplicationManager(storage)
+	apiKeyMgr := auth.NewAPIKeyAuthenticator(storage)
+	return NewManagerAPIWithControllers(userMgr, appMgr, apiKeyMgr, cfg.LocalAddress)
+}
+
+func NewManagerAPIWithControllers(
+	userMgr auth.UserManager,
+	appMgr auth.ApplicationManager,
+	apiKeyMgr auth.APIKeyAuthenticator,
+	localAddress string,
+) (*ManagerAPI, error) {
+	apiServer := &ManagerAPI{}
+
+	apiServer.userMgr = userMgr
+	apiServer.appMgr = appMgr
+	apiServer.apiKeyMgr = apiKeyMgr
+
 	userTokenMiddleware := middleware.NewUserTokenAuth(apiServer.userMgr)
-	apiServer.appMgr = auth.NewApplicationManager(storage)
-	apiServer.apiKeyMgr = auth.NewAPIKeyAuthenticator(storage)
 
 	r := mux.NewRouter()
 	loginRouter := r.NewRoute().Subrouter()
@@ -66,30 +80,26 @@ func NewManagerAPI(cfg ManagerAPIConfig) (*ManagerAPI, error) {
 	mgrRouter.HandleFunc("/application/{id}/api_key/{key_id}", apiServer.revokeAPIKey).Methods(http.MethodDelete)
 
 	httpServer := &http.Server{
-		Addr:         cfg.LocalAddress,
+		Addr:         localAddress,
 		Handler:      r,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// go func() {
-	// 	logrus.Infof("starting manager API server on %s", cfg.LocalAddress)
-	// 	if err := httpServer.ListenAndServe(); err != nil {
-	// 		logrus.Errorf("failed to start manager API server: %v", err)
-	// 	}
-	// }()
-
-	err = httpServer.ListenAndServe()
-	if err != nil {
-		logrus.Errorf("failed to start manager API server: %v", err)
-	}
-
+	apiServer.httpServer = httpServer
 	return apiServer, nil
 }
 
-func (s *ManagerAPI) Close() error {
+func (s *ManagerAPI) Run() error {
+	err := s.httpServer.ListenAndServe()
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
 	return nil
+}
+func (s *ManagerAPI) Close() error {
+	return s.httpServer.Close()
 }
 
 func (s *ManagerAPI) login(w http.ResponseWriter, r *http.Request) {
@@ -560,8 +570,10 @@ func (s *ManagerAPI) createAPIKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *ManagerAPI) listAPIKey(w http.ResponseWriter, r *http.Request) {
+	appID := mux.Vars(r)["id"]
 	listRequest := auth.ListAPIKeysRequest{
-		Limit: 10,
+		Limit:          10,
+		ApplicationIDs: []string{appID},
 	}
 
 	offsetStr := r.URL.Query().Get("offset")

@@ -39,6 +39,7 @@ type Application struct {
 
 type ApplicationManager interface {
 	CreateApplication(ctx context.Context, ts int64, req CreateApplicationRequest) (Application, error)
+	ListApplications(ctx context.Context, req ListApplicationRequest) (ListApplicationResult, error)
 	UpdateApplication(ctx context.Context, ts int64, req UpdateApplicationRequest) (Application, error)
 	ActivateApplication(ctx context.Context, ts int64, req ActivateApplicationRequest) (Application, error)
 	DeactivateApplication(ctx context.Context, ts int64, req DeactivateApplicationRequest) (Application, error)
@@ -93,6 +94,10 @@ func NewApplicationManager(s ApplicationStorage) ApplicationManager {
 }
 
 func (m *_ApplicationManager) CreateApplication(ctx context.Context, ts int64, req CreateApplicationRequest) (Application, error) {
+	if err := ValidateCreateApplicationRequest(req); err != nil {
+		return Application{}, err
+	}
+
 	app := Application{
 		ID:           fmt.Sprintf("app_%s", uuid.New().String()),
 		Version:      1,
@@ -125,7 +130,20 @@ func (m *_ApplicationManager) CreateApplication(ctx context.Context, ts int64, r
 	return app, nil
 }
 
+func (m *_ApplicationManager) ListApplications(ctx context.Context, req ListApplicationRequest) (ListApplicationResult, error) {
+	tx, err := m.storage.CreateTx(ctx)
+	if err != nil {
+		return ListApplicationResult{}, fmt.Errorf("failed to create transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	return m.storage.ListApplication(ctx, tx, req)
+}
+
 func (m *_ApplicationManager) UpdateApplication(ctx context.Context, ts int64, req UpdateApplicationRequest) (Application, error) {
+	if err := ValidateUpdateApplicationRequest(req); err != nil {
+		return Application{}, err
+	}
 	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return Application{}, fmt.Errorf("failed to create transaction: %w", err)
@@ -158,6 +176,9 @@ func (m *_ApplicationManager) UpdateApplication(ctx context.Context, ts int64, r
 }
 
 func (m *_ApplicationManager) ActivateApplication(ctx context.Context, ts int64, req ActivateApplicationRequest) (Application, error) {
+	if err := ValidateActivateApplicationRequest(req); err != nil {
+		return Application{}, err
+	}
 	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return Application{}, fmt.Errorf("failed to create transaction: %w", err)
@@ -186,6 +207,9 @@ func (m *_ApplicationManager) ActivateApplication(ctx context.Context, ts int64,
 }
 
 func (m *_ApplicationManager) DeactivateApplication(ctx context.Context, ts int64, req DeactivateApplicationRequest) (Application, error) {
+	if err := ValidateActivateApplicationRequest(ActivateApplicationRequest(req)); err != nil {
+		return Application{}, err
+	}
 	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return Application{}, fmt.Errorf("failed to create transaction: %w", err)

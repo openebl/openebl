@@ -50,24 +50,33 @@ type APIKey struct {
 type APIKeyAuthenticator interface {
 	CreateAPIKey(
 		ctx context.Context,
-		applicationId string,
-		scopes []APIKeyScope,
 		ts int64,
-		createdBy string,
+		request CreateAPIKeyRequest,
 	) (APIKey, APIKeyString, error)
 
 	// RevokeAPIKey revokes the API key with the given ID.
 	// The error can be ErrAPIKeyNotFound and others.
 	RevokeAPIKey(
 		ctx context.Context,
-		id string,
 		ts int64,
-		revokedBy string,
+		request RevokeAPIKeyRequest,
 	) error
 
 	// Authenticate authenticates the given API key string. It returns the API key if the authentication is successful.
 	// The error can be ErrAPIKeyNotFound, ErrMismatchAPIKey, ErrRevokedAPIKey and others.
 	Authenticate(ctx context.Context, key APIKeyString) (APIKey, error)
+
+	ListAPIKeys(ctx context.Context, req ListAPIKeysRequest) (ListAPIKeysResult, error)
+}
+type CreateAPIKeyRequest struct {
+	RequestUser
+	ApplicationID string        `json:"application_id"`
+	Scopes        []APIKeyScope `json:"scopes"`
+}
+type RevokeAPIKeyRequest struct {
+	RequestUser
+	ApplicationID string `json:"application_id"`
+	ID            string `json:"id"`
 }
 
 // APIKeyStorage is the interface that APIKeyAuthenticator relies on to persist the API key data.
@@ -86,12 +95,12 @@ type ListAPIKeysRequest struct {
 	Statuses       []APIKeyStatus // Filter by status.
 }
 type ListAPIKeysResult struct {
-	Total int
-	Keys  []ListAPIKeyRecord
+	Total int                `json:"total"`
+	Keys  []ListAPIKeyRecord `json:"keys"`
 }
 type ListAPIKeyRecord struct {
-	APIKey      APIKey
-	Application Application
+	APIKey      APIKey      `json:"api_key"`
+	Application Application `json:"application"`
 }
 
 func (ks APIKeyString) ID() (string, error) {
@@ -154,11 +163,13 @@ func NewAPIKeyAuthenticator(storage APIKeyStorage) APIKeyAuthenticator {
 
 func (a *_APIKeyAuthenticator) CreateAPIKey(
 	ctx context.Context,
-	applicationId string,
-	scopes []APIKeyScope,
 	ts int64,
-	createdBy string,
+	request CreateAPIKeyRequest,
 ) (APIKey, APIKeyString, error) {
+	if err := ValidateCreateAPIKeyRequest(request); err != nil {
+		return APIKey{}, "", err
+	}
+
 	apiKeyString, err := NewAPIKeyString()
 	if err != nil {
 		return APIKey{}, "", nil
@@ -176,13 +187,13 @@ func (a *_APIKeyAuthenticator) CreateAPIKey(
 		ID:            apiKeyID,
 		Version:       1,
 		HashString:    apiKeyHashedString,
-		ApplicationID: applicationId,
-		Scopes:        scopes,
+		ApplicationID: request.ApplicationID,
+		Scopes:        request.Scopes,
 		Status:        APIKeyStatusActive,
 		CreatedAt:     ts,
-		CreatedBy:     createdBy,
+		CreatedBy:     request.User,
 		UpdatedAt:     ts,
-		UpdatedBy:     createdBy,
+		UpdatedBy:     request.User,
 	}
 
 	tx, err := a.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
@@ -201,24 +212,40 @@ func (a *_APIKeyAuthenticator) CreateAPIKey(
 	return apiKey, apiKeyString, nil
 }
 
-func (a *_APIKeyAuthenticator) RevokeAPIKey(ctx context.Context, id string, ts int64, revokedBy string) error {
+func (a *_APIKeyAuthenticator) RevokeAPIKey(
+	ctx context.Context,
+	ts int64,
+	request RevokeAPIKeyRequest,
+) error {
+	if err := ValidateRevokeAPIKeyRequest(request); err != nil {
+		return err
+	}
+
 	tx, err := a.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
 
-	apiKey, err := a.storage.GetAPIKey(ctx, tx, id)
+	apiKey, err := a.storage.GetAPIKey(ctx, tx, request.ID)
 	if err != nil && err == sql.ErrNoRows {
 		return ErrAPIKeyNotFound
 	} else if err != nil {
 		return err
 	}
 
+	if apiKey.APIKey.Status == APIKeyStatusRevoked {
+		// Already revoked.
+		return nil
+	}
+	if apiKey.Application.ID != request.ApplicationID {
+		return ErrAPIKeyNotFound
+	}
+
 	apiKey.APIKey.Status = APIKeyStatusRevoked
 	apiKey.APIKey.Version += 1
 	apiKey.APIKey.UpdatedAt = ts
-	apiKey.APIKey.UpdatedBy = revokedBy
+	apiKey.APIKey.UpdatedBy = request.User
 
 	if err := a.storage.StoreAPIKey(ctx, tx, apiKey.APIKey); err != nil {
 		return err
@@ -263,4 +290,13 @@ func (a *_APIKeyAuthenticator) Authenticate(ctx context.Context, key APIKeyStrin
 
 	apiKey.APIKey.HashString = ""
 	return apiKey.APIKey, nil
+}
+
+func (a *_APIKeyAuthenticator) ListAPIKeys(ctx context.Context, req ListAPIKeysRequest) (ListAPIKeysResult, error) {
+	tx, err := a.storage.CreateTx(ctx, storage.TxOptionWithWrite(false))
+	if err != nil {
+		return ListAPIKeysResult{}, err
+	}
+	defer tx.Rollback(ctx)
+	return a.storage.ListAPIKeys(ctx, tx, req)
 }

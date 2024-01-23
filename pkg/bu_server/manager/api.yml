@@ -1,0 +1,849 @@
+openapi: '3.0.2'
+info:
+  title: BU Server Management API
+  version: '0.1'
+servers:
+  - url: http://localhost:9100
+    description: Local server
+tags:
+  - name: user
+    description: User management
+  - name: application
+    description: Application management
+  - name: api_key
+    description: API key management
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        version:
+          type: integer
+        name:
+          type: string
+        emails:
+          type: array
+          items:
+            type: string
+        note:
+          type: string
+        created_at:
+          type: integer
+        created_by:
+          type: string
+        updated_at:
+          type: integer
+        updated_by:
+          type: string
+      required:
+        - id
+        - status
+        - version
+        - name
+    CreateUserRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+        password:
+          type: string
+        name:
+          type: string
+        emails:
+          type: array
+          items:
+            type: string
+        note:
+          type: string
+      required:
+        - user_id
+        - password
+        - name
+    UpdateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        emails:
+          type: array
+          items:
+            type: string
+        note:
+          type: string
+      required:
+        - name
+    ChangePasswordRequest:
+      type: object
+      properties:
+        old_password:
+          type: string
+        password:
+          type: string
+      required:
+        - old_password
+        - password
+    ResetPasswordRequest:
+      type: object
+      properties:
+        password:
+          type: string
+      required:
+        - password
+    Application:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the application.
+        version:
+          type: integer
+          description: Version number of the application.
+        status:
+          type: string
+          enum: [active, inactive]
+          description: Status of the application.
+        created_at:
+          type: integer
+          description: Unix Time (in second) when the application was created.
+        created_by:
+          type: string
+          description: User who created the application.
+        updated_at:
+          type: integer
+          description: Unix Time (in second) when the application was last updated.
+        updated_by:
+          type: string
+          description: User who last updated the application.
+        name:
+          type: string
+          description: Name of the application.
+        company_name:
+          type: string
+          description: Name of the company associated with the application.
+        addresses:
+          type: array
+          items:
+            type: string
+          description: List of addresses associated with the application.
+        emails:
+          type: array
+          items:
+            type: string
+          description: List of emails associated with the application.
+        phone_numbers:
+          type: array
+          items:
+            type: string
+          description: List of phone numbers associated with the application.
+      required:
+        - id
+        - version
+        - status
+        - created_at
+        - created_by
+        - updated_at
+        - updated_by
+        - name
+    CreateApplicationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the application.
+        company_name:
+          type: string
+          description: Name of the company associated with the application.
+        addresses:
+          type: array
+          items:
+            type: string
+          description: List of addresses associated with the application.
+        emails:
+          type: array
+          items:
+            type: string
+          description: List of emails associated with the application.
+        phone_numbers:
+          type: array
+          items:
+            type: string
+          description: List of phone numbers associated with the application.
+      required:
+        - name
+        - company_name
+    APIKey:
+      type: object
+      properties:
+        id:
+          type: string
+        version:
+          type: integer
+        application_id:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+            enum: [all]
+        status:
+          type: string
+          enum: [active, revoke]
+        created_at:
+          type: integer
+        created_by:
+          type: string
+        updated_at:
+          type: integer
+        updated_by:
+          type: string
+    ListAPIKeysResult:
+      type: object
+      properties:
+        total:
+          type: integer
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/ListAPIKeyRecord'
+    ListAPIKeyRecord:
+      type: object
+      properties:
+        api_key:
+          $ref: '#/components/schemas/APIKey'
+        application:
+          $ref: '#/components/schemas/Application'
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+    bearerAuth:
+      type: http
+      scheme: bearer
+paths:
+  /login:
+    get:
+      tags: [user]
+      summary: Get a token for the other APIs.
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: The login succeeded. The response body contains the token for the other APIs.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: 2e94a85e-ae44-49be-a496-b8102a0e481d
+        '401':
+          description: The login failed.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: user name/password mismatch
+  /user:
+    get:
+      tags: [user]
+      summary: List all users.
+      parameters:
+        - name: offset
+          description: The offset of the first user to return.
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          description: The maximum number of users to return.
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: 
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+    post:
+      tags: [user]
+      summary: Create a user.
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+        '409':
+          description: The user ID already exists.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: user ID already exists
+  /user/{id}:
+    get:
+      tags: [user]
+      summary: Get user by ID
+      parameters:
+        - name: id
+          in: path
+          description: User ID to retrieve
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+        '404':
+          description: The user ID does not exist.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: user ID does not exist
+    post:
+      tags: [user]
+      summary: Update a user.
+      parameters:
+        - name: id
+          in: path
+          description: User ID to update
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+        '404':
+          description: The user ID does not exist.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: user ID does not exist
+  /user/{id}/status:
+    post:
+      tags: [user]
+      summary: Update user status.
+      parameters:
+        - name: id
+          in: path
+          description: User ID to update
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [active, inactive]
+              required:
+                - status
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+        '404':
+          description: The user ID does not exist.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: user ID does not exist
+  /user/{id}/reset_password:
+    post:
+      tags: [user]
+      summary: Reset user password.
+      parameters:
+        - name: id
+          in: path
+          description: User ID to reset password
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+        '404':
+          description: The user ID does not exist.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: user ID does not exist
+  /user/{id}/change_password:
+    post:
+      tags: [user]
+      summary: Change user password.
+      parameters:
+        - name: id
+          in: path
+          description: User ID to change password
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+        '404':
+          description: The user ID does not exist.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: user ID does not exist
+  /application:
+    get:
+      tags: [application]
+      summary: List all applications.
+      parameters:
+        - name: offset
+          in: query
+          description: The offset of the first application to return.
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          description: The maximum number of applications to return.
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  applications: 
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Application'
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+    post:
+      tags: [application]
+      summary: Create a application.
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApplicationRequest'
+      responses:
+        '200':
+          description: OK
+  /application/{id}:
+    get:
+      tags: [application]
+      summary: Get application by ID
+      parameters:
+        - name: id
+          in: path
+          description: Application ID to retrieve
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+        '404':
+          description: The application ID does not exist.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: application ID does not exist
+    post:
+      tags: [application]
+      summary: Update a application.
+      parameters:
+        - name: id
+          in: path
+          description: Application ID to update
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApplicationRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+        '404':
+          description: The application ID does not exist.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: application ID does not exist
+  /application/{id}/status:
+    post:
+      tags: [application]
+      summary: Update application status.
+      parameters:
+        - name: id
+          in: path
+          description: Application ID to update
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [active, inactive]
+              required:
+                - status
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+        '404':
+          description: The application ID does not exist.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: application ID does not exist
+  /application/{id}/api_key:
+    get:
+      tags: [api_key]
+      summary: List all API keys.
+      parameters:
+        - name: id
+          in: path
+          description: Application ID to retrieve API keys
+          required: true
+          schema:
+            type: string
+        - name: offset
+          in: query
+          description: The offset of the first API key to return.
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          description: The maximum number of API keys to return.
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                $ref: "#/components/schemas/ListAPIKeysResult"
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: invalid token
+    post:
+      tags: [api_key]
+      summary: Create an API key for the application.
+      parameters:
+        - name: id
+          in: path
+          description: Application ID to retrieve API keys
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scopes:
+                  type: array
+                  items:
+                    type: string
+                    enum: [all]
+              required:
+                - scopes
+      responses:
+        '200':
+          description:
+            OK. The response body contains the API key. The client must stored the API key securely.
+            The system does not store the API key. It's unrecoverable if lost.
+            The format of the API key is {key_id}:{key_secret}.
+          content:
+            text/plain::
+              schema:
+                type: string
+              example: "V07uQkIC50SUgnDJClNJNQ:H5O-EFaLeg_Z2VRdbg7fVijObyy37DPbIT4S4kygTMk"
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+  /application/{id}/api_key/{key_id}:
+    get:
+      tags: [api_key]
+      summary: Get API key by ID
+      parameters:
+        - name: id
+          in: path
+          description: Application ID to retrieve API key
+          required: true
+          schema:
+            type: string
+        - name: key_id
+          in: path
+          description: API key ID to retrieve
+          required: true
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description:
+            OK. The response body contains the API key. The client must stored the API key securely.
+            The system does not store the API key. It's unrecoverable if lost.
+            The format of the API key is {key_id}:{key_secret}.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKey'
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: invalid token
+        '404':
+          description: The API key does not exist.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: API key does not exist
+    delete:
+      tags: [api_key]
+      summary: Revoke an API key.
+      parameters:
+        - name: id
+          in: path
+          description: Application ID to revoke API key
+          required: true
+          schema:
+            type: string
+        - name: key_id
+          in: path
+          description: ID of API key to be revoked.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: The token is invalid or not provided.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: invalid token
+        '404':
+          description: The API key does not exist.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: API key does not exist
+      security:
+        - bearerAuth: []

@@ -81,6 +81,51 @@ func (s *ApplicationManagerTestSuite) TestCreateApplication() {
 	s.Equal([]string{"1234567890", "0987654321"}, app.PhoneNumbers)
 }
 
+func (s *ApplicationManagerTestSuite) TestListApplications() {
+	// Prepare test data
+	req := auth.ListApplicationRequest{
+		Offset: 0,
+		Limit:  10,
+		IDs:    []string{"app1", "app2"},
+		Statuses: []auth.ApplicationStatus{
+			auth.ApplicationStatusActive,
+			auth.ApplicationStatusInactive,
+		},
+	}
+
+	expectedResult := auth.ListApplicationResult{
+		Total: 2,
+		Applications: []auth.Application{
+			{
+				ID:      "app1",
+				Version: 1,
+				Status:  auth.ApplicationStatusActive,
+				// Set other fields as needed
+			},
+			{
+				ID:      "app2",
+				Version: 1,
+				Status:  auth.ApplicationStatusInactive,
+				// Set other fields as needed
+			},
+		},
+	}
+
+	// Set expectations
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Any()).Return(s.tx, nil),
+		s.storage.EXPECT().ListApplication(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(req)).Return(expectedResult, nil),
+		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
+	)
+
+	// Call the function under test
+	result, err := s.mgr.ListApplications(s.ctx, req)
+
+	// Assert the result
+	s.NoError(err)
+	s.Equal(expectedResult, result)
+}
+
 func (s *ApplicationManagerTestSuite) TestUpdateApplication() {
 	// Prepare the old application.
 	oldApp := auth.Application{

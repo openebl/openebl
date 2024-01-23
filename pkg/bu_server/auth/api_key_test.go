@@ -68,9 +68,13 @@ func (s *APIAuthenticatorTestSuite) TearDownTest() {
 }
 
 func (s *APIAuthenticatorTestSuite) TestCreateAPIKey() {
-	applicationID := "application-id"
-	scopes := []auth.APIKeyScope{auth.APIKeyScopeAll}
-	createdBy := "created-by"
+	request := auth.CreateAPIKeyRequest{
+		ApplicationID: "application-id",
+		Scopes:        []auth.APIKeyScope{auth.APIKeyScopeAll},
+		RequestUser: auth.RequestUser{
+			User: "created-by",
+		},
+	}
 	ts := time.Now().Unix()
 
 	receivedAPIKey := auth.APIKey{}
@@ -87,26 +91,31 @@ func (s *APIAuthenticatorTestSuite) TestCreateAPIKey() {
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
 
-	returnedAPIKey, apiKeyString, err := s.authenticator.CreateAPIKey(s.ctx, applicationID, scopes, ts, createdBy)
+	returnedAPIKey, apiKeyString, err := s.authenticator.CreateAPIKey(s.ctx, ts, request)
 	s.Require().NoError(err)
 	s.Assert().Equal(receivedAPIKey, returnedAPIKey)
-	s.Assert().Equal(receivedAPIKey.ApplicationID, applicationID)
-	s.Assert().Equal(receivedAPIKey.Scopes, scopes)
-	s.Assert().Equal(receivedAPIKey.CreatedBy, createdBy)
-	s.Assert().Equal(receivedAPIKey.UpdatedBy, createdBy)
+	s.Assert().Equal(receivedAPIKey.ApplicationID, request.ApplicationID)
+	s.Assert().Equal(receivedAPIKey.Scopes, request.Scopes)
+	s.Assert().Equal(receivedAPIKey.CreatedBy, request.RequestUser.User)
+	s.Assert().Equal(receivedAPIKey.UpdatedBy, request.RequestUser.User)
 	s.Assert().Equal(receivedAPIKey.CreatedAt, ts)
 	s.Assert().Equal(receivedAPIKey.UpdatedAt, ts)
 	s.Assert().NoError(auth.VerifyAPIKeyString(apiKeyString, receivedAPIKey.HashString))
 }
 
 func (s *APIAuthenticatorTestSuite) TestRevokeAPIKey() {
-	id := "id"
+	request := auth.RevokeAPIKeyRequest{
+		ID:            "id",
+		ApplicationID: "application-id",
+		RequestUser: auth.RequestUser{
+			User: "revoked-by",
+		},
+	}
 	ts := time.Now().Unix()
-	revokedBy := "revoked-by"
 
 	oldAPIKey := auth.ListAPIKeyRecord{
 		APIKey: auth.APIKey{
-			ID:            id,
+			ID:            request.ID,
 			HashString:    "hash-string",
 			Version:       1,
 			ApplicationID: "application-id",
@@ -126,33 +135,37 @@ func (s *APIAuthenticatorTestSuite) TestRevokeAPIKey() {
 	newAPIKey := oldAPIKey.APIKey
 	newAPIKey.Status = auth.APIKeyStatusRevoked
 	newAPIKey.UpdatedAt = ts
-	newAPIKey.UpdatedBy = revokedBy
+	newAPIKey.UpdatedBy = request.RequestUser.User
 	newAPIKey.Version += 1
 
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
-		s.storage.EXPECT().GetAPIKey(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(id)).Return(oldAPIKey, nil),
+		s.storage.EXPECT().GetAPIKey(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(request.ID)).Return(oldAPIKey, nil),
 		s.storage.EXPECT().StoreAPIKey(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(newAPIKey)).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Eq(s.ctx)).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
 
-	err := s.authenticator.RevokeAPIKey(s.ctx, id, ts, revokedBy)
+	err := s.authenticator.RevokeAPIKey(s.ctx, ts, request)
 	s.Require().NoError(err)
 }
 
 func (s *APIAuthenticatorTestSuite) TestRevokeAPIKeyWithNonExistAPIKey() {
-	id := "id"
+	request := auth.RevokeAPIKeyRequest{
+		ID: "id",
+		RequestUser: auth.RequestUser{
+			User: "revoked-by",
+		},
+	}
 	ts := time.Now().Unix()
-	revokedBy := "revoked-by"
 
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
-		s.storage.EXPECT().GetAPIKey(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(id)).Return(auth.ListAPIKeyRecord{}, sql.ErrNoRows),
+		s.storage.EXPECT().GetAPIKey(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(request.ID)).Return(auth.ListAPIKeyRecord{}, sql.ErrNoRows),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
 
-	err := s.authenticator.RevokeAPIKey(s.ctx, id, ts, revokedBy)
+	err := s.authenticator.RevokeAPIKey(s.ctx, ts, request)
 	s.Require().ErrorIs(err, auth.ErrAPIKeyNotFound)
 }
 
@@ -233,4 +246,42 @@ func (s *APIAuthenticatorTestSuite) TestAuthenticate() {
 	returnedAPIKey, err = s.authenticator.Authenticate(s.ctx, apiKeyString)
 	s.Require().ErrorIs(err, auth.ErrAPIKeyNotFound)
 	s.Assert().Equal(auth.APIKey{}, returnedAPIKey)
+}
+
+func (s *APIAuthenticatorTestSuite) TestListAPIKey() {
+	request := auth.ListAPIKeysRequest{
+		Offset:         1,
+		Limit:          2,
+		ApplicationIDs: []string{"application-id"},
+		Statuses:       []auth.APIKeyStatus{auth.APIKeyStatusActive},
+	}
+	result := auth.ListAPIKeysResult{
+		Total: 1,
+		Keys: []auth.ListAPIKeyRecord{
+			{
+				APIKey: auth.APIKey{
+					ID:            "id",
+					Version:       1,
+					ApplicationID: "application-id",
+					Scopes:        []auth.APIKeyScope{auth.APIKeyScopeAll},
+					Status:        auth.APIKeyStatusActive,
+				},
+				Application: auth.Application{
+					ID:      "application-id",
+					Version: 1,
+					Status:  auth.ApplicationStatusActive,
+				},
+			},
+		},
+	}
+
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Any()).Return(s.tx, nil),
+		s.storage.EXPECT().ListAPIKeys(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(request)).Return(result, nil),
+		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
+	)
+
+	returnedResult, err := s.authenticator.ListAPIKeys(s.ctx, request)
+	s.Require().NoError(err)
+	s.Assert().Equal(result, returnedResult)
 }

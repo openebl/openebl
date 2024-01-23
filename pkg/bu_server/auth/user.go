@@ -149,7 +149,7 @@ func (m *_UserManager) CreateUser(ctx context.Context, ts int64, req CreateUserR
 	}
 	defer tx.Rollback(ctx)
 
-	_, err = m.storage.ListUsers(
+	oldUsers, err := m.storage.ListUsers(
 		ctx,
 		tx,
 		ListUserRequest{
@@ -157,7 +157,10 @@ func (m *_UserManager) CreateUser(ctx context.Context, ts int64, req CreateUserR
 			IDs:   []string{user.ID},
 		},
 	)
-	if !errors.Is(err, ErrUserNotFound) {
+	if err != nil {
+		return User{}, err
+	}
+	if len(oldUsers.Users) > 0 {
 		return User{}, ErrUserAlreadyExists
 	}
 

@@ -14,7 +14,7 @@ func (s *_Storage) StoreAPIKey(ctx context.Context, tx storage.Tx, key auth.APIK
 	query := `
 WITH new_data AS (
 	INSERT INTO api_key (id, "version", application_id, status, created_at, updated_at, api_key)
-	VALUES ($1, $2, $3, $4, $5, $5, $6)
+	SELECT $1, $2, $3, $4, $5, $5, $6 FROM application WHERE id = $3
 	ON CONFLICT (id) DO UPDATE SET
 		"version" = excluded."version",
 		application_id = excluded.application_id,
@@ -26,9 +26,14 @@ WITH new_data AS (
 INSERT INTO api_key_history (id, "version", created_at, api_key)
 SELECT * FROM new_data`
 
-	_, err := tx.Exec(ctx, query, key.ID, key.Version, key.ApplicationID, key.Status, key.CreatedAt, key)
+	result, err := tx.Exec(ctx, query, key.ID, key.Version, key.ApplicationID, key.Status, key.UpdatedAt, key)
 	if err != nil {
 		return err
+	}
+	if rowAffected, err := result.RowsAffected(); err != nil {
+		return err
+	} else if rowAffected == 0 {
+		return auth.ErrApplicationNotFound
 	}
 
 	return nil

@@ -49,7 +49,7 @@ func (s *BaseTestSuite) SetupTest() {
 		"application_history",
 	}
 	for _, tableName := range tableNames {
-		_, err := pool.Exec(context.Background(), fmt.Sprintf(`TRUNCATE TABLE %q`, tableName))
+		_, err := pool.Exec(context.Background(), fmt.Sprintf(`DELETE FROM %q`, tableName))
 		s.Require().NoError(err)
 	}
 }

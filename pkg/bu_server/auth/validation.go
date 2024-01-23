@@ -85,3 +85,69 @@ func ValidateListUserRequest(req ListUserRequest) error {
 	}
 	return nil
 }
+
+func ValidateCreateApplicationRequest(req CreateApplicationRequest) error {
+	err := validation.ValidateStruct(&req,
+		validation.Field(&req.RequestUser, validation.Required),
+		validation.Field(&req.Name, validation.Required),
+		validation.Field(&req.CompanyName, validation.Required),
+	)
+	if err != nil {
+		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+	}
+
+	return nil
+}
+
+func ValidateUpdateApplicationRequest(req UpdateApplicationRequest) error {
+	err := validation.ValidateStruct(&req,
+		validation.Field(&req.ID, validation.Required),
+	)
+	if err != nil {
+		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+	}
+
+	err = ValidateCreateApplicationRequest(req.CreateApplicationRequest)
+	if err != nil {
+		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+	}
+
+	return nil
+}
+
+func ValidateActivateApplicationRequest(req ActivateApplicationRequest) error {
+	err := validation.ValidateStruct(&req,
+		validation.Field(&req.ApplicationID, validation.Required),
+		validation.Field(&req.User, validation.Required),
+	)
+	if err != nil {
+		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+	}
+
+	return nil
+}
+
+func ValidateCreateAPIKeyRequest(req CreateAPIKeyRequest) error {
+	err := validation.ValidateStruct(&req,
+		validation.Field(&req.RequestUser.User, validation.Required),
+		validation.Field(&req.ApplicationID, validation.Required),
+		validation.Field(&req.Scopes, validation.Required),
+	)
+	if err != nil {
+		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+	}
+
+	return nil
+}
+
+func ValidateRevokeAPIKeyRequest(req RevokeAPIKeyRequest) error {
+	err := validation.ValidateStruct(&req,
+		validation.Field(&req.RequestUser.User, validation.Required),
+		validation.Field(&req.ID, validation.Required),
+	)
+	if err != nil {
+		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+	}
+
+	return nil
+}

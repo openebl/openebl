@@ -347,7 +347,7 @@ func (s *BusinessUnitManagerTestSuite) TestRevokeAuthentication() {
 			business_unit.ListAuthenticationRequest{
 				Limit:             1,
 				ApplicationID:     request.ApplicationID,
-				BusinessUnitID:    request.BusinessUnitID,
+				BusinessUnitID:    request.BusinessUnitID.String(),
 				AuthenticationIDs: []string{request.AuthenticationID},
 			},
 		).Return(business_unit.ListAuthenticationResult{
@@ -371,14 +371,14 @@ func (s *BusinessUnitManagerTestSuite) TestListAuthentication() {
 		Offset:            1,
 		Limit:             10,
 		ApplicationID:     "application-id",
-		BusinessUnitID:    did.MustParseDID("did:openebl:u0e2345"),
+		BusinessUnitID:    "did:openebl:u0e2345",
 		AuthenticationIDs: []string{"authentication-id"},
 	}
 
 	expectedAuthentication := model.BusinessUnitAuthentication{
 		ID:           "authentication-id",
 		Version:      1,
-		BusinessUnit: request.BusinessUnitID,
+		BusinessUnit: did.MustParseDID(request.BusinessUnitID),
 		Status:       model.BusinessUnitAuthenticationStatusActive,
 		CreatedAt:    12345,
 		CreatedBy:    "requester",

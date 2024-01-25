@@ -1,0 +1,48 @@
+- rec_id: 1
+  id: "bu1_auth1"
+  version: 1
+  business_unit_id: "did:openebl:bu1"
+  status: "active"
+  authentication:
+    id: "bu1_auth1"
+    version: 1
+    business_unit_id: "did:openebl:bu1"
+    status: "active"
+    created_at: 1634567890
+    private_key: "FAKE PEM PRIVATE KEY"
+    certificate: "FAKE PEM CERTIFICATE"
+  created_at: 1634567890
+  updated_at: 1634567890
+
+- rec_id: 2
+  id: "bu1_auth2"
+  version: 2
+  business_unit_id: "did:openebl:bu1"
+  status: "revoked"
+  authentication:
+    id: "bu1_auth2"
+    version: 1
+    business_unit_id: "did:openebl:bu1"
+    status: "revoked"
+    created_at: 1634567890
+    revoked_at: 1734567900
+    private_key: "FAKE PEM PRIVATE KEY"
+    certificate: "FAKE PEM CERTIFICATE"
+  created_at: 1634567900
+  updated_at: 1734567900
+
+- rec_id: 3
+  id: "bu2_auth1"
+  version: 1
+  business_unit_id: "did:openebl:bu2"
+  status: "active"
+  authentication:
+    id: "bu2_auth1"
+    version: 1
+    business_unit_id: "did:openebl:bu2"
+    status: "active"
+    created_at: 1634567890
+    private_key: "FAKE PEM PRIVATE KEY"
+    certificate: "FAKE PEM CERTIFICATE"
+  created_at: 1634567890
+  updated_at: 1634567890

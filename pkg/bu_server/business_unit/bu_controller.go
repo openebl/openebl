@@ -100,7 +100,7 @@ type ListAuthenticationRequest struct {
 
 	// Filters
 	ApplicationID     string   `json:"application_id"`     // The ID of the application this BusinessUnit belongs to.
-	BusinessUnitID    did.DID  `json:"id"`                 // Unique DID of a BusinessUnit.
+	BusinessUnitID    string   `json:"id"`                 // Unique DID of a BusinessUnit.
 	AuthenticationIDs []string `json:"authentication_ids"` // Unique IDs of the authentications.
 }
 
@@ -215,7 +215,16 @@ func (m *_BusinessUnitManager) ListBusinessUnits(ctx context.Context, req ListBu
 	}
 	defer tx.Rollback(ctx)
 
-	return m.storage.ListBusinessUnits(ctx, tx, req)
+	result, err := m.storage.ListBusinessUnits(ctx, tx, req)
+	if err != nil {
+		return ListBusinessUnitsResult{}, err
+	}
+	for i := range result.Records {
+		for j := range result.Records[i].Authentications {
+			result.Records[i].Authentications[j].PrivateKey = "" // Erase PrivateKey before returning.
+		}
+	}
+	return result, err
 }
 
 func (m *_BusinessUnitManager) SetStatus(ctx context.Context, ts int64, req SetBusinessUnitStatusRequest) (model.BusinessUnit, error) {
@@ -308,7 +317,7 @@ func (m *_BusinessUnitManager) RevokeAuthentication(ctx context.Context, ts int6
 	listReq := ListAuthenticationRequest{
 		Limit:          1,
 		ApplicationID:  req.ApplicationID,
-		BusinessUnitID: req.BusinessUnitID,
+		BusinessUnitID: req.BusinessUnitID.String(),
 		AuthenticationIDs: []string{
 			req.AuthenticationID,
 		},

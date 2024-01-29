@@ -3,7 +3,8 @@ MOCK_SOURCES := \
 	pkg/bu_server/storage/interface.go \
 	pkg/bu_server/auth/api_key.go \
 	pkg/bu_server/auth/application.go \
-	pkg/bu_server/auth/user.go
+	pkg/bu_server/auth/user.go \
+	pkg/bu_server/business_unit/bu_storage.go
 MOCK_FILES := $(patsubst pkg/%,$(MOCK_DIR)/%,$(MOCK_SOURCES))
 
 .PHONY: mock

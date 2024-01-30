@@ -37,9 +37,9 @@ func NewAPIWithConfig(cfg APIConfig) (*API, error) {
 		return nil, err
 	}
 
-	appMgr := auth.NewApplicationManager(storage)
 	apiKeyMgr := auth.NewAPIKeyAuthenticator(storage)
-	api, err := NewAPIWithController(appMgr, apiKeyMgr, cfg)
+	buMgr := business_unit.NewBusinessUnitManager(storage)
+	api, err := NewAPIWithController(apiKeyMgr, buMgr, cfg.LocalAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -47,10 +47,10 @@ func NewAPIWithConfig(cfg APIConfig) (*API, error) {
 	return api, nil
 }
 
-func NewAPIWithController(appMgr auth.ApplicationManager, apiKeyMgr auth.APIKeyAuthenticator, config APIConfig) (*API, error) {
+func NewAPIWithController(apiKeyMgr auth.APIKeyAuthenticator, buMgr business_unit.BusinessUnitManager, localAddress string) (*API, error) {
 	apiServer := &API{
-		appMgr:    appMgr,
 		apiKeyMgr: apiKeyMgr,
+		buMgr:     buMgr,
 	}
 
 	r := mux.NewRouter()
@@ -66,7 +66,7 @@ func NewAPIWithController(appMgr auth.ApplicationManager, apiKeyMgr auth.APIKeyA
 	r.HandleFunc("/business_unit/{id}/authentication/{authentication_id}", apiServer.revokeBusinessUnitAuthentication).Methods(http.MethodDelete)
 
 	apiServer.httpServer = &http.Server{
-		Addr:    config.LocalAddress,
+		Addr:    localAddress,
 		Handler: r,
 	}
 	return apiServer, nil

@@ -1,8 +1,11 @@
 package pkix_test
 
 import (
+	"crypto/sha1"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
+	"fmt"
 	"os"
 	"testing"
 
@@ -14,6 +17,10 @@ func TestVerifyWithCustomizedRootCertificates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	fingerPrint := sha1.Sum(rootCert.Raw)
+	fmt.Println(hex.EncodeToString(fingerPrint[:]))
+
 	cert, err := LoadCert("../../credential/bob_ecc.crt")
 	if err != nil {
 		t.Fatal(err)

@@ -2,6 +2,7 @@ package pkix
 
 import (
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 )
 
@@ -60,4 +61,42 @@ func Verify(certs []*x509.Certificate, rootCerts []*x509.Certificate) error {
 	}
 
 	return nil
+}
+
+func ParsePrivateKey(key []byte) (interface{}, error) {
+	pemBlock, _ := pem.Decode(key)
+	if pemBlock == nil {
+		return nil, errors.New("invalid private key")
+	}
+
+	privKey, pkcs8Err := x509.ParsePKCS8PrivateKey(pemBlock.Bytes)
+	if pkcs8Err == nil {
+		return privKey, nil
+	}
+
+	// Fallback to PKCS1
+	privKey, pkcs1Err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
+	if pkcs1Err == nil {
+		return privKey, nil
+	}
+
+	return nil, pkcs8Err
+}
+
+func ParseCertificate(cert []byte) (*x509.Certificate, error) {
+	pemBlock, _ := pem.Decode(cert)
+	if pemBlock == nil {
+		return nil, errors.New("invalid certificate")
+	}
+
+	return x509.ParseCertificate(pemBlock.Bytes)
+}
+
+func ParseCertificateRequest(certRequest []byte) (*x509.CertificateRequest, error) {
+	pemBlock, _ := pem.Decode(certRequest)
+	if pemBlock == nil {
+		return nil, errors.New("invalid certificate request")
+	}
+
+	return x509.ParseCertificateRequest(pemBlock.Bytes)
 }

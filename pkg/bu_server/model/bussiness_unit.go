@@ -44,6 +44,7 @@ type BusinessUnitAuthentication struct {
 	RevokedAt int64  `json:"revoked_at"` // Unix Time (in second) when the authentication was revoked.
 	RevokedBy string `json:"revoked_by"` // User who revoked the authentication.
 
-	PrivateKey  string `json:"private_key"` // PEM encoded private key.
-	Certificate string `json:"certificate"` // PEM encoded certificate.
+	PrivateKey        string   `json:"private_key"`        // PEM encoded private key.
+	Certificate       string   `json:"certificate"`        // PEM encoded certificate.
+	IntermediateCerts []string `json:"intermediate_certs"` // PEM encoded intermediate certificates.
 }

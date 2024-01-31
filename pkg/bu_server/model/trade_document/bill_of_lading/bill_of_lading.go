@@ -15,6 +15,7 @@ type BillOfLadingEvent struct {
 	// Only one of them can be set.
 	BillOfLading     *BillOfLading     `json:"bill_of_lading,omitempty"`
 	Transfer         *Transfer         `json:"transfer,omitempty"`
+	Return           *Return           `json:"return,omitempty"`
 	Surrender        *Surrender        `json:"surrender,omitempty"`
 	AmendmentRequest *AmendmentRequest `json:"amendment_request,omitempty"`
 	PrintToPaper     *PrintToPaper     `json:"print_to_paper,omitempty"`
@@ -23,7 +24,8 @@ type BillOfLadingEvent struct {
 type BillOfLading struct {
 	BillOfLading *TransportDocument `json:"bill_of_lading,omitempty"`
 	File         *model.File        `json:"file,omitempty"`
-	CreatedBy    string             `json:"created_by,omitempty"` // DID
+	TransferTo   string             `json:"transfer_to,omitempty"` // DID
+	CreatedBy    string             `json:"created_by,omitempty"`  // DID
 	CreatedAt    *model.DateTime    `json:"created_at,omitempty"`
 }
 
@@ -32,6 +34,13 @@ type Transfer struct {
 	TransferTo string          `json:"transfer_to,omitempty"` // DID
 	TransferAt *model.DateTime `json:"transfer_at,omitempty"`
 	Note       string          `json:"note,omitempty"`
+}
+
+type Return struct {
+	ReturnBy string          `json:"return_by,omitempty"` // DID
+	ReturnTo string          `json:"return_to,omitempty"` // DID
+	ReturnAt *model.DateTime `json:"return_at,omitempty"`
+	Note     string          `json:"note,omitempty"`
 }
 
 type Surrender struct {

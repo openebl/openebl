@@ -1,0 +1,498 @@
+openapi: 3.0.2
+info:
+  title: Trading Document API
+  version: 1.0.0
+servers:
+  - url: http://localhost:9200
+    description: Local server
+tags:
+  - name: business_unit
+    description: Business unit management
+paths:
+  /business_unit:
+    post:
+      tags: [business_unit]
+      summary: Create a new business unit
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBusinessUnitRequest'
+      responses:
+        '201':
+          description: Business unit created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnit'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+    get:
+      tags: [business_unit]
+      summary: List all business units
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            default: 0
+          description: Offset of the business units to be listed.
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            default: 10
+          description: Limit of the business units to be listed.
+      responses:
+        '200':
+          description: Business units retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    format: int32
+                    description: Total number of business units.
+                  records:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ListBusinessUnitsRecord'
+                    description: Records of business units.
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+  /business_unit/{id}:
+    get:
+      tags: [business_unit]
+      summary: Get a specific business unit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the business unit to retrieve.
+      responses:
+        '200':
+          description: Business unit retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListBusinessUnitsRecord'
+        '400':
+          description: Invalid request
+        '404':
+          description: Business unit not found
+        '500':
+          description: Internal server error
+      security:
+        - bearerAuth: []
+    post:
+      tags: [business_unit]
+      summary: Update a specific business unit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the business unit to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requester:
+                  type: string
+                  description: User who makes the request.
+                id:
+                  type: string
+                  description: Unique DID of a BusinessUnit.
+                name:
+                  type: string
+                  description: Name of the BusinessUnit.
+                addresses:
+                  type: array
+                  items:
+                    type: string
+                  description: List of addresses associated with the BusinessUnit.
+                emails:
+                  type: array
+                  items:
+                    type: string
+                  description: List of emails associated with the BusinessUnit.
+                phone_numbers:
+                  type: array
+                  items:
+                    type: string
+                  description: List of phone numbers associated with the BusinessUnit.
+              required:
+                - requester
+                - id
+                - name
+      responses:
+        '200':
+          description: Business unit updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnit'
+        '400':
+          description: Invalid request
+        '404':
+          description: Business unit not found
+        '500':
+          description: Internal server error
+      security:
+        - bearerAuth: []
+  /business_unit/{id}/status:
+    post:
+      tags: [business_unit]
+      security:
+        - bearerAuth: []
+      summary: Set the status of a specific business unit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the business unit to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requester:
+                  type: string
+                  description: User who makes the request.
+                status:
+                  $ref: '#/components/schemas/BusinessUnitStatus'
+                  description: Status of the application.
+              required:
+                - requester
+                - status
+      responses:
+        '200':
+          description: Business unit status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnit'
+        '400':
+          description: Invalid request
+        '404':
+          description: Business unit not found
+        '500':
+          description: Internal server error
+  /business_unit/{id}/authentication:
+    post:
+      tags: [business_unit]
+      security:
+        - bearerAuth: []
+      summary: Create a new authentication for a business unit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the business unit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requester:
+                  type: string
+                  description: User who makes the request
+                private_key:
+                  type: string
+                  description: PEM encoded private key
+                certificate:
+                  type: string
+                  description: PEM encoded certificate
+              required:
+                - requester
+                - application_id
+                - id
+                - private_key
+                - certificate
+      responses:
+        '201':
+          description: Authentication created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnitAuthentication'
+        '400':
+          description: Bad request, invalid parameters or business unit ID
+        '404':
+          description: Business unit not found
+        '500':
+          description: Internal server error
+    get:
+      tags: [business_unit]
+      security:
+        - bearerAuth: []
+      summary: List all authentications for a business unit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of authentications retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    format: int32
+                    description: Total number of authentications
+                  records:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BusinessUnitAuthentication'
+                    description: Records of authentications        
+        '400':
+          description: Bad request, invalid parameters or business unit ID
+        '500':
+          description: Internal server error
+  /business_unit/{id}/authentication/{authentication_id}:
+    get:
+      tags: [business_unit]
+      security:
+        - bearerAuth: []
+      summary: Get a specific authentication for a business unit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the business unit
+        - name: authentication_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the authentication
+      responses:
+        '200':
+          description: Authentication retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnitAuthentication'
+        '400':
+          description: Bad request, invalid parameters or business unit ID
+        '404':
+          description: Authentication not found
+        '500':
+          description: Internal server error
+    delete:
+      tags: [business_unit]
+      security:
+        - bearerAuth: []
+      summary: Revoke a specific authentication for a business unit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the business unit
+        - name: authentication_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the authentication
+        - name: requester
+          in: query
+          required: false
+          schema:
+            type: string
+          description: User who makes the request
+      responses:
+        '200':
+          description: Authentication revoked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnitAuthentication'
+        '400':
+          description: Bad request, invalid parameters or business unit ID
+        '404':
+          description: Authentication not found
+        '500':
+          description: Internal server error
+components:
+  securitySchemes:
+    bearerAuth:            # arbitrary name for the security scheme
+      type: http
+      scheme: bearer
+  schemas:
+    BusinessUnitStatus:
+      type: string
+      enum:
+        - active
+        - inactive
+    BusinessUnitAuthenticationStatus:
+      type: string
+      enum:
+        - active
+        - revoked
+      description: Status of the authentication.
+    BusinessUnit:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique DID of a BusinessUnit.
+        version:
+          type: integer
+          format: int64
+          description: Version of the BusinessUnit.
+        application_id:
+          type: string
+          description: The ID of the application this BusinessUnit belongs to.
+        status:
+          $ref: '#/components/schemas/BusinessUnitStatus'
+        name:
+          type: string
+          description: Name of the BusinessUnit.
+        addresses:
+          type: array
+          items:
+            type: string
+          description: List of addresses associated with the BusinessUnit.
+        emails:
+          type: array
+          items:
+            type: string
+          description: List of emails associated with the BusinessUnit.
+        phone_numbers:
+          type: array
+          items:
+            type: string
+          description: List of phone numbers associated with the BusinessUnit.
+        created_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the BusinessUnit was created.
+        created_by:
+          type: string
+          description: User who created the BusinessUnit.
+        updated_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the BusinessUnit was last updated.
+        updated_by:
+          type: string
+          description: User who last updated the BusinessUnit.
+    BusinessUnitAuthentication:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique ID of the authentication.
+        version:
+          type: integer
+          format: int64
+          description: Version of the authentication.
+        business_unit:
+          type: string
+          description: Unique DID of a BusinessUnit.
+        status:
+          $ref: '#/components/schemas/BusinessUnitAuthenticationStatus'
+        created_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the authentication was created.
+        created_by:
+          type: string
+          description: User who created the authentication.
+        revoked_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the authentication was revoked.
+        revoked_by:
+          type: string
+          description: User who revoked the authentication.
+        private_key:
+          type: string
+          description: PEM encoded private key.
+        certificate:
+          type: string
+          description: PEM encoded certificate.
+        intermediate_certs:
+          type: array
+          items:
+            type: string
+          description: PEM encoded intermediate certificates.
+    ListBusinessUnitsRecord:
+      type: object
+      properties:
+        business_unit:
+          $ref: '#/components/schemas/BusinessUnit'
+        authentications:
+          type: array
+          items:
+            $ref: '#/components/schemas/BusinessUnitAuthentication'
+          description: The authentications of the business unit.
+    CreateBusinessUnitRequest:
+      type: object
+      properties:
+        requester:
+          type: string
+          description: User who makes the request.
+        name:
+          type: string
+          description: Name of the BusinessUnit.
+        addresses:
+          type: array
+          items:
+            type: string
+          description: List of addresses associated with the BusinessUnit.
+        emails:
+          type: array
+          items:
+            type: string
+          description: List of emails associated with the BusinessUnit.
+        phone_numbers:
+          type: array
+          items:
+            type: string
+          description: List of phone numbers associated with the BusinessUnit.
+        status:
+          $ref: '#/components/schemas/BusinessUnitStatus'
+      required:
+        - requester
+        - name
+        - status

@@ -1,9 +1,7 @@
 package manager_test
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -156,7 +154,7 @@ func (s *ManagerAPITestSuite) TestCreateUser() {
 		Emails:   []string{"email"},
 		Note:     "note",
 	}
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9203/user", structToJSONReader(createUserRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9203/user", util.StructToJSONReader(createUserRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -164,7 +162,7 @@ func (s *ManagerAPITestSuite) TestCreateUser() {
 
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
 	body, _ := io.ReadAll(response.Body)
-	s.Assert().Equal(structToJSON(newUser), strings.TrimSpace(string(body)))
+	s.Assert().Equal(util.StructToJSON(newUser), strings.TrimSpace(string(body)))
 }
 
 func (s *ManagerAPITestSuite) TestListUser() {
@@ -209,7 +207,7 @@ func (s *ManagerAPITestSuite) TestListUser() {
 
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
 	body, _ := io.ReadAll(response.Body)
-	s.Assert().Equal(structToJSON(listResult), strings.TrimSpace(string(body)))
+	s.Assert().Equal(util.StructToJSON(listResult), strings.TrimSpace(string(body)))
 }
 
 func (s *ManagerAPITestSuite) TestGetUser() {
@@ -251,7 +249,7 @@ func (s *ManagerAPITestSuite) TestGetUser() {
 
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
 	body, _ := io.ReadAll(response.Body)
-	s.Assert().Equal(structToJSON(listResult.Users[0]), strings.TrimSpace(string(body)))
+	s.Assert().Equal(util.StructToJSON(listResult.Users[0]), strings.TrimSpace(string(body)))
 }
 
 func (s *ManagerAPITestSuite) TestUpdateUser() {
@@ -283,7 +281,7 @@ func (s *ManagerAPITestSuite) TestUpdateUser() {
 		s.userMgr.EXPECT().UpdateUser(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(updatedUser, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9206/user/user_id", structToJSONReader(expectedRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9206/user/user_id", util.StructToJSONReader(expectedRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -291,7 +289,7 @@ func (s *ManagerAPITestSuite) TestUpdateUser() {
 
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
 	body, _ := io.ReadAll(response.Body)
-	s.Assert().Equal(structToJSON(updatedUser), strings.TrimSpace(string(body)))
+	s.Assert().Equal(util.StructToJSON(updatedUser), strings.TrimSpace(string(body)))
 }
 
 func (s *ManagerAPITestSuite) TestUpdateUserStatus() {
@@ -324,7 +322,7 @@ func (s *ManagerAPITestSuite) TestUpdateUserStatus() {
 		s.userMgr.EXPECT().ActivateUser(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(updatedUser, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9207/user/user_id/status", structToJSONReader(restRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9207/user/user_id/status", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -332,7 +330,7 @@ func (s *ManagerAPITestSuite) TestUpdateUserStatus() {
 
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
 	body, _ := io.ReadAll(response.Body)
-	s.Assert().Equal(structToJSON(updatedUser), strings.TrimSpace(string(body)))
+	s.Assert().Equal(util.StructToJSON(updatedUser), strings.TrimSpace(string(body)))
 	// End of Test Activate User
 
 	// Test Deactivate User
@@ -344,7 +342,7 @@ func (s *ManagerAPITestSuite) TestUpdateUserStatus() {
 		s.userMgr.EXPECT().DeactivateUser(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(updatedUser, nil),
 	)
 
-	request, _ = http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9207/user/user_id/status", structToJSONReader(restRequest))
+	request, _ = http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9207/user/user_id/status", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err = http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -352,7 +350,7 @@ func (s *ManagerAPITestSuite) TestUpdateUserStatus() {
 
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
 	body, _ = io.ReadAll(response.Body)
-	s.Assert().Equal(structToJSON(updatedUser), strings.TrimSpace(string(body)))
+	s.Assert().Equal(util.StructToJSON(updatedUser), strings.TrimSpace(string(body)))
 	// End of Test Deactivate User
 }
 
@@ -386,7 +384,7 @@ func (s *ManagerAPITestSuite) TestChangeUserPassword() {
 		"old_password": "old password",
 		"password":     "new password",
 	}
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9208/user/user_id/change_password", structToJSONReader(restRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9208/user/user_id/change_password", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -424,7 +422,7 @@ func (s *ManagerAPITestSuite) TestResetUserPassword() {
 	restRequest := map[string]string{
 		"password": "new password",
 	}
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9209/user/user_id/reset_password", structToJSONReader(restRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9209/user/user_id/reset_password", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -477,7 +475,7 @@ func (s *ManagerAPITestSuite) TestCreateApplication() {
 		"phone_numbers": []string{"phone number"},
 	}
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9210/application", structToJSONReader(restRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9210/application", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -485,7 +483,7 @@ func (s *ManagerAPITestSuite) TestCreateApplication() {
 
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
 	body, _ := io.ReadAll(response.Body)
-	s.Assert().Equal(structToJSON(app), strings.TrimSpace(string(body)))
+	s.Assert().Equal(util.StructToJSON(app), strings.TrimSpace(string(body)))
 }
 
 func (s *ManagerAPITestSuite) TestListApplication() {
@@ -527,7 +525,7 @@ func (s *ManagerAPITestSuite) TestListApplication() {
 
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
 	body, _ := io.ReadAll(response.Body)
-	s.Assert().Equal(structToJSON(listResult), strings.TrimSpace(string(body)))
+	s.Assert().Equal(util.StructToJSON(listResult), strings.TrimSpace(string(body)))
 }
 
 func (s *ManagerAPITestSuite) TestGetApplication() {
@@ -570,7 +568,7 @@ func (s *ManagerAPITestSuite) TestGetApplication() {
 
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
 	body, _ := io.ReadAll(response.Body)
-	s.Assert().Equal(structToJSON(listResult.Applications[0]), strings.TrimSpace(string(body)))
+	s.Assert().Equal(util.StructToJSON(listResult.Applications[0]), strings.TrimSpace(string(body)))
 }
 
 func (s *ManagerAPITestSuite) TestUpdateApplication() {
@@ -617,14 +615,14 @@ func (s *ManagerAPITestSuite) TestUpdateApplication() {
 		s.appMgr.EXPECT().UpdateApplication(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(app, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9213/application/app_id", structToJSONReader(restRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9213/application/app_id", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
 	defer response.Body.Close()
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
 	body, _ := io.ReadAll(response.Body)
-	s.Assert().Equal(structToJSON(app), strings.TrimSpace(string(body)))
+	s.Assert().Equal(util.StructToJSON(app), strings.TrimSpace(string(body)))
 }
 
 func (s *ManagerAPITestSuite) TestUpdateApplicationStatus() {
@@ -660,14 +658,14 @@ func (s *ManagerAPITestSuite) TestUpdateApplicationStatus() {
 		s.appMgr.EXPECT().ActivateApplication(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(app, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9214/application/app_id/status", structToJSONReader(restRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9214/application/app_id/status", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
 	defer response.Body.Close()
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
 	body, _ := io.ReadAll(response.Body)
-	s.Assert().Equal(structToJSON(app), strings.TrimSpace(string(body)))
+	s.Assert().Equal(util.StructToJSON(app), strings.TrimSpace(string(body)))
 	// End of Test Activate Application
 
 	// Test Inactivate Application
@@ -680,14 +678,14 @@ func (s *ManagerAPITestSuite) TestUpdateApplicationStatus() {
 		s.appMgr.EXPECT().DeactivateApplication(gomock.Any(), gomock.Any(), gomock.Eq(auth.DeactivateApplicationRequest(expectedRequest))).Return(app, nil),
 	)
 
-	request, _ = http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9214/application/app_id/status", structToJSONReader(restRequest))
+	request, _ = http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9214/application/app_id/status", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err = http.DefaultClient.Do(request)
 	s.Require().NoError(err)
 	defer response.Body.Close()
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
 	body, _ = io.ReadAll(response.Body)
-	s.Assert().Equal(structToJSON(app), strings.TrimSpace(string(body)))
+	s.Assert().Equal(util.StructToJSON(app), strings.TrimSpace(string(body)))
 	// End of Test Inactivate Application
 }
 
@@ -726,7 +724,7 @@ func (s *ManagerAPITestSuite) TestCreateAPIKey() {
 		s.apiKeyMgr.EXPECT().CreateAPIKey(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(apiKey, apiKeyString, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9215/application/app_id/api_key", structToJSONReader(restRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9215/application/app_id/api_key", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -782,7 +780,7 @@ func (s *ManagerAPITestSuite) TestListAPIKey() {
 	defer response.Body.Close()
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
 	body, _ := io.ReadAll(response.Body)
-	s.Assert().Equal(structToJSON(listResult), strings.TrimSpace(string(body)))
+	s.Assert().Equal(util.StructToJSON(listResult), strings.TrimSpace(string(body)))
 }
 
 func (s *ManagerAPITestSuite) TestRevokeAPIKey() {
@@ -817,20 +815,4 @@ func (s *ManagerAPITestSuite) TestRevokeAPIKey() {
 	s.Require().NoError(err)
 	defer response.Body.Close()
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
-}
-
-func structToJSONReader(data interface{}) io.Reader {
-	jsonBytes, err := json.Marshal(data)
-	if err != nil {
-		return nil
-	}
-	return bytes.NewReader(jsonBytes)
-}
-
-func structToJSON(data interface{}) string {
-	jsonBytes, err := json.Marshal(data)
-	if err != nil {
-		return ""
-	}
-	return string(jsonBytes)
 }

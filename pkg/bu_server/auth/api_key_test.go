@@ -8,6 +8,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	mock_auth "github.com/openebl/openebl/test/mock/bu_server/auth"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
@@ -39,7 +40,7 @@ func TestAPIKeyGenerating(t *testing.T) {
 	assert.NoError(t, auth.VerifyAPIKeyString(apiKeyString, apiKeyHashedString1))
 	assert.NoError(t, auth.VerifyAPIKeyString(apiKeyString, apiKeyHashedString2))
 
-	assert.ErrorIs(t, auth.VerifyAPIKeyString(apiKeyString+"a", auth.APIKeyHashedString(apiKeyHashedString1)), auth.ErrMismatchAPIKey)
+	assert.ErrorIs(t, auth.VerifyAPIKeyString(apiKeyString+"a", auth.APIKeyHashedString(apiKeyHashedString1)), model.ErrMismatchAPIKey)
 }
 
 type APIAuthenticatorTestSuite struct {
@@ -166,7 +167,7 @@ func (s *APIAuthenticatorTestSuite) TestRevokeAPIKeyWithNonExistAPIKey() {
 	)
 
 	err := s.authenticator.RevokeAPIKey(s.ctx, ts, request)
-	s.Require().ErrorIs(err, auth.ErrAPIKeyNotFound)
+	s.Require().ErrorIs(err, model.ErrAPIKeyNotFound)
 }
 
 func (s *APIAuthenticatorTestSuite) TestAuthenticate() {
@@ -218,7 +219,7 @@ func (s *APIAuthenticatorTestSuite) TestAuthenticate() {
 	)
 
 	returnedAPIKey, err = s.authenticator.Authenticate(s.ctx, apiKeyString)
-	s.Require().ErrorIs(err, auth.ErrRevokedAPIKey)
+	s.Require().ErrorIs(err, model.ErrRevokedAPIKey)
 	s.Assert().Equal(auth.APIKey{}, returnedAPIKey)
 	// End of Test with revoked API key
 
@@ -232,7 +233,7 @@ func (s *APIAuthenticatorTestSuite) TestAuthenticate() {
 	)
 
 	returnedAPIKey, err = s.authenticator.Authenticate(s.ctx, apiKeyString)
-	s.Require().ErrorIs(err, auth.ErrApplicationInactive)
+	s.Require().ErrorIs(err, model.ErrApplicationInactive)
 	s.Assert().Equal(auth.APIKey{}, returnedAPIKey)
 	// End of Test with inactive application
 
@@ -244,7 +245,7 @@ func (s *APIAuthenticatorTestSuite) TestAuthenticate() {
 	)
 
 	returnedAPIKey, err = s.authenticator.Authenticate(s.ctx, apiKeyString)
-	s.Require().ErrorIs(err, auth.ErrAPIKeyNotFound)
+	s.Require().ErrorIs(err, model.ErrAPIKeyNotFound)
 	s.Assert().Equal(auth.APIKey{}, returnedAPIKey)
 }
 

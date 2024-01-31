@@ -116,7 +116,7 @@ func (s *APITestSuite) TestCreateBusinessUnit() {
 
 	// Test with invalid credential.
 	gomock.InOrder(
-		s.apiKeyMgr.EXPECT().Authenticate(gomock.Any(), s.apiKeyString).Return(auth.APIKey{}, auth.ErrMismatchAPIKey),
+		s.apiKeyMgr.EXPECT().Authenticate(gomock.Any(), s.apiKeyString).Return(auth.APIKey{}, model.ErrMismatchAPIKey),
 	)
 	resp, err = http.DefaultClient.Do(httpRequest)
 	s.Require().NoError(err)

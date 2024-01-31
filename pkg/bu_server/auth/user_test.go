@@ -8,6 +8,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	mock_auth "github.com/openebl/openebl/test/mock/bu_server/auth"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
@@ -133,7 +134,7 @@ func (s *UserManagerTestSuite) TestCreateUserWithDuplicateUserID() {
 	)
 
 	user, err := s.manager.CreateUser(s.ctx, ts, req)
-	s.Require().ErrorIs(err, auth.ErrUserAlreadyExists)
+	s.Require().ErrorIs(err, model.ErrUserAlreadyExists)
 	s.Assert().EqualValues(auth.User{}, user)
 }
 
@@ -188,7 +189,7 @@ func (s *UserManagerTestSuite) TestChangePassword() {
 	)
 
 	newUser, err = s.manager.ChangePassword(s.ctx, ts, req)
-	s.Require().ErrorIs(err, auth.ErrUserAuthenticationFail)
+	s.Require().ErrorIs(err, model.ErrUserAuthenticationFail)
 	s.Assert().EqualValues(auth.User{}, newUser)
 	// End of Test with incorrect old password.
 }
@@ -209,12 +210,12 @@ func (s *UserManagerTestSuite) TestChangePasswordWithNonExistingUser() {
 
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
-		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{}, auth.ErrUserNotFound),
+		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{}, model.ErrUserNotFound),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
 
 	newUser, err := s.manager.ChangePassword(s.ctx, ts, req)
-	s.Require().ErrorIs(err, auth.ErrUserNotFound)
+	s.Require().ErrorIs(err, model.ErrUserNotFound)
 	s.Assert().EqualValues(auth.User{}, newUser)
 }
 
@@ -283,7 +284,7 @@ func (s *UserManagerTestSuite) TestResetPasswordWithNonExistingUser() {
 	)
 
 	newUser, err := s.manager.ResetPassword(s.ctx, ts, req)
-	s.Require().ErrorIs(err, auth.ErrUserNotFound)
+	s.Require().ErrorIs(err, model.ErrUserNotFound)
 	s.Assert().EqualValues(auth.User{}, newUser)
 }
 
@@ -349,7 +350,7 @@ func (s *UserManagerTestSuite) TestUpdateUserWithNonExistingUser() {
 	)
 
 	newUser, err := s.manager.UpdateUser(s.ctx, ts, req)
-	s.Require().ErrorIs(err, auth.ErrUserNotFound)
+	s.Require().ErrorIs(err, model.ErrUserNotFound)
 	s.Assert().EqualValues(auth.User{}, newUser)
 }
 
@@ -408,7 +409,7 @@ func (s *UserManagerTestSuite) TestActivateUserWithNonExistingUser() {
 	)
 
 	activatedUser, err := s.manager.ActivateUser(s.ctx, ts, req)
-	s.Require().ErrorIs(err, auth.ErrUserNotFound)
+	s.Require().ErrorIs(err, model.ErrUserNotFound)
 	s.Assert().Empty(activatedUser)
 }
 
@@ -467,7 +468,7 @@ func (s *UserManagerTestSuite) TestDeactivateUserWithNonExistingUser() {
 	)
 
 	deactivatedUser, err := s.manager.DeactivateUser(s.ctx, ts, req)
-	s.Require().ErrorIs(err, auth.ErrUserNotFound)
+	s.Require().ErrorIs(err, model.ErrUserNotFound)
 	s.Assert().Empty(deactivatedUser)
 }
 
@@ -513,7 +514,7 @@ func (s *UserManagerTestSuite) TestAuthenticate() {
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
 	userToken, err = s.manager.Authenticate(s.ctx, ts, req)
-	s.Require().ErrorIs(err, auth.ErrUserAuthenticationFail)
+	s.Require().ErrorIs(err, model.ErrUserAuthenticationFail)
 	s.Assert().Empty(userToken)
 }
 
@@ -536,7 +537,7 @@ func (s *UserManagerTestSuite) TestAuthenticateWithNonExistingUser() {
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
 	userToken, err := s.manager.Authenticate(s.ctx, ts, req)
-	s.Require().ErrorIs(err, auth.ErrUserAuthenticationFail)
+	s.Require().ErrorIs(err, model.ErrUserAuthenticationFail)
 	s.Assert().Empty(userToken)
 }
 
@@ -570,7 +571,7 @@ func (s *UserManagerTestSuite) TestTokenAuthorization() {
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
 	returnedUserToken, err = s.manager.TokenAuthorization(s.ctx, ts, token)
-	s.Assert().ErrorIs(err, auth.ErrUserTokenExpired)
+	s.Assert().ErrorIs(err, model.ErrUserTokenExpired)
 	s.Assert().Empty(returnedUserToken)
 }
 
@@ -585,7 +586,7 @@ func (s *UserManagerTestSuite) TestTokenAuthorizationWithNonExistingToken() {
 	)
 
 	userToken, err := s.manager.TokenAuthorization(s.ctx, ts, token)
-	s.Assert().ErrorIs(err, auth.ErrUserTokenInvalid)
+	s.Assert().ErrorIs(err, model.ErrUserTokenInvalid)
 	s.Assert().Empty(userToken)
 }
 

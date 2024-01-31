@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/middleware"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
 	"github.com/openebl/openebl/pkg/util"
 	"github.com/sirupsen/logrus"
@@ -140,7 +141,7 @@ func (s *ManagerAPI) login(w http.ResponseWriter, r *http.Request) {
 		Password: auth.RawPassword(password),
 	}
 	userToken, err := s.userMgr.Authenticate(r.Context(), time.Now().Unix(), req)
-	if errors.Is(err, auth.ErrUserError) {
+	if errors.Is(err, model.ErrUserError) {
 		logrus.Warnf("failed to authenticate user %q: %v", username, err)
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -168,11 +169,11 @@ func (s *ManagerAPI) createUser(w http.ResponseWriter, r *http.Request) {
 
 	// Create the user
 	user, err := s.userMgr.CreateUser(ctx, time.Now().Unix(), req)
-	if errors.Is(err, auth.ErrUserAlreadyExists) {
+	if errors.Is(err, model.ErrUserAlreadyExists) {
 		logrus.Warnf("failed to create user %q: %v", req.UserID, err)
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
-	} else if errors.Is(err, auth.ErrInvalidParameter) {
+	} else if errors.Is(err, model.ErrInvalidParameter) {
 		logrus.Warnf("failed to create user %q: %v", req.UserID, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -260,7 +261,7 @@ func (s *ManagerAPI) updateUser(w http.ResponseWriter, r *http.Request) {
 	updateRequest.UserID = userID
 
 	newUser, err := s.userMgr.UpdateUser(r.Context(), time.Now().Unix(), updateRequest)
-	if errors.Is(err, auth.ErrUserNotFound) {
+	if errors.Is(err, model.ErrUserNotFound) {
 		logrus.Warnf("failed to update user %q: %v", userID, err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -303,7 +304,7 @@ func (s *ManagerAPI) updateUserStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid status", http.StatusBadRequest)
 		return
 	}
-	if errors.Is(err, auth.ErrUserNotFound) {
+	if errors.Is(err, model.ErrUserNotFound) {
 		logrus.Warnf("failed to update user %q: %v", userID, err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -329,11 +330,11 @@ func (s *ManagerAPI) changeUserPassword(w http.ResponseWriter, r *http.Request) 
 	req.UserID = userID
 
 	_, err := s.userMgr.ChangePassword(r.Context(), time.Now().Unix(), req)
-	if errors.Is(err, auth.ErrUserNotFound) {
+	if errors.Is(err, model.ErrUserNotFound) {
 		logrus.Warnf("failed to change password for user %q: %v", userID, err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
-	} else if errors.Is(err, auth.ErrUserAuthenticationFail) || errors.Is(err, auth.ErrInvalidParameter) {
+	} else if errors.Is(err, model.ErrUserAuthenticationFail) || errors.Is(err, model.ErrInvalidParameter) {
 		logrus.Warnf("failed to change password for user %q: %v", userID, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -355,7 +356,7 @@ func (s *ManagerAPI) resetUserPassword(w http.ResponseWriter, r *http.Request) {
 	req.UserID = userID
 
 	_, err := s.userMgr.ResetPassword(r.Context(), time.Now().Unix(), req)
-	if errors.Is(err, auth.ErrUserNotFound) {
+	if errors.Is(err, model.ErrUserNotFound) {
 		logrus.Warnf("failed to reset password for user %q: %v", userID, err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -379,7 +380,7 @@ func (s *ManagerAPI) createApplication(w http.ResponseWriter, r *http.Request) {
 	req.User = userToken.UserID
 
 	app, err := s.appMgr.CreateApplication(r.Context(), time.Now().Unix(), req)
-	if errors.Is(err, auth.ErrInvalidParameter) {
+	if errors.Is(err, model.ErrInvalidParameter) {
 		logrus.Warnf("failed to create application %q: %v", req.Name, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -470,12 +471,12 @@ func (s *ManagerAPI) updateApplication(w http.ResponseWriter, r *http.Request) {
 	updateRequest.RequestUser.User = userToken.UserID
 
 	newApp, err := s.appMgr.UpdateApplication(r.Context(), time.Now().Unix(), updateRequest)
-	if errors.Is(err, auth.ErrInvalidParameter) {
+	if errors.Is(err, model.ErrInvalidParameter) {
 		logrus.Warnf("failed to update application %q: %v", appID, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if errors.Is(err, auth.ErrApplicationNotFound) {
+	if errors.Is(err, model.ErrApplicationNotFound) {
 		logrus.Warnf("failed to update application %q: %v", appID, err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -523,11 +524,11 @@ func (s *ManagerAPI) updateApplicationStatus(w http.ResponseWriter, r *http.Requ
 	} else {
 		newApp, err = s.appMgr.DeactivateApplication(r.Context(), time.Now().Unix(), auth.DeactivateApplicationRequest(updateRequest))
 	}
-	if errors.Is(err, auth.ErrInvalidParameter) {
+	if errors.Is(err, model.ErrInvalidParameter) {
 		logrus.Warnf("failed to update application %q: %v", appID, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	} else if errors.Is(err, auth.ErrApplicationNotFound) {
+	} else if errors.Is(err, model.ErrApplicationNotFound) {
 		logrus.Warnf("failed to update application %q: %v", appID, err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -554,7 +555,7 @@ func (s *ManagerAPI) createAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, apiKeyString, err := s.apiKeyMgr.CreateAPIKey(r.Context(), time.Now().Unix(), request)
-	if errors.Is(err, auth.ErrInvalidParameter) || errors.Is(err, auth.ErrApplicationNotFound) {
+	if errors.Is(err, model.ErrInvalidParameter) || errors.Is(err, model.ErrApplicationNotFound) {
 		logrus.Warnf("failed to create API key: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -621,7 +622,7 @@ func (s *ManagerAPI) revokeAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := s.apiKeyMgr.RevokeAPIKey(r.Context(), time.Now().Unix(), request)
-	if errors.Is(err, auth.ErrInvalidParameter) {
+	if errors.Is(err, model.ErrInvalidParameter) {
 		logrus.Warnf("failed to revoke API key %q: %v", apiKeyID, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	} else if err != nil {

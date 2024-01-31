@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 )
 
 func ValidateCreateUserRequest(req CreateUserRequest) error {
@@ -13,7 +14,7 @@ func ValidateCreateUserRequest(req CreateUserRequest) error {
 		validation.Field(&req.Password, validation.Required),
 	)
 	if err != nil {
-		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 	return nil
 }
@@ -25,7 +26,7 @@ func ValidateChangePasswordRequest(req ChangePasswordRequest) error {
 		validation.Field(&req.Password, validation.Required),
 	)
 	if err != nil {
-		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 	return nil
 }
@@ -37,7 +38,7 @@ func ValidateResetPasswordRequest(req ResetPasswordRequest) error {
 		validation.Field(&req.Password, validation.Required),
 	)
 	if err != nil {
-		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 	return nil
 }
@@ -49,7 +50,7 @@ func ValidateUpdateUserRequest(req UpdateUserRequest) error {
 		validation.Field(&req.Name, validation.Required),
 	)
 	if err != nil {
-		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 	return nil
 }
@@ -60,7 +61,7 @@ func ValidateActivateUserRequest(req ActivateUserRequest) error {
 		validation.Field(&req.UserID, validation.Required),
 	)
 	if err != nil {
-		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 	return nil
 }
@@ -71,7 +72,7 @@ func ValidateAuthenticateUserRequest(req AuthenticateUserRequest) error {
 		validation.Field(&req.Password, validation.Required),
 	)
 	if err != nil {
-		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 	return nil
 }
@@ -81,7 +82,7 @@ func ValidateListUserRequest(req ListUserRequest) error {
 		validation.Field(&req.Limit, validation.Required),
 	)
 	if err != nil {
-		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 	return nil
 }
@@ -93,7 +94,7 @@ func ValidateCreateApplicationRequest(req CreateApplicationRequest) error {
 		validation.Field(&req.CompanyName, validation.Required),
 	)
 	if err != nil {
-		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
 	return nil
@@ -104,12 +105,12 @@ func ValidateUpdateApplicationRequest(req UpdateApplicationRequest) error {
 		validation.Field(&req.ID, validation.Required),
 	)
 	if err != nil {
-		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
 	err = ValidateCreateApplicationRequest(req.CreateApplicationRequest)
 	if err != nil {
-		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
 	return nil
@@ -121,7 +122,7 @@ func ValidateActivateApplicationRequest(req ActivateApplicationRequest) error {
 		validation.Field(&req.User, validation.Required),
 	)
 	if err != nil {
-		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
 	return nil
@@ -134,7 +135,7 @@ func ValidateCreateAPIKeyRequest(req CreateAPIKeyRequest) error {
 		validation.Field(&req.Scopes, validation.Required),
 	)
 	if err != nil {
-		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
 	return nil
@@ -146,7 +147,7 @@ func ValidateRevokeAPIKeyRequest(req RevokeAPIKeyRequest) error {
 		validation.Field(&req.ID, validation.Required),
 	)
 	if err != nil {
-		return fmt.Errorf("%s%w", err.Error(), ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
 	return nil

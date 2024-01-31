@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -107,7 +108,7 @@ func (ks APIKeyString) ID() (string, error) {
 	// Split ID from APIKeyString.
 	parts := strings.Split(string(ks), ":")
 	if len(parts) != 2 {
-		return "", ErrInvalidAPIKeyString
+		return "", model.ErrInvalidAPIKeyString
 	}
 
 	return parts[0], nil
@@ -145,7 +146,7 @@ func VerifyAPIKeyString(ks APIKeyString, hashedKs APIKeyHashedString) error {
 	}
 
 	if err == bcrypt.ErrMismatchedHashAndPassword {
-		return ErrMismatchAPIKey
+		return model.ErrMismatchAPIKey
 	}
 
 	return err
@@ -229,7 +230,7 @@ func (a *_APIKeyAuthenticator) RevokeAPIKey(
 
 	apiKey, err := a.storage.GetAPIKey(ctx, tx, request.ID)
 	if err != nil && err == sql.ErrNoRows {
-		return ErrAPIKeyNotFound
+		return model.ErrAPIKeyNotFound
 	} else if err != nil {
 		return err
 	}
@@ -239,7 +240,7 @@ func (a *_APIKeyAuthenticator) RevokeAPIKey(
 		return nil
 	}
 	if apiKey.Application.ID != request.ApplicationID {
-		return ErrAPIKeyNotFound
+		return model.ErrAPIKeyNotFound
 	}
 
 	apiKey.APIKey.Status = APIKeyStatusRevoked
@@ -271,7 +272,7 @@ func (a *_APIKeyAuthenticator) Authenticate(ctx context.Context, key APIKeyStrin
 
 	apiKey, err := a.storage.GetAPIKey(ctx, tx, apiKeyID)
 	if err != nil && err == sql.ErrNoRows {
-		return APIKey{}, ErrAPIKeyNotFound
+		return APIKey{}, model.ErrAPIKeyNotFound
 	} else if err != nil {
 		return APIKey{}, err
 	}
@@ -281,11 +282,11 @@ func (a *_APIKeyAuthenticator) Authenticate(ctx context.Context, key APIKeyStrin
 	}
 
 	if apiKey.APIKey.Status != APIKeyStatusActive {
-		return APIKey{}, ErrRevokedAPIKey
+		return APIKey{}, model.ErrRevokedAPIKey
 	}
 
 	if apiKey.Application.Status != ApplicationStatusActive {
-		return APIKey{}, ErrApplicationInactive
+		return APIKey{}, model.ErrApplicationInactive
 	}
 
 	apiKey.APIKey.HashString = ""

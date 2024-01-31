@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/openebl/openebl/pkg/bu_server/auth"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 )
 
 type UserTokenAuth struct {
@@ -32,7 +33,7 @@ func (a *UserTokenAuth) Authenticate(next http.Handler) http.Handler {
 
 		ts := time.Now().Unix()
 		userToken, err := a.auth.TokenAuthorization(ctx, ts, token)
-		if errors.Is(err, auth.ErrUserError) {
+		if errors.Is(err, model.ErrUserError) {
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(err.Error()))
 			return

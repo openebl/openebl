@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 )
@@ -182,7 +181,7 @@ func (m *_BusinessUnitManager) UpdateBusinessUnit(ctx context.Context, ts int64,
 		return model.BusinessUnit{}, err
 	}
 	if len(listResult.Records) == 0 {
-		return model.BusinessUnit{}, auth.ErrBusinessUnitNotFound
+		return model.BusinessUnit{}, model.ErrBusinessUnitNotFound
 	}
 
 	bu := listResult.Records[0].BusinessUnit
@@ -250,7 +249,7 @@ func (m *_BusinessUnitManager) SetStatus(ctx context.Context, ts int64, req SetB
 		return model.BusinessUnit{}, err
 	}
 	if len(listResult.Records) == 0 {
-		return model.BusinessUnit{}, auth.ErrBusinessUnitNotFound
+		return model.BusinessUnit{}, model.ErrBusinessUnitNotFound
 	}
 
 	bu := listResult.Records[0].BusinessUnit
@@ -327,7 +326,7 @@ func (m *_BusinessUnitManager) RevokeAuthentication(ctx context.Context, ts int6
 		return model.BusinessUnitAuthentication{}, err
 	}
 	if len(listResult.Records) == 0 {
-		return model.BusinessUnitAuthentication{}, auth.ErrAuthenticationNotFound
+		return model.BusinessUnitAuthentication{}, model.ErrAuthenticationNotFound
 	}
 
 	auth := listResult.Records[0]

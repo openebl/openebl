@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 )
 
@@ -247,7 +248,7 @@ func (m *_ApplicationManager) getApplication(ctx context.Context, tx storage.Tx,
 		return Application{}, err
 	}
 	if len(res.Applications) == 0 {
-		return Application{}, ErrApplicationNotFound
+		return Application{}, model.ErrApplicationNotFound
 	}
 	return res.Applications[0], nil
 }

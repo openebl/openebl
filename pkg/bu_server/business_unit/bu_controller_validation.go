@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/openebl/openebl/pkg/bu_server/auth"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 )
 
 func ValidateCreateBusinessUnitRequest(req CreateBusinessUnitRequest) error {
@@ -14,7 +14,7 @@ func ValidateCreateBusinessUnitRequest(req CreateBusinessUnitRequest) error {
 		validation.Field(&req.Name, validation.Required),
 		validation.Field(&req.Status, validation.Required),
 	); err != nil {
-		return fmt.Errorf("%s%w", err.Error(), auth.ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
 	return nil
@@ -27,7 +27,7 @@ func ValidateUpdateBusinessUnitRequest(req UpdateBusinessUnitRequest) error {
 		validation.Field(&req.ID, validation.Required),
 		validation.Field(&req.Name, validation.Required),
 	); err != nil {
-		return fmt.Errorf("%s%w", err.Error(), auth.ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
 	return nil
@@ -38,7 +38,7 @@ func ValidateListBusinessUnitRequest(req ListBusinessUnitsRequest) error {
 		validation.Field(&req.Limit, validation.Required),
 		validation.Field(&req.ApplicationID, validation.Required),
 	); err != nil {
-		return fmt.Errorf("%s%w", err.Error(), auth.ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
 	return nil
@@ -50,7 +50,7 @@ func ValidateSetBusinessUnitStatusRequest(req SetBusinessUnitStatusRequest) erro
 		validation.Field(&req.ID, validation.Required),
 		validation.Field(&req.Status, validation.Required),
 	); err != nil {
-		return fmt.Errorf("%s%w", err.Error(), auth.ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
 	return nil
@@ -64,7 +64,7 @@ func ValidateAddAuthenticationRequest(req AddAuthenticationRequest) error {
 		validation.Field(&req.PrivateKey, validation.Required),
 		validation.Field(&req.Certificate, validation.Required),
 	); err != nil {
-		return fmt.Errorf("%s%w", err.Error(), auth.ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
 	return nil
@@ -77,7 +77,7 @@ func ValidateRevokeAuthenticationRequest(req RevokeAuthenticationRequest) error 
 		validation.Field(&req.BusinessUnitID, validation.Required),
 		validation.Field(&req.AuthenticationID, validation.Required),
 	); err != nil {
-		return fmt.Errorf("%s%w", err.Error(), auth.ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
 	return nil
@@ -89,7 +89,7 @@ func ValidateListAuthenticationRequest(req ListAuthenticationRequest) error {
 		validation.Field(&req.ApplicationID, validation.Required),
 		validation.Field(&req.BusinessUnitID, validation.Required),
 	); err != nil {
-		return fmt.Errorf("%s%w", err.Error(), auth.ErrInvalidParameter)
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
 	return nil

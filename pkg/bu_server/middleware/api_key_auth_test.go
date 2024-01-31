@@ -10,6 +10,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/middleware"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 	mock_auth "github.com/openebl/openebl/test/mock/bu_server/auth"
 	"github.com/stretchr/testify/suite"
 )
@@ -78,9 +79,9 @@ func (s *APIKeyAuthTestSuite) TestAuthenticateWithoutPassingAPIKeyAuthentication
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", apiKeyString))
 	response := httptest.NewRecorder()
 
-	s.authenticator.EXPECT().Authenticate(gomock.Eq(s.ctx), gomock.Eq(apiKeyString)).Return(auth.APIKey{}, auth.ErrMismatchAPIKey)
+	s.authenticator.EXPECT().Authenticate(gomock.Eq(s.ctx), gomock.Eq(apiKeyString)).Return(auth.APIKey{}, model.ErrMismatchAPIKey)
 
 	s.auth.Authenticate(OkHandler).ServeHTTP(response, request)
 	s.Equal(http.StatusUnauthorized, response.Code)
-	s.Equal(auth.ErrMismatchAPIKey.Error(), response.Body.String())
+	s.Equal(model.ErrMismatchAPIKey.Error(), response.Body.String())
 }

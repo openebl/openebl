@@ -13,6 +13,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
 	"github.com/openebl/openebl/pkg/bu_server/middleware"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
 	"github.com/openebl/openebl/pkg/util"
 	"github.com/sirupsen/logrus"
@@ -96,7 +97,7 @@ func (a *API) createBusinessUnit(w http.ResponseWriter, r *http.Request) {
 
 	req.ApplicationID = appID
 	result, err := a.buMgr.CreateBusinessUnit(ctx, time.Now().Unix(), req)
-	if errors.Is(err, auth.ErrInvalidParameter) {
+	if errors.Is(err, model.ErrInvalidParameter) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -139,7 +140,7 @@ func (a *API) listBusinessUnit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := a.buMgr.ListBusinessUnits(ctx, req)
-	if errors.Is(err, auth.ErrInvalidParameter) {
+	if errors.Is(err, model.ErrInvalidParameter) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -166,7 +167,7 @@ func (a *API) getBusinessUnit(w http.ResponseWriter, r *http.Request) {
 		BusinessUnitIDs: []string{buID},
 	}
 	result, err := a.buMgr.ListBusinessUnits(ctx, listReq)
-	if errors.Is(err, auth.ErrInvalidParameter) {
+	if errors.Is(err, model.ErrInvalidParameter) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -207,11 +208,11 @@ func (a *API) updateBusinessUnit(w http.ResponseWriter, r *http.Request) {
 	req.ID = *buDID
 
 	result, err := a.buMgr.UpdateBusinessUnit(ctx, time.Now().Unix(), req)
-	if errors.Is(err, auth.ErrInvalidParameter) {
+	if errors.Is(err, model.ErrInvalidParameter) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if errors.Is(err, auth.ErrBusinessUnitNotFound) {
+	if errors.Is(err, model.ErrBusinessUnitNotFound) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -246,11 +247,11 @@ func (a *API) setBusinessUnitStatus(w http.ResponseWriter, r *http.Request) {
 	req.ID = *buDID
 
 	result, err := a.buMgr.SetStatus(ctx, time.Now().Unix(), req)
-	if errors.Is(err, auth.ErrInvalidParameter) {
+	if errors.Is(err, model.ErrInvalidParameter) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if errors.Is(err, auth.ErrBusinessUnitNotFound) {
+	if errors.Is(err, model.ErrBusinessUnitNotFound) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -285,11 +286,11 @@ func (a *API) createBusinessUnitAuthentication(w http.ResponseWriter, r *http.Re
 	req.BusinessUnitID = *buDID
 
 	result, err := a.buMgr.AddAuthentication(ctx, time.Now().Unix(), req)
-	if errors.Is(err, auth.ErrInvalidParameter) {
+	if errors.Is(err, model.ErrInvalidParameter) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if errors.Is(err, auth.ErrBusinessUnitNotFound) {
+	if errors.Is(err, model.ErrBusinessUnitNotFound) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -333,7 +334,7 @@ func (a *API) listBusinessUnitAuthentication(w http.ResponseWriter, r *http.Requ
 	req.BusinessUnitID = buID
 
 	result, err := a.buMgr.ListAuthentication(ctx, req)
-	if errors.Is(err, auth.ErrInvalidParameter) {
+	if errors.Is(err, model.ErrInvalidParameter) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -363,7 +364,7 @@ func (a *API) getBusinessUnitAuthentication(w http.ResponseWriter, r *http.Reque
 	}
 
 	result, err := a.buMgr.ListAuthentication(ctx, req)
-	if errors.Is(err, auth.ErrInvalidParameter) {
+	if errors.Is(err, model.ErrInvalidParameter) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -402,7 +403,7 @@ func (a *API) revokeBusinessUnitAuthentication(w http.ResponseWriter, r *http.Re
 	req.AuthenticationID = authenticationID
 
 	result, err := a.buMgr.RevokeAuthentication(ctx, time.Now().Unix(), req)
-	if errors.Is(err, auth.ErrInvalidParameter) || errors.Is(err, auth.ErrBusinessUnitNotFound) || errors.Is(err, auth.ErrAuthenticationNotFound) {
+	if errors.Is(err, model.ErrInvalidParameter) || errors.Is(err, model.ErrBusinessUnitNotFound) || errors.Is(err, model.ErrAuthenticationNotFound) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

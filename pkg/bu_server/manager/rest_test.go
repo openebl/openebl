@@ -11,6 +11,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/manager"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/util"
 	mock_auth "github.com/openebl/openebl/test/mock/bu_server/auth"
 	"github.com/stretchr/testify/suite"
@@ -106,7 +107,7 @@ func (s *ManagerAPITestSuite) TestLoginWithInvalidCredentials() {
 		Password: "password",
 	}
 	gomock.InOrder(
-		s.userMgr.EXPECT().Authenticate(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(auth.UserToken{}, auth.ErrUserAuthenticationFail),
+		s.userMgr.EXPECT().Authenticate(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(auth.UserToken{}, model.ErrUserAuthenticationFail),
 	)
 
 	request, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9202/login", nil)

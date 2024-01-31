@@ -7,6 +7,7 @@ import (
 	"github.com/go-testfixtures/testfixtures/v3"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
 	"github.com/stretchr/testify/suite"
@@ -61,7 +62,7 @@ func (s *APIKeyStorageTestSuite) TestCreateAPIKey() {
 	defer tx.Rollback(s.ctx)
 
 	// StoreAPIKey with un-existing application ID.
-	s.Require().ErrorIs(s.storage.StoreAPIKey(s.ctx, tx, apiKey), auth.ErrApplicationNotFound)
+	s.Require().ErrorIs(s.storage.StoreAPIKey(s.ctx, tx, apiKey), model.ErrApplicationNotFound)
 
 	// Insert the associated application before inserting the APIKey
 	app := auth.Application{

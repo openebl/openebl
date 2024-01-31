@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -161,7 +162,7 @@ func (m *_UserManager) CreateUser(ctx context.Context, ts int64, req CreateUserR
 		return User{}, err
 	}
 	if len(oldUsers.Users) > 0 {
-		return User{}, ErrUserAlreadyExists
+		return User{}, model.ErrUserAlreadyExists
 	}
 
 	if err := m.storage.StoreUser(ctx, tx, user); err != nil {
@@ -360,8 +361,8 @@ func (m *_UserManager) Authenticate(ctx context.Context, ts int64, req Authentic
 	defer tx.Rollback(ctx)
 
 	user, err := m._GetUser(ctx, tx, req.UserID)
-	if errors.Is(err, ErrUserNotFound) {
-		return UserToken{}, ErrUserAuthenticationFail
+	if errors.Is(err, model.ErrUserNotFound) {
+		return UserToken{}, model.ErrUserAuthenticationFail
 	}
 	if err != nil {
 		return UserToken{}, err
@@ -398,14 +399,14 @@ func (m *_UserManager) TokenAuthorization(ctx context.Context, ts int64, token s
 
 	userToken, err := m.storage.GetUserToken(ctx, tx, token)
 	if errors.Is(err, sql.ErrNoRows) {
-		return UserToken{}, ErrUserTokenInvalid
+		return UserToken{}, model.ErrUserTokenInvalid
 	}
 	if err != nil {
 		return UserToken{}, err
 	}
 
 	if userToken.ExpiredAt < ts {
-		return UserToken{}, ErrUserTokenExpired
+		return UserToken{}, model.ErrUserTokenExpired
 	}
 
 	return userToken, nil
@@ -444,7 +445,7 @@ func (m *_UserManager) _GetUser(ctx context.Context, tx storage.Tx, id string) (
 	}
 
 	if len(listResult.Users) == 0 {
-		return User{}, ErrUserNotFound
+		return User{}, model.ErrUserNotFound
 	}
 
 	return listResult.Users[0], nil
@@ -457,7 +458,7 @@ func VerifyUserPassword(password RawPassword, hashedPassword HashedPassword) err
 	}
 
 	if err == bcrypt.ErrMismatchedHashAndPassword {
-		return ErrUserAuthenticationFail
+		return model.ErrUserAuthenticationFail
 	}
 
 	return err

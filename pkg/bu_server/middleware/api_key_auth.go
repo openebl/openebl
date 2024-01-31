@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/openebl/openebl/pkg/bu_server/auth"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 )
 
 type APIKeyAuth struct {
@@ -31,7 +32,7 @@ func (a *APIKeyAuth) Authenticate(next http.Handler) http.Handler {
 		}
 
 		apiKey, err := a.auth.Authenticate(ctx, apiKeyString)
-		if errors.Is(err, auth.ErrAPIKeyError) {
+		if errors.Is(err, model.ErrAPIKeyError) {
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(err.Error()))
 			return

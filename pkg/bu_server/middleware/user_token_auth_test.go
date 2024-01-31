@@ -10,6 +10,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/middleware"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 	mock_auth "github.com/openebl/openebl/test/mock/bu_server/auth"
 	"github.com/stretchr/testify/suite"
 )
@@ -66,7 +67,7 @@ func (s *UserTokenAuthTestSuite) TestAuthenticate() {
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	response = httptest.NewRecorder()
 	receivedUserToken = auth.UserToken{}
-	s.userManager.EXPECT().TokenAuthorization(gomock.Eq(s.ctx), gomock.Any(), gomock.Eq(token)).Return(auth.UserToken{}, auth.ErrUserTokenInvalid)
+	s.userManager.EXPECT().TokenAuthorization(gomock.Eq(s.ctx), gomock.Any(), gomock.Eq(token)).Return(auth.UserToken{}, model.ErrUserTokenInvalid)
 	s.auth.Authenticate(handler).ServeHTTP(response, request)
 	s.Equal(http.StatusUnauthorized, response.Code)
 	s.Empty(receivedUserToken)
@@ -77,7 +78,7 @@ func (s *UserTokenAuthTestSuite) TestAuthenticate() {
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	response = httptest.NewRecorder()
 	receivedUserToken = auth.UserToken{}
-	s.userManager.EXPECT().TokenAuthorization(gomock.Eq(s.ctx), gomock.Any(), gomock.Eq(token)).Return(auth.UserToken{}, auth.ErrUserTokenExpired)
+	s.userManager.EXPECT().TokenAuthorization(gomock.Eq(s.ctx), gomock.Any(), gomock.Eq(token)).Return(auth.UserToken{}, model.ErrUserTokenExpired)
 	s.auth.Authenticate(handler).ServeHTTP(response, request)
 	s.Equal(http.StatusUnauthorized, response.Code)
 	s.Empty(receivedUserToken)

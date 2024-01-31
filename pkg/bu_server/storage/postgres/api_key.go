@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 )
 
@@ -33,7 +34,7 @@ SELECT * FROM new_data`
 	if rowAffected, err := result.RowsAffected(); err != nil {
 		return err
 	} else if rowAffected == 0 {
-		return auth.ErrApplicationNotFound
+		return model.ErrApplicationNotFound
 	}
 
 	return nil

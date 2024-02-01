@@ -2,6 +2,8 @@ package cert_authority_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -14,6 +16,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
 	"github.com/openebl/openebl/pkg/bu_server/model"
+	"github.com/openebl/openebl/pkg/bu_server/storage"
 	mock_cert_authority "github.com/openebl/openebl/test/mock/bu_server/cert_authority"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
 	"github.com/stretchr/testify/suite"
@@ -28,9 +31,8 @@ type CertAuthorityTestSuite struct {
 	tx      *mock_storage.MockTx
 	ca      cert_authority.CertAuthority
 
-	// caPrivKey any
-	// caCert    x509.Certificate
-	caCert model.Cert
+	caCert      model.Cert
+	caECDSACert model.Cert
 }
 
 func TestCertAuthorityTestSuite(t *testing.T) {
@@ -38,7 +40,7 @@ func TestCertAuthorityTestSuite(t *testing.T) {
 }
 
 func (s *CertAuthorityTestSuite) SetupSuite() {
-	// Generate Root Certificate and Private Key.
+	// Generate Root Certificate and Private Key with RSA.
 	privKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	s.Require().NoError(err)
 
@@ -77,6 +79,31 @@ func (s *CertAuthorityTestSuite) SetupSuite() {
 		PrivateKey:  string(pem.EncodeToMemory(&privateKeyPem)),
 		Certificate: string(pem.EncodeToMemory(&certPem)),
 	}
+
+	// Generate Root Certificate and Private Key with ECDSA.
+	ecdsaPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	s.Require().NoError(err)
+	certBytes, err = x509.CreateCertificate(rand.Reader, &certTemplate, &certTemplate, &ecdsaPrivKey.PublicKey, ecdsaPrivKey)
+	s.Require().NoError(err)
+
+	privateKeyPemBytes, err = x509.MarshalPKCS8PrivateKey(ecdsaPrivKey)
+	s.Require().NoError(err)
+	privateKeyPem = pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: privateKeyPemBytes,
+	}
+	certPem = pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certBytes,
+	}
+	s.caECDSACert = model.Cert{
+		ID:          "ca_cert_id",
+		Version:     1,
+		Type:        model.CACert,
+		Status:      model.CertStatusActive,
+		PrivateKey:  string(pem.EncodeToMemory(&privateKeyPem)),
+		Certificate: string(pem.EncodeToMemory(&certPem)),
+	}
 }
 
 func (s *CertAuthorityTestSuite) SetupTest() {
@@ -90,6 +117,128 @@ func (s *CertAuthorityTestSuite) SetupTest() {
 
 func (s *CertAuthorityTestSuite) TearDownTest() {
 	s.ctrl.Finish()
+}
+
+func (s *CertAuthorityTestSuite) TestAddCertificate() {
+	ts := time.Now().Unix()
+
+	req := cert_authority.AddCertificateRequest{
+		Requester:  "requester",
+		Cert:       s.caCert.Certificate,
+		PrivateKey: s.caCert.PrivateKey,
+	}
+
+	expectedCert := model.Cert{
+		Version:     1,
+		Type:        model.BUCert,
+		Status:      model.CertStatusActive,
+		CreatedAt:   ts,
+		CreatedBy:   req.Requester,
+		PrivateKey:  req.PrivateKey,
+		Certificate: req.Cert,
+	}
+
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().AddCertificate(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, cert model.Cert) error {
+				expectedCert.ID = cert.ID
+				expectedCert.CertFingerPrint = cert.CertFingerPrint
+				s.Require().Equal(expectedCert, cert)
+				return nil
+			},
+		),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	newCert, err := s.ca.AddCertificate(s.ctx, ts, req)
+	s.Require().NoError(err)
+	s.Assert().Empty(newCert.PrivateKey)
+	newCert.PrivateKey = expectedCert.PrivateKey
+	s.Assert().Equal(expectedCert, newCert)
+
+	// Test AddCertificate() with ECDSA private key.
+	req.PrivateKey = s.caECDSACert.PrivateKey
+	req.Cert = s.caECDSACert.Certificate
+
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().AddCertificate(gomock.Any(), s.tx, gomock.Any()).Return(nil),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+	newCert, err = s.ca.AddCertificate(s.ctx, ts, req)
+	s.Require().NoError(err)
+	s.Assert().Empty(newCert.PrivateKey)
+	s.Assert().NotEmpty(newCert.CertFingerPrint)
+	s.Assert().NotEmpty(newCert.Certificate)
+}
+
+func (s *CertAuthorityTestSuite) TestRevokeCertificate() {
+	ts := time.Now().Unix()
+
+	req := cert_authority.RevokeCertificateRequest{
+		Requester: "requester",
+		CertID:    "cert_id",
+	}
+
+	expectedListRequest := cert_authority.ListCertificatesRequest{
+		Limit: 1,
+		IDs:   []string{req.CertID},
+	}
+
+	expectedCert := model.Cert{
+		Version:     2,
+		Type:        model.CACert,
+		Status:      model.CertStatusRevoked,
+		RevokedAt:   ts,
+		RevokedBy:   req.Requester,
+		Certificate: s.caCert.Certificate,
+		PrivateKey:  s.caCert.PrivateKey,
+	}
+
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().ListCertificates(gomock.Any(), s.tx, expectedListRequest).Return([]model.Cert{s.caCert}, nil),
+		s.storage.EXPECT().AddCertificate(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, cert model.Cert) error {
+				expectedCert.ID = cert.ID
+				expectedCert.CertFingerPrint = cert.CertFingerPrint
+				s.Require().Equal(expectedCert, cert)
+				return nil
+			},
+		),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	newCert, err := s.ca.RevokeCertificate(s.ctx, ts, req)
+	s.Require().NoError(err)
+	s.Assert().Empty(newCert.PrivateKey)
+	newCert.PrivateKey = expectedCert.PrivateKey
+	s.Assert().Equal(expectedCert, newCert)
+}
+
+func (s *CertAuthorityTestSuite) TestListCertificate() {
+	req := cert_authority.ListCertificatesRequest{
+		Offset:   1,
+		Limit:    2,
+		IDs:      []string{"id"},
+		Statuses: []model.CertStatus{model.CertStatusActive},
+	}
+
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, nil),
+		s.storage.EXPECT().ListCertificates(gomock.Any(), s.tx, req).Return([]model.Cert{s.caCert}, nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	certs, err := s.ca.ListCertificates(s.ctx, req)
+	s.Require().NoError(err)
+	s.Require().Len(certs, 1)
+	certs[0].PrivateKey = s.caCert.PrivateKey
+	s.Assert().Equal([]model.Cert{s.caCert}, certs)
 }
 
 func (s *CertAuthorityTestSuite) TestIssueCertificate() {

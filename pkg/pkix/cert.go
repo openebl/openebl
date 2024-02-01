@@ -69,6 +69,11 @@ func ParsePrivateKey(key []byte) (interface{}, error) {
 		return nil, errors.New("invalid private key")
 	}
 
+	ecPrivateKey, ecErr := x509.ParseECPrivateKey(pemBlock.Bytes)
+	if ecErr == nil {
+		return ecPrivateKey, nil
+	}
+
 	privKey, pkcs8Err := x509.ParsePKCS8PrivateKey(pemBlock.Bytes)
 	if pkcs8Err == nil {
 		return privKey, nil

@@ -132,6 +132,9 @@ paths:
                   items:
                     type: string
                   description: List of addresses associated with the BusinessUnit.
+                country:
+                  type: string
+                  description: 'Country Code of the BusinessUnit. (Eg: US, SG, CA)'
                 emails:
                   type: array
                   items:
@@ -392,6 +395,9 @@ components:
           items:
             type: string
           description: List of addresses associated with the BusinessUnit.
+        country:
+          type: string
+          description: 'Country Code of the BusinessUnit. (Eg: US, SG, CA)'
         emails:
           type: array
           items:
@@ -480,6 +486,9 @@ components:
           items:
             type: string
           description: List of addresses associated with the BusinessUnit.
+        country:
+          type: string
+          description: 'Country Code of the BusinessUnit. (Eg: US, SG, CA)'
         emails:
           type: array
           items:

@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 )
@@ -29,6 +30,7 @@ type CreateBusinessUnitRequest struct {
 
 	Name         string                   `json:"name"`          // Name of the BusinessUnit.
 	Addresses    []string                 `json:"addresses"`     // List of addresses associated with the BusinessUnit.
+	Country      string                   `json:"country"`       // Country Code of the BusinessUnit. (Eg: US, TW, JP)
 	Emails       []string                 `json:"emails"`        // List of emails associated with the BusinessUnit.
 	PhoneNumbers []string                 `json:"phone_numbers"` // List of phone numbers associated with the BusinessUnit.
 	Status       model.BusinessUnitStatus `json:"status"`        // Status of the application.
@@ -41,6 +43,7 @@ type UpdateBusinessUnitRequest struct {
 	ID            did.DID  `json:"id"`             // Unique DID of a BusinessUnit.
 	Name          string   `json:"name"`           // Name of the BusinessUnit.
 	Addresses     []string `json:"addresses"`      // List of addresses associated with the BusinessUnit.
+	Country       string   `json:"country"`        // Country Code of the BusinessUnit. (Eg: US, TW, JP)
 	Emails        []string `json:"emails"`         // List of emails associated with the BusinessUnit.
 	PhoneNumbers  []string `json:"phone_numbers"`  // List of phone numbers associated with the BusinessUnit.
 }
@@ -110,11 +113,13 @@ type ListAuthenticationResult struct {
 }
 
 type _BusinessUnitManager struct {
+	ca      cert_authority.CertAuthority
 	storage BusinessUnitStorage
 }
 
-func NewBusinessUnitManager(storage BusinessUnitStorage) *_BusinessUnitManager {
+func NewBusinessUnitManager(storage BusinessUnitStorage, ca cert_authority.CertAuthority) *_BusinessUnitManager {
 	return &_BusinessUnitManager{
+		ca:      ca,
 		storage: storage,
 	}
 }
@@ -134,6 +139,7 @@ func (m *_BusinessUnitManager) CreateBusinessUnit(ctx context.Context, ts int64,
 		Status:        req.Status,
 		Name:          req.Name,
 		Addresses:     req.Addresses,
+		Country:       req.Country,
 		Emails:        req.Emails,
 		PhoneNumbers:  req.PhoneNumbers,
 		CreatedAt:     ts,
@@ -188,6 +194,7 @@ func (m *_BusinessUnitManager) UpdateBusinessUnit(ctx context.Context, ts int64,
 	bu.Version += 1
 	bu.Name = req.Name
 	bu.Addresses = req.Addresses
+	bu.Country = req.Country
 	bu.Emails = req.Emails
 	bu.PhoneNumbers = req.PhoneNumbers
 	bu.UpdatedAt = ts

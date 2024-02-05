@@ -11,6 +11,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
+	mock_cert_authority "github.com/openebl/openebl/test/mock/bu_server/cert_authority"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
 	"github.com/stretchr/testify/suite"
 )
@@ -20,6 +21,7 @@ type BusinessUnitManagerTestSuite struct {
 	ctx       context.Context
 	ctrl      *gomock.Controller
 	storage   *mock_business_unit.MockBusinessUnitStorage
+	ca        *mock_cert_authority.MockCertAuthority
 	tx        *mock_storage.MockTx
 	buManager business_unit.BusinessUnitManager
 }
@@ -32,8 +34,9 @@ func (s *BusinessUnitManagerTestSuite) SetupTest() {
 	s.ctx = context.Background()
 	s.ctrl = gomock.NewController(s.T())
 	s.storage = mock_business_unit.NewMockBusinessUnitStorage(s.ctrl)
+	s.ca = mock_cert_authority.NewMockCertAuthority(s.ctrl)
 	s.tx = mock_storage.NewMockTx(s.ctrl)
-	s.buManager = business_unit.NewBusinessUnitManager(s.storage)
+	s.buManager = business_unit.NewBusinessUnitManager(s.storage, s.ca)
 }
 
 func (s *BusinessUnitManagerTestSuite) TearDownTest() {
@@ -48,6 +51,7 @@ func (s *BusinessUnitManagerTestSuite) TestCreateBusinessUnit() {
 		ApplicationID: "application-id",
 		Name:          "name",
 		Addresses:     []string{"address"},
+		Country:       "US",
 		Emails:        []string{"email"},
 		Status:        model.BusinessUnitStatusActive,
 	}
@@ -58,6 +62,7 @@ func (s *BusinessUnitManagerTestSuite) TestCreateBusinessUnit() {
 		Status:        request.Status,
 		Name:          request.Name,
 		Addresses:     request.Addresses,
+		Country:       request.Country,
 		Emails:        request.Emails,
 		CreatedAt:     ts,
 		CreatedBy:     request.Requester,
@@ -92,6 +97,7 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 		ID:            did.MustParseDID("did:openebl:u0e2345"),
 		Name:          "name",
 		Addresses:     []string{"address"},
+		Country:       "US",
 		Emails:        []string{"email"},
 	}
 
@@ -102,6 +108,7 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 		Status:        model.BusinessUnitStatusActive,
 		Name:          "old-name",
 		Addresses:     []string{"old-address"},
+		Country:       "CA",
 		Emails:        []string{"old-email"},
 		CreatedAt:     ts - 100,
 		CreatedBy:     "old-requester",
@@ -116,6 +123,7 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 		Status:        model.BusinessUnitStatusActive,
 		Name:          request.Name,
 		Addresses:     request.Addresses,
+		Country:       request.Country,
 		Emails:        request.Emails,
 		CreatedAt:     ts - 100,
 		CreatedBy:     "old-requester",
@@ -166,6 +174,7 @@ func (s *BusinessUnitManagerTestSuite) TestListBusinessUnits() {
 		Status:        model.BusinessUnitStatusActive,
 		Name:          "name",
 		Addresses:     []string{"address"},
+		Country:       "US",
 		Emails:        []string{"email"},
 		CreatedAt:     12345,
 		CreatedBy:     "requester",
@@ -214,6 +223,7 @@ func (s *BusinessUnitManagerTestSuite) TestSetBusinessUnitStatus() {
 		Status:        model.BusinessUnitStatusActive,
 		Name:          "name",
 		Addresses:     []string{"address"},
+		Country:       "US",
 		Emails:        []string{"email"},
 		CreatedAt:     ts - 100,
 		CreatedBy:     "old-requester",
@@ -228,6 +238,7 @@ func (s *BusinessUnitManagerTestSuite) TestSetBusinessUnitStatus() {
 		Status:        model.BusinessUnitStatusInactive,
 		Name:          "name",
 		Addresses:     []string{"address"},
+		Country:       "US",
 		Emails:        []string{"email"},
 		CreatedAt:     ts - 100,
 		CreatedBy:     "old-requester",

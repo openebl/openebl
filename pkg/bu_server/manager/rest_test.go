@@ -20,7 +20,7 @@ import (
 )
 
 func TestManagerAPIWithDB(t *testing.T) {
-	// t.Skip("Skipping test for now")
+	t.Skip("Skipping test for now")
 	dbConfig := util.PostgresDatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,

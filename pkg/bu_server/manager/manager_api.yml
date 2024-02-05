@@ -266,19 +266,19 @@ components:
           description: PEM encoded private key.
         certificate:
           type: string
-          description: PEM encoded certificate.
+          description: PEM encoded certificate. It may contains multiple certificates. The first certificate is the leaf certificate. Others are intermediate certificates.
         cert_fingerprint:
           type: string
-          description: Fingerprint of the certificate. The format is [HASH_ALGORITHM]:[FINGERPRINT_HEX_ENCODED].
+          description: Fingerprint of the leaf certificate. The format is [HASH_ALGORITHM]:[FINGERPRINT_HEX_ENCODED].
     AddCertificateRequest:
       type: object
       properties:
         cert:
           type: string
-          description: PEM encoded certificate.
+          description: PEM encoded certificate. It may contains multiple certificates. The first certificate is the leaf certificate. Others are intermediate certificates.
         private_Key:
           type: string
-          description: PEM encoded private key.
+          description: PEM encoded private key of the leaf certificate.
       required:
         - Cert
         - PrivateKey

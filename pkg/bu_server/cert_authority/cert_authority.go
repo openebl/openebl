@@ -38,8 +38,8 @@ type CertStorage interface {
 
 type AddCertificateRequest struct {
 	Requester  string `json:"requester"`   // Who makes the request.
-	Cert       string `json:"cert"`        // PEM encoded certificate.
-	PrivateKey string `json:"private_key"` // PEM encoded private key.
+	Cert       string `json:"cert"`        // PEM encoded certificate. It may contains multiple certificates. The first certificate is the leaf certificate. Others are intermediate certificates.
+	PrivateKey string `json:"private_key"` // PEM encoded private key of the leaf certificate.
 }
 
 type RevokeCertificateRequest struct {
@@ -92,10 +92,11 @@ func (ca *_CertAuthority) AddCertificate(ctx context.Context, ts int64, req AddC
 		return model.Cert{}, fmt.Errorf("invalid private key length%w", model.ErrInvalidParameter)
 	}
 
-	cert, err := pkix.ParseCertificate([]byte(req.Cert))
+	certs, err := pkix.ParseCertificate([]byte(req.Cert))
 	if err != nil {
 		return model.Cert{}, fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
+	cert := certs[0]
 	if rsaPrivateKey != nil {
 		rsaPublicKey := cert.PublicKey.(*rsa.PublicKey)
 		if !rsaPublicKey.Equal(cert.PublicKey) {
@@ -212,10 +213,11 @@ func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req Is
 	if err != nil {
 		return x509.Certificate{}, err
 	}
-	caCert, err := pkix.ParseCertificate([]byte(cert.Certificate))
+	caCerts, err := pkix.ParseCertificate([]byte(cert.Certificate))
 	if err != nil {
 		return x509.Certificate{}, err
 	}
+	caCert := caCerts[0]
 	currentTime := time.Unix(ts, 0)
 	if currentTime.Before(caCert.NotBefore) || currentTime.After(caCert.NotAfter) {
 		return x509.Certificate{}, model.ErrCertificationExpired
@@ -229,7 +231,7 @@ func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req Is
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 	}
 
-	newCertRaw, err := x509.CreateCertificate(rand.Reader, &certTemplate, caCert, req.CertificateRequest.PublicKey, privateKey)
+	newCertRaw, err := x509.CreateCertificate(rand.Reader, &certTemplate, &caCert, req.CertificateRequest.PublicKey, privateKey)
 	if err != nil {
 		return x509.Certificate{}, err
 	}

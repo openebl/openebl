@@ -88,13 +88,27 @@ func ParsePrivateKey(key []byte) (interface{}, error) {
 	return nil, pkcs8Err
 }
 
-func ParseCertificate(cert []byte) (*x509.Certificate, error) {
-	pemBlock, _ := pem.Decode(cert)
-	if pemBlock == nil {
-		return nil, errors.New("invalid certificate")
+func ParseCertificate(certRaw []byte) ([]x509.Certificate, error) {
+	certs := make([]x509.Certificate, 0, 4)
+	for {
+		pemBlock, remains := pem.Decode(certRaw)
+		if pemBlock == nil {
+			return nil, errors.New("invalid certificate")
+		}
+
+		cert, err := x509.ParseCertificate(pemBlock.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		certs = append(certs, *cert)
+
+		if len(remains) == 0 {
+			break
+		}
+		certRaw = remains
 	}
 
-	return x509.ParseCertificate(pemBlock.Bytes)
+	return certs, nil
 }
 
 func ParseCertificateRequest(certRequest []byte) (*x509.CertificateRequest, error) {

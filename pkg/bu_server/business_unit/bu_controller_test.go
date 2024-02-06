@@ -2,14 +2,18 @@ package business_unit_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/x509"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
+	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
+	"github.com/openebl/openebl/pkg/pkix"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
 	mock_cert_authority "github.com/openebl/openebl/test/mock/bu_server/cert_authority"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
@@ -281,26 +285,73 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 		Requester:      "requester",
 		ApplicationID:  "application-id",
 		BusinessUnitID: did.MustParseDID("did:openebl:u0e2345"),
-		PrivateKey:     "FAKE PEM PRIVATE KEY",
-		Certificate:    "FAKE PEM CERT",
+		PrivateKeyOption: business_unit.PrivateKeyOption{
+			KeyType:   business_unit.PrivateKeyTypeECDSA,
+			CurveType: business_unit.ECDSACurveTypeP384,
+		},
+		ExpiredAfter: 86400 * 365,
 	}
 
-	expectedAuthentication := model.BusinessUnitAuthentication{
+	bu := model.BusinessUnit{
+		ID:            did.MustParseDID("did:openebl:bu1"),
+		Version:       1,
+		ApplicationID: "application-id",
+		Status:        model.BusinessUnitStatusActive,
+		Name:          "name",
+		Addresses:     []string{"address"},
+		Country:       "US",
+		Emails:        []string{"email"},
+		CreatedAt:     ts - 100,
+		CreatedBy:     "old-requester",
+	}
+
+	expectedListBuRequest := business_unit.ListBusinessUnitsRequest{
+		Limit:           1,
+		ApplicationID:   request.ApplicationID,
+		BusinessUnitIDs: []string{request.BusinessUnitID.String()},
+	}
+	listBuResult := business_unit.ListBusinessUnitsResult{
+		Total: 1,
+		Records: []business_unit.ListBusinessUnitsRecord{
+			{
+				BusinessUnit: bu,
+			},
+		},
+	}
+
+	receivedAuthentication := model.BusinessUnitAuthentication{
 		Version:      1,
 		BusinessUnit: request.BusinessUnitID,
 		Status:       model.BusinessUnitAuthenticationStatusActive,
 		CreatedAt:    ts,
 		CreatedBy:    request.Requester,
-		PrivateKey:   request.PrivateKey,
-		Certificate:  request.Certificate,
 	}
 
+	receivedCertRequest := x509.CertificateRequest{}
+
 	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, nil),
+		s.storage.EXPECT().ListBusinessUnits(gomock.Any(), s.tx, expectedListBuRequest).Return(listBuResult, nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+		s.ca.EXPECT().IssueCertificate(gomock.Any(), ts, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, ts int64, req cert_authority.IssueCertificateRequest) (x509.Certificate, error) {
+				s.Assert().Equal("name", req.CertificateRequest.Subject.CommonName)
+				s.Assert().Equal("US", req.CertificateRequest.Subject.Country[0])
+				s.Assert().Empty(req.CACertID)
+				s.Assert().Equal(time.Unix(ts, 0), req.NotBefore)
+				s.Assert().Equal(time.Unix(ts+request.ExpiredAfter, 0), req.NotAfter)
+				receivedCertRequest = req.CertificateRequest
+				return x509.Certificate{}, nil
+			},
+		),
 		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
 		s.storage.EXPECT().StoreAuthentication(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, auth model.BusinessUnitAuthentication) error {
-				expectedAuthentication.ID = auth.ID
-				s.Assert().Equal(expectedAuthentication, auth)
+				receivedAuthentication.ID = auth.ID
+				receivedAuthentication.PrivateKey = auth.PrivateKey
+				receivedAuthentication.Certificate = auth.Certificate
+				receivedAuthentication.CertFingerPrint = auth.CertFingerPrint
+				s.Assert().Equal(receivedAuthentication, auth)
 				return nil
 			},
 		),
@@ -311,8 +362,17 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 	newAuthentication, err := s.buManager.AddAuthentication(s.ctx, ts, request)
 	s.NoError(err)
 	s.Assert().Empty(newAuthentication.PrivateKey)
-	newAuthentication.PrivateKey = expectedAuthentication.PrivateKey
-	s.Assert().Equal(expectedAuthentication, newAuthentication)
+	newAuthentication.PrivateKey = receivedAuthentication.PrivateKey
+	s.Assert().Equal(receivedAuthentication, newAuthentication)
+	s.Assert().NotEmpty(receivedAuthentication.PrivateKey)
+	s.Assert().NotEmpty(receivedAuthentication.Certificate)
+
+	// Check if receivedCertRequest is valid and have correct public key.
+	privateKey, err := pkix.ParsePrivateKey([]byte(receivedAuthentication.PrivateKey))
+	s.Require().NoError(err)
+	publicKey := privateKey.(*ecdsa.PrivateKey).PublicKey
+	s.Assert().True(publicKey.Equal(receivedCertRequest.PublicKey))
+	s.Assert().Nil(receivedCertRequest.CheckSignature())
 }
 
 func (s *BusinessUnitManagerTestSuite) TestRevokeAuthentication() {

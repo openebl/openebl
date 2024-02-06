@@ -61,8 +61,17 @@ func ValidateAddAuthenticationRequest(req AddAuthenticationRequest) error {
 		validation.Field(&req.Requester, validation.Required),
 		validation.Field(&req.ApplicationID, validation.Required),
 		validation.Field(&req.BusinessUnitID, validation.Required),
-		validation.Field(&req.PrivateKey, validation.Required),
-		validation.Field(&req.Certificate, validation.Required),
+		validation.Field(&req.PrivateKeyOption, validation.Required),
+		validation.Field(&req.ExpiredAfter, validation.Min(1)),
+	); err != nil {
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
+	}
+
+	privateKeyOption := req.PrivateKeyOption
+	if err := validation.ValidateStruct(&privateKeyOption,
+		validation.Field(&privateKeyOption.KeyType, validation.Required),
+		validation.Field(&privateKeyOption.BitLength, validation.Required.When(privateKeyOption.KeyType == PrivateKeyTypeRSA)),
+		validation.Field(&privateKeyOption.CurveType, validation.Required.When(privateKeyOption.KeyType == PrivateKeyTypeECDSA)),
 	); err != nil {
 		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}

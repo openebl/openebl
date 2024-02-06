@@ -32,6 +32,7 @@ var ErrUserTokenInvalid = fmt.Errorf("user token invalid%w", ErrUserError)
 
 // Business Unit errors
 var ErrBusinessUnitNotFound = fmt.Errorf("business unit not found%w", ErrBusinessUnitError)
+var ErrBusinessUnitInActive = fmt.Errorf("business unit is not active%w", ErrBusinessUnitError)
 var ErrAuthenticationNotFound = fmt.Errorf("authentication not found%w", ErrBusinessUnitError)
 
 // Certification Authority errors

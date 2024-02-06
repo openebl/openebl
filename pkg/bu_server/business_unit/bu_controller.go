@@ -3,13 +3,21 @@ package business_unit
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
+	eblpkix "github.com/openebl/openebl/pkg/pkix"
 )
 
 // BusinessUnitManager is the interface that wraps the basic management functions of business unit.
@@ -80,11 +88,29 @@ type SetBusinessUnitStatusRequest struct {
 
 // AddAuthenticationRequest is the request to add an authentication to a business unit.
 type AddAuthenticationRequest struct {
-	Requester      string  `json:"requester"`      // User who makes the request.
-	ApplicationID  string  `json:"application_id"` // The ID of the application this BusinessUnit belongs to.
-	BusinessUnitID did.DID `json:"id"`             // Unique DID of a BusinessUnit.
-	PrivateKey     string  `json:"private_key"`    // PEM encoded private key.
-	Certificate    string  `json:"certificate"`    // PEM encoded certificate.
+	Requester        string           `json:"requester"`          // User who makes the request.
+	ApplicationID    string           `json:"application_id"`     // The ID of the application this BusinessUnit belongs to.
+	BusinessUnitID   did.DID          `json:"id"`                 // Unique DID of a BusinessUnit.
+	PrivateKeyOption PrivateKeyOption `json:"private_key_option"` // Option of the private key.
+	ExpiredAfter     int64            `json:"expired_after"`      // How long (in second) the authentication/certificate will be valid.
+}
+
+type PrivateKeyType string // PrivateKeyType is the type of the private key.
+type ECDSACurveType string
+
+const (
+	PrivateKeyTypeRSA   PrivateKeyType = "RSA"
+	PrivateKeyTypeECDSA PrivateKeyType = "ECDSA"
+
+	ECDSACurveTypeP256 ECDSACurveType = "P-256"
+	ECDSACurveTypeP384 ECDSACurveType = "P-384"
+	ECDSACurveTypeP521 ECDSACurveType = "P-521"
+)
+
+type PrivateKeyOption struct {
+	KeyType   PrivateKeyType `json:"key_type"`   // Type of the private key.
+	BitLength int            `json:"bit_length"` // Bit length of the private key. Only used when KeyType is RSA.
+	CurveType ECDSACurveType `json:"curve_type"` // Curve type of the private key. Only used when KeyType is ECDSA.
 }
 
 // RevokeAuthenticationRequest is the request to revoke an authentication from a business unit.
@@ -175,22 +201,10 @@ func (m *_BusinessUnitManager) UpdateBusinessUnit(ctx context.Context, ts int64,
 	}
 	defer tx.Rollback(ctx)
 
-	listReq := ListBusinessUnitsRequest{
-		Limit:         1,
-		ApplicationID: req.ApplicationID,
-		BusinessUnitIDs: []string{
-			req.ID.String(),
-		},
-	}
-	listResult, err := m.storage.ListBusinessUnits(ctx, tx, listReq)
+	bu, err := m.getBusinessUnit(ctx, tx, req.ApplicationID, req.ID)
 	if err != nil {
 		return model.BusinessUnit{}, err
 	}
-	if len(listResult.Records) == 0 {
-		return model.BusinessUnit{}, model.ErrBusinessUnitNotFound
-	}
-
-	bu := listResult.Records[0].BusinessUnit
 	bu.Version += 1
 	bu.Name = req.Name
 	bu.Addresses = req.Addresses
@@ -280,11 +294,32 @@ func (m *_BusinessUnitManager) AddAuthentication(ctx context.Context, ts int64, 
 		return model.BusinessUnitAuthentication{}, err
 	}
 
-	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	privateKey, err := m.createPrivateKey(ctx, req.PrivateKeyOption)
 	if err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
-	defer tx.Rollback(ctx)
+
+	oldBu, err := m.getBusinessUnit(ctx, nil, req.ApplicationID, req.BusinessUnitID)
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+	if oldBu.Status != model.BusinessUnitStatusActive {
+		return model.BusinessUnitAuthentication{}, model.ErrBusinessUnitInActive
+	}
+	certificateRequest, err := m.createCertificateRequest(ctx, privateKey, oldBu)
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+
+	caRequest := cert_authority.IssueCertificateRequest{
+		CertificateRequest: certificateRequest,
+		NotBefore:          time.Unix(ts, 0),
+		NotAfter:           time.Unix(ts+req.ExpiredAfter, 0),
+	}
+	cert, err := m.ca.IssueCertificate(ctx, ts, caRequest)
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
 
 	auth := model.BusinessUnitAuthentication{
 		ID:           uuid.NewString(),
@@ -293,9 +328,21 @@ func (m *_BusinessUnitManager) AddAuthentication(ctx context.Context, ts int64, 
 		Status:       model.BusinessUnitAuthenticationStatusActive,
 		CreatedAt:    ts,
 		CreatedBy:    req.Requester,
-		PrivateKey:   req.PrivateKey,
-		Certificate:  req.Certificate,
 	}
+	auth.PrivateKey, err = eblpkix.MarshalPrivateKey(privateKey)
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+	auth.Certificate, err = eblpkix.MarshalCertificates([]x509.Certificate{cert})
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+
+	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+	defer tx.Rollback(ctx)
 
 	if err := m.storage.StoreAuthentication(ctx, tx, auth); err != nil {
 		return model.BusinessUnitAuthentication{}, err
@@ -379,4 +426,72 @@ func (m *_BusinessUnitManager) ListAuthentication(ctx context.Context, req ListA
 		result.Records[i].PrivateKey = "" // Erase PrivateKey before returning.
 	}
 	return result, nil
+}
+
+func (m *_BusinessUnitManager) getBusinessUnit(ctx context.Context, tx storage.Tx, appID string, id did.DID) (model.BusinessUnit, error) {
+	if tx == nil {
+		newTx, err := m.storage.CreateTx(ctx)
+		if err != nil {
+			return model.BusinessUnit{}, err
+		}
+		defer newTx.Rollback(ctx)
+		tx = newTx
+	}
+	req := ListBusinessUnitsRequest{
+		Limit:         1,
+		ApplicationID: appID,
+		BusinessUnitIDs: []string{
+			id.String(),
+		},
+	}
+	result, err := m.storage.ListBusinessUnits(ctx, tx, req)
+	if err != nil {
+		return model.BusinessUnit{}, err
+	}
+	if len(result.Records) == 0 {
+		return model.BusinessUnit{}, model.ErrBusinessUnitNotFound
+	}
+	return result.Records[0].BusinessUnit, nil
+}
+
+// createPrivateKey will return a private key. The type will be *rsa.PrivateKey or *ecdsa.PrivateKey.
+func (m *_BusinessUnitManager) createPrivateKey(ctx context.Context, opt PrivateKeyOption) (any, error) {
+	switch opt.KeyType {
+	case PrivateKeyTypeRSA:
+		return rsa.GenerateKey(rand.Reader, opt.BitLength)
+	case PrivateKeyTypeECDSA:
+		switch opt.CurveType {
+		case ECDSACurveTypeP256:
+			return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		case ECDSACurveTypeP384:
+			return ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+		case ECDSACurveTypeP521:
+			return ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+		default:
+			return nil, model.ErrInvalidParameter
+		}
+	default:
+		return nil, model.ErrInvalidParameter
+	}
+}
+
+func (m *_BusinessUnitManager) createCertificateRequest(ctx context.Context, privateKey interface{}, bu model.BusinessUnit) (x509.CertificateRequest, error) {
+	certRequestTemplate := x509.CertificateRequest{
+		Subject: pkix.Name{
+			Country:    []string{bu.Country},
+			CommonName: bu.Name,
+		},
+	}
+
+	csrRaw, err := x509.CreateCertificateRequest(rand.Reader, &certRequestTemplate, privateKey)
+	if err != nil {
+		return x509.CertificateRequest{}, err
+	}
+
+	csr, err := x509.ParseCertificateRequest(csrRaw)
+	if err != nil {
+		return x509.CertificateRequest{}, err
+	}
+
+	return *csr, nil
 }

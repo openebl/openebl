@@ -57,10 +57,10 @@ type ListCertificatesRequest struct {
 }
 
 type IssueCertificateRequest struct {
-	CACertID           string                  `json:"ca_cert_id"` // ID of the CA certificate.
+	CACertID           string                  `json:"ca_cert_id"` // ID of the CA certificate. It's optional. If it's empty, the system choose one available CA certificate.
 	CertificateRequest x509.CertificateRequest `json:"certificate_request"`
-	NotBefore          time.Time
-	NotAfter           time.Time
+	NotBefore          time.Time               `json:"not_before"` // When the issued certificate becomes valid.
+	NotAfter           time.Time               `json:"not_after"`  // When the issued certificate becomes invalid.
 }
 
 type _CertAuthority struct {

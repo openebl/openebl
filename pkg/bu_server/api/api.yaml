@@ -229,18 +229,17 @@ paths:
                 requester:
                   type: string
                   description: User who makes the request
-                private_key:
-                  type: string
-                  description: PEM encoded private key
-                certificate:
-                  type: string
-                  description: PEM encoded certificate
+                private_key_option:
+                  $ref: '#/components/schemas/PrivateKeyOption'
+                  description: Option of the private key.
+                expired_after:
+                  type: integer
+                  format: int64
+                  description: How long (in second) the authentication/certificate will be valid.
               required:
                 - requester
-                - application_id
-                - id
-                - private_key
-                - certificate
+                - private_key_option
+                - expired_after
       responses:
         '201':
           description: Authentication created successfully
@@ -361,6 +360,32 @@ components:
       type: http
       scheme: bearer
   schemas:
+    PrivateKeyType:
+      type: string
+      enum:
+        - RSA
+        - ECDSA
+      description: Type of the private key.
+    ECDSACurveType:
+      type: string
+      enum:
+        - P-256
+        - P-384
+        - P-521
+      description: Curve type of the private key.
+    PrivateKeyOption:
+      type: object
+      properties:
+        key_type:
+          $ref: '#/components/schemas/PrivateKeyType'
+          description: Type of the private key.
+        bit_length:
+          type: integer
+          format: int32
+          description: Bit length of the private key. Only used when KeyType is RSA.
+        curve_type:
+          $ref: '#/components/schemas/ECDSACurveType'
+          description: Curve type of the private key. Only used when KeyType is ECDSA.
     BusinessUnitStatus:
       type: string
       enum:

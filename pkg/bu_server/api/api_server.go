@@ -12,6 +12,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
+	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
 	"github.com/openebl/openebl/pkg/bu_server/middleware"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
@@ -32,13 +33,14 @@ type API struct {
 
 func NewAPIWithConfig(cfg APIConfig) (*API, error) {
 	storage, err := postgres.NewStorageWithConfig(cfg.Database)
+	ca := cert_authority.NewCertAuthority(storage)
 	if err != nil {
 		logrus.Errorf("failed to create storage: %v", err)
 		return nil, err
 	}
 
 	apiKeyMgr := auth.NewAPIKeyAuthenticator(storage)
-	buMgr := business_unit.NewBusinessUnitManager(storage)
+	buMgr := business_unit.NewBusinessUnitManager(storage, ca)
 	api, err := NewAPIWithController(apiKeyMgr, buMgr, cfg.LocalAddress)
 	if err != nil {
 		return nil, err

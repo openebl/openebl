@@ -27,7 +27,7 @@ type CertAuthority interface {
 	RevokeCertificate(ctx context.Context, ts int64, req RevokeCertificateRequest) (model.Cert, error)
 
 	ListCertificates(ctx context.Context, req ListCertificatesRequest) ([]model.Cert, error)
-	IssueCertificate(ctx context.Context, ts int64, req IssueCertificateRequest) (x509.Certificate, error)
+	IssueCertificate(ctx context.Context, ts int64, req IssueCertificateRequest) ([]x509.Certificate, error)
 }
 
 type CertStorage interface {
@@ -196,31 +196,31 @@ func (ca *_CertAuthority) ListCertificates(ctx context.Context, req ListCertific
 	return result, nil
 }
 
-func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req IssueCertificateRequest) (x509.Certificate, error) {
+func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req IssueCertificateRequest) ([]x509.Certificate, error) {
 	if err := ValidateIssueCertificateRequest(req); err != nil {
-		return x509.Certificate{}, err
+		return nil, err
 	}
 	if err := req.CertificateRequest.CheckSignature(); err != nil {
-		return x509.Certificate{}, fmt.Errorf("invalid certificate request: %s%w", err.Error(), model.ErrInvalidParameter)
+		return nil, fmt.Errorf("invalid certificate request: %s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
 	cert, err := ca.getCert(ctx, req.CACertID, nil)
 	if err != nil {
-		return x509.Certificate{}, err
+		return nil, err
 	}
 
 	privateKey, err := pkix.ParsePrivateKey([]byte(cert.PrivateKey))
 	if err != nil {
-		return x509.Certificate{}, err
+		return nil, err
 	}
 	caCerts, err := pkix.ParseCertificate([]byte(cert.Certificate))
 	if err != nil {
-		return x509.Certificate{}, err
+		return nil, err
 	}
 	caCert := caCerts[0]
 	currentTime := time.Unix(ts, 0)
 	if currentTime.Before(caCert.NotBefore) || currentTime.After(caCert.NotAfter) {
-		return x509.Certificate{}, model.ErrCertificationExpired
+		return nil, model.ErrCertificationExpired
 	}
 
 	certTemplate := x509.Certificate{
@@ -233,14 +233,17 @@ func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req Is
 
 	newCertRaw, err := x509.CreateCertificate(rand.Reader, &certTemplate, &caCert, req.CertificateRequest.PublicKey, privateKey)
 	if err != nil {
-		return x509.Certificate{}, err
+		return nil, err
 	}
 
 	newCert, err := x509.ParseCertificate(newCertRaw)
 	if err != nil {
-		return x509.Certificate{}, err
+		return nil, err
 	}
-	return *newCert, nil
+
+	certs := []x509.Certificate{*newCert}
+	certs = append(certs, caCerts...)
+	return certs, nil
 }
 
 func (ca *_CertAuthority) getCert(ctx context.Context, certID string, tx storage.Tx) (model.Cert, error) {

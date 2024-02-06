@@ -334,14 +334,14 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 		s.storage.EXPECT().ListBusinessUnits(gomock.Any(), s.tx, expectedListBuRequest).Return(listBuResult, nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 		s.ca.EXPECT().IssueCertificate(gomock.Any(), ts, gomock.Any()).DoAndReturn(
-			func(ctx context.Context, ts int64, req cert_authority.IssueCertificateRequest) (x509.Certificate, error) {
+			func(ctx context.Context, ts int64, req cert_authority.IssueCertificateRequest) ([]x509.Certificate, error) {
 				s.Assert().Equal("name", req.CertificateRequest.Subject.CommonName)
 				s.Assert().Equal("US", req.CertificateRequest.Subject.Country[0])
 				s.Assert().Empty(req.CACertID)
 				s.Assert().Equal(time.Unix(ts, 0), req.NotBefore)
 				s.Assert().Equal(time.Unix(ts+request.ExpiredAfter, 0), req.NotAfter)
 				receivedCertRequest = req.CertificateRequest
-				return x509.Certificate{}, nil
+				return make([]x509.Certificate, 2), nil
 			},
 		),
 		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),

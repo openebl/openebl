@@ -333,7 +333,7 @@ func (m *_BusinessUnitManager) AddAuthentication(ctx context.Context, ts int64, 
 	if err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
-	auth.Certificate, err = eblpkix.MarshalCertificates([]x509.Certificate{cert})
+	auth.Certificate, err = eblpkix.MarshalCertificates(cert)
 	if err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}

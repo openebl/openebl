@@ -38,3 +38,4 @@ var ErrAuthenticationNotFound = fmt.Errorf("authentication not found%w", ErrBusi
 // Certification Authority errors
 var ErrCertificationNotFound = fmt.Errorf("certification not found%w", ErrCertificationAuthorityError)
 var ErrCertificationExpired = fmt.Errorf("certification expired%w", ErrCertificationAuthorityError)
+var ErrCACertificationNotAvailable = fmt.Errorf("CA certification not available%w", ErrCertificationAuthorityError)

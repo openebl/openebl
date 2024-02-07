@@ -268,8 +268,10 @@ func (s *CertAuthorityTestSuite) TestIssueCertificate() {
 	}
 
 	expectedListCertRequest := cert_authority.ListCertificatesRequest{
-		Limit: 1,
-		IDs:   []string{issueRequest.CACertID},
+		Limit:     1,
+		Statuses:  []model.CertStatus{model.CertStatusActive},
+		ValidFrom: issueRequest.NotBefore.Unix(),
+		ValidTo:   issueRequest.NotAfter.Unix(),
 	}
 
 	gomock.InOrder(

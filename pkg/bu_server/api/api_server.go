@@ -40,7 +40,7 @@ func NewAPIWithConfig(cfg APIConfig) (*API, error) {
 	}
 
 	apiKeyMgr := auth.NewAPIKeyAuthenticator(storage)
-	buMgr := business_unit.NewBusinessUnitManager(storage, ca)
+	buMgr := business_unit.NewBusinessUnitManager(storage, ca, nil)
 	api, err := NewAPIWithController(apiKeyMgr, buMgr, cfg.LocalAddress)
 	if err != nil {
 		return nil, err

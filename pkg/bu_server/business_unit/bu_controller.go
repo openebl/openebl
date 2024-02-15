@@ -3,6 +3,7 @@ package business_unit
 
 import (
 	"context"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -10,6 +11,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"database/sql"
+	"io"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +19,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
+	"github.com/openebl/openebl/pkg/envelope"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
 )
 
@@ -29,6 +32,31 @@ type BusinessUnitManager interface {
 	AddAuthentication(ctx context.Context, ts int64, req AddAuthenticationRequest) (model.BusinessUnitAuthentication, error)
 	RevokeAuthentication(ctx context.Context, ts int64, req RevokeAuthenticationRequest) (model.BusinessUnitAuthentication, error)
 	ListAuthentication(ctx context.Context, req ListAuthenticationRequest) (ListAuthenticationResult, error)
+	GetJWSSigner(ctx context.Context, req GetJWSSignerRequest) (JWSSigner, error)
+}
+
+type JWSSigner interface {
+	// Public returns the public key corresponding to the opaque,
+	// private key.
+	Public() crypto.PublicKey
+
+	// Sign signs digest with the private key, possibly using entropy from
+	// rand. For an RSA key, the resulting signature should be either a
+	// PKCS #1 v1.5 or PSS signature (as indicated by opts). For an (EC)DSA
+	// key, it should be a DER-serialised, ASN.1 signature structure.
+	//
+	// Hash implements the SignerOpts interface and, in most cases, one can
+	// simply pass in the hash function used as opts. Sign may also attempt
+	// to type assert opts to other types in order to obtain algorithm
+	// specific values. See the documentation in each package for details.
+	//
+	// Note that when a signature of a hash of a larger message is needed,
+	// the caller is responsible for hashing the larger message and passing
+	// the hash (as digest) and the hash function (as opts) to Sign.
+	Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error)
+
+	AvailableJWSSignAlgorithms() []envelope.SignatureAlgorithm
+	Cert() []x509.Certificate
 }
 
 // CreateBusinessUnitRequest is the request to create a business unit.
@@ -138,15 +166,23 @@ type ListAuthenticationResult struct {
 	Records []model.BusinessUnitAuthentication `json:"records"` // Records of authentications.
 }
 
-type _BusinessUnitManager struct {
-	ca      cert_authority.CertAuthority
-	storage BusinessUnitStorage
+type GetJWSSignerRequest struct {
+	ApplicationID    string  `json:"application_id"`    // The ID of the application this BusinessUnit belongs to.
+	BusinessUnitID   did.DID `json:"id"`                // Unique DID of a BusinessUnit.
+	AuthenticationID string  `json:"authentication_id"` // Unique ID of the authentication.
 }
 
-func NewBusinessUnitManager(storage BusinessUnitStorage, ca cert_authority.CertAuthority) *_BusinessUnitManager {
+type _BusinessUnitManager struct {
+	ca               cert_authority.CertAuthority
+	storage          BusinessUnitStorage
+	jwsSignerFactory JWSSignerFactory
+}
+
+func NewBusinessUnitManager(storage BusinessUnitStorage, ca cert_authority.CertAuthority, jwsSignerFactory JWSSignerFactory) *_BusinessUnitManager {
 	return &_BusinessUnitManager{
-		ca:      ca,
-		storage: storage,
+		ca:               ca,
+		storage:          storage,
+		jwsSignerFactory: jwsSignerFactory,
 	}
 }
 
@@ -426,6 +462,47 @@ func (m *_BusinessUnitManager) ListAuthentication(ctx context.Context, req ListA
 		result.Records[i].PrivateKey = "" // Erase PrivateKey before returning.
 	}
 	return result, nil
+}
+
+func (m _BusinessUnitManager) GetJWSSigner(ctx context.Context, req GetJWSSignerRequest) (JWSSigner, error) {
+	auth, err := func() (model.BusinessUnitAuthentication, error) {
+		tx, err := m.storage.CreateTx(ctx)
+		if err != nil {
+			return model.BusinessUnitAuthentication{}, err
+		}
+		defer tx.Rollback(ctx)
+
+		listReq := ListAuthenticationRequest{
+			Limit:          1,
+			ApplicationID:  req.ApplicationID,
+			BusinessUnitID: req.BusinessUnitID.String(),
+			AuthenticationIDs: []string{
+				req.AuthenticationID,
+			},
+		}
+		listResult, err := m.storage.ListAuthentication(ctx, tx, listReq)
+		if err != nil {
+			return model.BusinessUnitAuthentication{}, err
+		}
+		if len(listResult.Records) == 0 {
+			return model.BusinessUnitAuthentication{}, model.ErrAuthenticationNotFound
+		}
+
+		return listResult.Records[0], nil
+	}()
+
+	if err != nil {
+		return nil, err
+	}
+
+	if auth.Status != model.BusinessUnitAuthenticationStatusActive {
+		return nil, model.ErrAuthenticationNotActive
+	}
+
+	if m.jwsSignerFactory == nil {
+		return DefaultJWSSignerFactory.NewJWSSigner(auth)
+	}
+	return m.jwsSignerFactory.NewJWSSigner(auth)
 }
 
 func (m *_BusinessUnitManager) getBusinessUnit(ctx context.Context, tx storage.Tx, appID string, id did.DID) (model.BusinessUnit, error) {

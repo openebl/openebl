@@ -6,11 +6,15 @@ package mock_business_unit
 
 import (
 	context "context"
+	crypto "crypto"
+	x509 "crypto/x509"
+	io "io"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
 	business_unit "github.com/openebl/openebl/pkg/bu_server/business_unit"
 	model "github.com/openebl/openebl/pkg/bu_server/model"
+	envelope "github.com/openebl/openebl/pkg/envelope"
 )
 
 // MockBusinessUnitManager is a mock of BusinessUnitManager interface.
@@ -64,6 +68,21 @@ func (m *MockBusinessUnitManager) CreateBusinessUnit(ctx context.Context, ts int
 func (mr *MockBusinessUnitManagerMockRecorder) CreateBusinessUnit(ctx, ts, req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBusinessUnit", reflect.TypeOf((*MockBusinessUnitManager)(nil).CreateBusinessUnit), ctx, ts, req)
+}
+
+// GetJWSSigner mocks base method.
+func (m *MockBusinessUnitManager) GetJWSSigner(ctx context.Context, req business_unit.GetJWSSignerRequest) (business_unit.JWSSigner, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetJWSSigner", ctx, req)
+	ret0, _ := ret[0].(business_unit.JWSSigner)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetJWSSigner indicates an expected call of GetJWSSigner.
+func (mr *MockBusinessUnitManagerMockRecorder) GetJWSSigner(ctx, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetJWSSigner", reflect.TypeOf((*MockBusinessUnitManager)(nil).GetJWSSigner), ctx, req)
 }
 
 // ListAuthentication mocks base method.
@@ -139,4 +158,84 @@ func (m *MockBusinessUnitManager) UpdateBusinessUnit(ctx context.Context, ts int
 func (mr *MockBusinessUnitManagerMockRecorder) UpdateBusinessUnit(ctx, ts, req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBusinessUnit", reflect.TypeOf((*MockBusinessUnitManager)(nil).UpdateBusinessUnit), ctx, ts, req)
+}
+
+// MockJWSSigner is a mock of JWSSigner interface.
+type MockJWSSigner struct {
+	ctrl     *gomock.Controller
+	recorder *MockJWSSignerMockRecorder
+}
+
+// MockJWSSignerMockRecorder is the mock recorder for MockJWSSigner.
+type MockJWSSignerMockRecorder struct {
+	mock *MockJWSSigner
+}
+
+// NewMockJWSSigner creates a new mock instance.
+func NewMockJWSSigner(ctrl *gomock.Controller) *MockJWSSigner {
+	mock := &MockJWSSigner{ctrl: ctrl}
+	mock.recorder = &MockJWSSignerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockJWSSigner) EXPECT() *MockJWSSignerMockRecorder {
+	return m.recorder
+}
+
+// AvailableJWSSignAlgorithms mocks base method.
+func (m *MockJWSSigner) AvailableJWSSignAlgorithms() []envelope.SignatureAlgorithm {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AvailableJWSSignAlgorithms")
+	ret0, _ := ret[0].([]envelope.SignatureAlgorithm)
+	return ret0
+}
+
+// AvailableJWSSignAlgorithms indicates an expected call of AvailableJWSSignAlgorithms.
+func (mr *MockJWSSignerMockRecorder) AvailableJWSSignAlgorithms() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AvailableJWSSignAlgorithms", reflect.TypeOf((*MockJWSSigner)(nil).AvailableJWSSignAlgorithms))
+}
+
+// Cert mocks base method.
+func (m *MockJWSSigner) Cert() []x509.Certificate {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Cert")
+	ret0, _ := ret[0].([]x509.Certificate)
+	return ret0
+}
+
+// Cert indicates an expected call of Cert.
+func (mr *MockJWSSignerMockRecorder) Cert() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Cert", reflect.TypeOf((*MockJWSSigner)(nil).Cert))
+}
+
+// Public mocks base method.
+func (m *MockJWSSigner) Public() crypto.PublicKey {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Public")
+	ret0, _ := ret[0].(crypto.PublicKey)
+	return ret0
+}
+
+// Public indicates an expected call of Public.
+func (mr *MockJWSSignerMockRecorder) Public() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Public", reflect.TypeOf((*MockJWSSigner)(nil).Public))
+}
+
+// Sign mocks base method.
+func (m *MockJWSSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Sign", rand, digest, opts)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Sign indicates an expected call of Sign.
+func (mr *MockJWSSignerMockRecorder) Sign(rand, digest, opts interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sign", reflect.TypeOf((*MockJWSSigner)(nil).Sign), rand, digest, opts)
 }

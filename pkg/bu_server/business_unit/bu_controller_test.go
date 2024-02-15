@@ -22,12 +22,13 @@ import (
 
 type BusinessUnitManagerTestSuite struct {
 	suite.Suite
-	ctx       context.Context
-	ctrl      *gomock.Controller
-	storage   *mock_business_unit.MockBusinessUnitStorage
-	ca        *mock_cert_authority.MockCertAuthority
-	tx        *mock_storage.MockTx
-	buManager business_unit.BusinessUnitManager
+	ctx              context.Context
+	ctrl             *gomock.Controller
+	storage          *mock_business_unit.MockBusinessUnitStorage
+	jwsSignerFactory *mock_business_unit.MockJWSSignerFactory
+	ca               *mock_cert_authority.MockCertAuthority
+	tx               *mock_storage.MockTx
+	buManager        business_unit.BusinessUnitManager
 }
 
 func TestBusinessUnitManager(t *testing.T) {
@@ -38,9 +39,10 @@ func (s *BusinessUnitManagerTestSuite) SetupTest() {
 	s.ctx = context.Background()
 	s.ctrl = gomock.NewController(s.T())
 	s.storage = mock_business_unit.NewMockBusinessUnitStorage(s.ctrl)
+	s.jwsSignerFactory = mock_business_unit.NewMockJWSSignerFactory(s.ctrl)
 	s.ca = mock_cert_authority.NewMockCertAuthority(s.ctrl)
 	s.tx = mock_storage.NewMockTx(s.ctrl)
-	s.buManager = business_unit.NewBusinessUnitManager(s.storage, s.ca)
+	s.buManager = business_unit.NewBusinessUnitManager(s.storage, s.ca, s.jwsSignerFactory)
 }
 
 func (s *BusinessUnitManagerTestSuite) TearDownTest() {
@@ -478,4 +480,42 @@ func (s *BusinessUnitManagerTestSuite) TestListAuthentication() {
 	s.Require().NotEmpty(result.Records)
 	s.Assert().Empty(result.Records[0].PrivateKey)
 	s.Assert().Equal(listResult, result)
+}
+
+func (s *BusinessUnitManagerTestSuite) TestGetJWSSigner() {
+	request := business_unit.GetJWSSignerRequest{
+		ApplicationID:    "application-id",
+		BusinessUnitID:   did.MustParseDID("did:openebl:u0e2345"),
+		AuthenticationID: "authentication-id",
+	}
+
+	listAuthRequest := business_unit.ListAuthenticationRequest{
+		Limit:             1,
+		ApplicationID:     request.ApplicationID,
+		BusinessUnitID:    request.BusinessUnitID.String(),
+		AuthenticationIDs: []string{request.AuthenticationID},
+	}
+
+	buAuth := model.BusinessUnitAuthentication{
+		ID:           "authentication-id",
+		Version:      1,
+		BusinessUnit: request.BusinessUnitID,
+		Status:       model.BusinessUnitAuthenticationStatusActive,
+		PrivateKey:   "FAKE PEM PRIVATE",
+		Certificate:  "FAKE PEM CERT",
+	}
+	listAuthResult := business_unit.ListAuthenticationResult{
+		Total:   1,
+		Records: []model.BusinessUnitAuthentication{buAuth},
+	}
+
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, nil),
+		s.storage.EXPECT().ListAuthentication(gomock.Any(), s.tx, listAuthRequest).Return(listAuthResult, nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+		s.jwsSignerFactory.EXPECT().NewJWSSigner(buAuth).Return(nil, nil),
+	)
+
+	_, err := s.buManager.GetJWSSigner(s.ctx, request)
+	s.NoError(err)
 }

@@ -25,7 +25,6 @@ type APIConfig struct {
 }
 
 type API struct {
-	appMgr     auth.ApplicationManager
 	apiKeyMgr  auth.APIKeyAuthenticator
 	buMgr      business_unit.BusinessUnitManager
 	httpServer *http.Server

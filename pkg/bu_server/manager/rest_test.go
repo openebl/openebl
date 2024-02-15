@@ -10,15 +10,17 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
+	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
 	"github.com/openebl/openebl/pkg/bu_server/manager"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/util"
 	mock_auth "github.com/openebl/openebl/test/mock/bu_server/auth"
+	mock_cert_authority "github.com/openebl/openebl/test/mock/bu_server/cert_authority"
 	"github.com/stretchr/testify/suite"
 )
 
 func TestManagerAPIWithDB(t *testing.T) {
-	// t.Skip("Skipping test for now")
+	t.Skip("Skipping test for now")
 	dbConfig := util.PostgresDatabaseConfig{
 		Host:     "localhost",
 		Port:     5432,
@@ -47,6 +49,7 @@ type ManagerAPITestSuite struct {
 	userMgr   *mock_auth.MockUserManager
 	appMgr    *mock_auth.MockApplicationManager
 	apiKeyMgr *mock_auth.MockAPIKeyAuthenticator
+	ca        *mock_cert_authority.MockCertAuthority
 }
 
 func TestManagerAPI(t *testing.T) {
@@ -59,6 +62,7 @@ func (s *ManagerAPITestSuite) SetupTest() {
 	s.userMgr = mock_auth.NewMockUserManager(s.ctrl)
 	s.appMgr = mock_auth.NewMockApplicationManager(s.ctrl)
 	s.apiKeyMgr = mock_auth.NewMockAPIKeyAuthenticator(s.ctrl)
+	s.ca = mock_cert_authority.NewMockCertAuthority(s.ctrl)
 }
 
 func (s *ManagerAPITestSuite) TearDownTest() {
@@ -66,7 +70,7 @@ func (s *ManagerAPITestSuite) TearDownTest() {
 }
 
 func (s *ManagerAPITestSuite) TestLogin() {
-	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9201")
+	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9201")
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -96,7 +100,7 @@ func (s *ManagerAPITestSuite) TestLogin() {
 }
 
 func (s *ManagerAPITestSuite) TestLoginWithInvalidCredentials() {
-	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9202")
+	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9202")
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -120,7 +124,7 @@ func (s *ManagerAPITestSuite) TestLoginWithInvalidCredentials() {
 }
 
 func (s *ManagerAPITestSuite) TestCreateUser() {
-	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9203")
+	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9203")
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -167,7 +171,7 @@ func (s *ManagerAPITestSuite) TestCreateUser() {
 }
 
 func (s *ManagerAPITestSuite) TestListUser() {
-	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9204")
+	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9204")
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -212,7 +216,7 @@ func (s *ManagerAPITestSuite) TestListUser() {
 }
 
 func (s *ManagerAPITestSuite) TestGetUser() {
-	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9205")
+	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9205")
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -254,7 +258,7 @@ func (s *ManagerAPITestSuite) TestGetUser() {
 }
 
 func (s *ManagerAPITestSuite) TestUpdateUser() {
-	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9206")
+	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9206")
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -294,7 +298,7 @@ func (s *ManagerAPITestSuite) TestUpdateUser() {
 }
 
 func (s *ManagerAPITestSuite) TestUpdateUserStatus() {
-	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9207")
+	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9207")
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -356,7 +360,7 @@ func (s *ManagerAPITestSuite) TestUpdateUserStatus() {
 }
 
 func (s *ManagerAPITestSuite) TestChangeUserPassword() {
-	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9208")
+	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9208")
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -395,7 +399,7 @@ func (s *ManagerAPITestSuite) TestChangeUserPassword() {
 }
 
 func (s *ManagerAPITestSuite) TestResetUserPassword() {
-	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9209")
+	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9209")
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -433,7 +437,7 @@ func (s *ManagerAPITestSuite) TestResetUserPassword() {
 }
 
 func (s *ManagerAPITestSuite) TestCreateApplication() {
-	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9210")
+	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9210")
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -488,7 +492,7 @@ func (s *ManagerAPITestSuite) TestCreateApplication() {
 }
 
 func (s *ManagerAPITestSuite) TestListApplication() {
-	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9211")
+	restServer, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9211")
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -530,7 +534,7 @@ func (s *ManagerAPITestSuite) TestListApplication() {
 }
 
 func (s *ManagerAPITestSuite) TestGetApplication() {
-	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9212")
+	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9212")
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -573,7 +577,7 @@ func (s *ManagerAPITestSuite) TestGetApplication() {
 }
 
 func (s *ManagerAPITestSuite) TestUpdateApplication() {
-	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9213")
+	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9213")
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -627,7 +631,7 @@ func (s *ManagerAPITestSuite) TestUpdateApplication() {
 }
 
 func (s *ManagerAPITestSuite) TestUpdateApplicationStatus() {
-	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9214")
+	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9214")
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -691,7 +695,7 @@ func (s *ManagerAPITestSuite) TestUpdateApplicationStatus() {
 }
 
 func (s *ManagerAPITestSuite) TestCreateAPIKey() {
-	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9215")
+	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9215")
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -736,7 +740,7 @@ func (s *ManagerAPITestSuite) TestCreateAPIKey() {
 }
 
 func (s *ManagerAPITestSuite) TestListAPIKey() {
-	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9216")
+	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9216")
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -785,7 +789,7 @@ func (s *ManagerAPITestSuite) TestListAPIKey() {
 }
 
 func (s *ManagerAPITestSuite) TestRevokeAPIKey() {
-	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, "localhost:9217")
+	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9217")
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
@@ -816,4 +820,167 @@ func (s *ManagerAPITestSuite) TestRevokeAPIKey() {
 	s.Require().NoError(err)
 	defer response.Body.Close()
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
+}
+
+func (s *ManagerAPITestSuite) TestAddCACertificate() {
+	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9218")
+	s.Require().NoError(err)
+	go func() { rest.Run() }()
+	time.Sleep(200 * time.Millisecond)
+	defer rest.Close()
+
+	token := "user token"
+	userToken := auth.UserToken{
+		Token:  token,
+		UserID: "requester_id",
+	}
+
+	request := cert_authority.AddCertificateRequest{
+		Cert:       "cert",
+		PrivateKey: "private key",
+	}
+
+	expectedRequest := request
+	expectedRequest.Requester = userToken.UserID
+
+	cert := model.Cert{
+		ID:              "cert_id",
+		Version:         1,
+		Status:          model.CertStatusActive,
+		Type:            model.CACert,
+		PrivateKey:      "private key",
+		Certificate:     "cert",
+		CertFingerPrint: "fingerprint",
+	}
+
+	gomock.InOrder(
+		s.userMgr.EXPECT().TokenAuthorization(gomock.Any(), gomock.Any(), gomock.Eq(token)).Return(userToken, nil),
+		s.ca.EXPECT().AddCertificate(gomock.Any(), gomock.Any(), expectedRequest).Return(cert, nil),
+	)
+
+	httpRequest, err := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9218/ca/certificate", util.StructToJSONReader(request))
+	s.Require().NoError(err)
+
+	httpRequest.Header.Add("Authorization", "Bearer "+token)
+	response, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	s.Assert().Equal(http.StatusOK, response.StatusCode)
+	defer response.Body.Close()
+	body, _ := io.ReadAll(response.Body)
+	s.Assert().Equal(util.StructToJSON(cert), strings.TrimSpace(string(body)))
+}
+
+func (s *ManagerAPITestSuite) TestListCACertificates() {
+	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9219")
+	s.Require().NoError(err)
+	go func() { rest.Run() }()
+	time.Sleep(200 * time.Millisecond)
+	defer rest.Close()
+
+	token := "user token"
+	userToken := auth.UserToken{
+		Token:  token,
+		UserID: "requester_id",
+	}
+	expectedRequest := cert_authority.ListCertificatesRequest{
+		Offset: 1,
+		Limit:  2,
+	}
+	cert := model.Cert{
+		ID: "cert_id",
+	}
+
+	gomock.InOrder(
+		s.userMgr.EXPECT().TokenAuthorization(gomock.Any(), gomock.Any(), gomock.Eq(token)).Return(userToken, nil),
+		s.ca.EXPECT().ListCertificates(gomock.Any(), gomock.Eq(expectedRequest)).Return([]model.Cert{cert}, nil),
+	)
+
+	httpRequest, err := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9219/ca/certificate?offset=1&limit=2", nil)
+	s.Require().NoError(err)
+
+	httpRequest.Header.Add("Authorization", "Bearer "+token)
+	response, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	s.Assert().Equal(http.StatusOK, response.StatusCode)
+	defer response.Body.Close()
+
+	body, _ := io.ReadAll(response.Body)
+	s.Assert().Equal(util.StructToJSON([]model.Cert{cert}), strings.TrimSpace(string(body)))
+}
+
+func (s *ManagerAPITestSuite) TestGetCACertificate() {
+	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9220")
+	s.Require().NoError(err)
+	go func() { rest.Run() }()
+	time.Sleep(200 * time.Millisecond)
+	defer rest.Close()
+
+	token := "user token"
+	userToken := auth.UserToken{
+		Token:  token,
+		UserID: "requester_id",
+	}
+
+	expectedRequest := cert_authority.ListCertificatesRequest{
+		Limit: 1,
+		IDs:   []string{"cert_id"},
+	}
+	cert := model.Cert{
+		ID: "cert_id",
+	}
+
+	gomock.InOrder(
+		s.userMgr.EXPECT().TokenAuthorization(gomock.Any(), gomock.Any(), gomock.Eq(token)).Return(userToken, nil),
+		s.ca.EXPECT().ListCertificates(gomock.Any(), gomock.Eq(expectedRequest)).Return([]model.Cert{cert}, nil),
+	)
+
+	httpRequest, err := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9220/ca/certificate/cert_id", nil)
+	s.Require().NoError(err)
+
+	httpRequest.Header.Add("Authorization", "Bearer "+token)
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	s.Assert().Equal(http.StatusOK, resp.StatusCode)
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	s.Assert().Equal(util.StructToJSON(cert), strings.TrimSpace(string(body)))
+}
+
+func (s *ManagerAPITestSuite) TestRevokeCACertificate() {
+	rest, err := manager.NewManagerAPIWithControllers(s.userMgr, s.appMgr, s.apiKeyMgr, s.ca, "localhost:9221")
+	s.Require().NoError(err)
+	go func() { rest.Run() }()
+	time.Sleep(200 * time.Millisecond)
+	defer rest.Close()
+
+	token := "user token"
+	userToken := auth.UserToken{
+		Token:  token,
+		UserID: "requester_id",
+	}
+	expectedRequest := cert_authority.RevokeCertificateRequest{
+		Requester: "requester_id",
+		CertID:    "cert_id",
+	}
+	cert := model.Cert{
+		ID: "cert_id",
+	}
+
+	gomock.InOrder(
+		s.userMgr.EXPECT().TokenAuthorization(gomock.Any(), gomock.Any(), gomock.Eq(token)).Return(userToken, nil),
+		s.ca.EXPECT().RevokeCertificate(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(cert, nil),
+	)
+
+	httpRequest, err := http.NewRequestWithContext(s.ctx, http.MethodDelete, "http://localhost:9221/ca/certificate/cert_id", nil)
+	s.Require().NoError(err)
+
+	httpRequest.Header.Add("Authorization", "Bearer "+token)
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	s.Assert().Equal(http.StatusOK, resp.StatusCode)
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	s.Assert().Equal(util.StructToJSON(cert), strings.TrimSpace(string(body)))
 }

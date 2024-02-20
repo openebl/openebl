@@ -2,6 +2,13 @@ package bill_of_lading
 
 import "github.com/openebl/openebl/pkg/bu_server/model"
 
+type BillOfLadingDocumentType string
+
+const (
+	BillOfLadingDocumentTypeMasterBillOfLading BillOfLadingDocumentType = "MasterBillOfLading"
+	BillOfLadingDocumentTypeHouseBillOfLading  BillOfLadingDocumentType = "HouseBillOfLading"
+)
+
 type BillOfLadingPack struct {
 	ID           string              `json:"id"`            // Identity of the bill of lading pack
 	Version      int64               `json:"version"`       // Version of the bill of lading pack
@@ -19,14 +26,17 @@ type BillOfLadingEvent struct {
 	Surrender        *Surrender        `json:"surrender,omitempty"`
 	AmendmentRequest *AmendmentRequest `json:"amendment_request,omitempty"`
 	PrintToPaper     *PrintToPaper     `json:"print_to_paper,omitempty"`
+	Accomplish       *Accomplish       `json:"accomplish,omitempty"`
 }
 
 type BillOfLading struct {
-	BillOfLading *TransportDocument `json:"bill_of_lading,omitempty"`
-	File         *model.File        `json:"file,omitempty"`
-	TransferTo   string             `json:"transfer_to,omitempty"` // DID
-	CreatedBy    string             `json:"created_by,omitempty"`  // DID
-	CreatedAt    *model.DateTime    `json:"created_at,omitempty"`
+	BillOfLading *TransportDocument       `json:"bill_of_lading,omitempty"`
+	File         *model.File              `json:"file,omitempty"`
+	DocType      BillOfLadingDocumentType `json:"doc_type,omitempty"`
+	TransferTo   string                   `json:"transfer_to,omitempty"` // DID
+	CreatedBy    string                   `json:"created_by,omitempty"`  // DID
+	CreatedAt    *model.DateTime          `json:"created_at,omitempty"`
+	Note         string                   `json:"note,omitempty"`
 }
 
 type Transfer struct {
@@ -45,12 +55,14 @@ type Return struct {
 
 type Surrender struct {
 	SurrenderBy string          `json:"surrender_by,omitempty"` // DID
+	SurrenderTo string          `json:"surrender_to,omitempty"` // DID
 	SurrenderAt *model.DateTime `json:"surrender_at,omitempty"`
 	Note        string          `json:"note,omitempty"`
 }
 
 type AmendmentRequest struct {
 	RequestBy string          `json:"requested_by,omitempty"` // DID
+	RequestTo string          `json:"requested_to,omitempty"` // DID
 	RequestAt *model.DateTime `json:"requested_at,omitempty"`
 	Note      string          `json:"note,omitempty"`
 }
@@ -59,4 +71,10 @@ type PrintToPaper struct {
 	PrintBy string          `json:"print_by,omitempty"` // DID
 	PrintAt *model.DateTime `json:"print_at,omitempty"`
 	Note    string          `json:"note,omitempty"`
+}
+
+type Accomplish struct {
+	AccomplishBy string          `json:"accomplish_by,omitempty"` // DID
+	AccomplishAt *model.DateTime `json:"accomplish_at,omitempty"`
+	Note         string          `json:"note,omitempty"`
 }

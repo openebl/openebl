@@ -187,4 +187,12 @@ d0lIKO2d1xozclOzgjXPYovJJIultzkMu34qQb9Sz/yilrbCgj8=
 	if len(certs) != 3 {
 		t.Fatalf("expected 3 certificates, got %d", len(certs))
 	}
+
+	certStr, err := pkix.MarshalCertificates(certs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if certStr != pemData {
+		t.Fatalf("expected %s, got %s", pemData, certStr)
+	}
 }

@@ -2,26 +2,33 @@ package business_unit_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/x509"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
+	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
+	"github.com/openebl/openebl/pkg/pkix"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
+	mock_cert_authority "github.com/openebl/openebl/test/mock/bu_server/cert_authority"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
 	"github.com/stretchr/testify/suite"
 )
 
 type BusinessUnitManagerTestSuite struct {
 	suite.Suite
-	ctx       context.Context
-	ctrl      *gomock.Controller
-	storage   *mock_business_unit.MockBusinessUnitStorage
-	tx        *mock_storage.MockTx
-	buManager business_unit.BusinessUnitManager
+	ctx              context.Context
+	ctrl             *gomock.Controller
+	storage          *mock_business_unit.MockBusinessUnitStorage
+	jwsSignerFactory *mock_business_unit.MockJWSSignerFactory
+	ca               *mock_cert_authority.MockCertAuthority
+	tx               *mock_storage.MockTx
+	buManager        business_unit.BusinessUnitManager
 }
 
 func TestBusinessUnitManager(t *testing.T) {
@@ -32,8 +39,10 @@ func (s *BusinessUnitManagerTestSuite) SetupTest() {
 	s.ctx = context.Background()
 	s.ctrl = gomock.NewController(s.T())
 	s.storage = mock_business_unit.NewMockBusinessUnitStorage(s.ctrl)
+	s.jwsSignerFactory = mock_business_unit.NewMockJWSSignerFactory(s.ctrl)
+	s.ca = mock_cert_authority.NewMockCertAuthority(s.ctrl)
 	s.tx = mock_storage.NewMockTx(s.ctrl)
-	s.buManager = business_unit.NewBusinessUnitManager(s.storage)
+	s.buManager = business_unit.NewBusinessUnitManager(s.storage, s.ca, s.jwsSignerFactory)
 }
 
 func (s *BusinessUnitManagerTestSuite) TearDownTest() {
@@ -48,6 +57,7 @@ func (s *BusinessUnitManagerTestSuite) TestCreateBusinessUnit() {
 		ApplicationID: "application-id",
 		Name:          "name",
 		Addresses:     []string{"address"},
+		Country:       "US",
 		Emails:        []string{"email"},
 		Status:        model.BusinessUnitStatusActive,
 	}
@@ -58,6 +68,7 @@ func (s *BusinessUnitManagerTestSuite) TestCreateBusinessUnit() {
 		Status:        request.Status,
 		Name:          request.Name,
 		Addresses:     request.Addresses,
+		Country:       request.Country,
 		Emails:        request.Emails,
 		CreatedAt:     ts,
 		CreatedBy:     request.Requester,
@@ -92,6 +103,7 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 		ID:            did.MustParseDID("did:openebl:u0e2345"),
 		Name:          "name",
 		Addresses:     []string{"address"},
+		Country:       "US",
 		Emails:        []string{"email"},
 	}
 
@@ -102,6 +114,7 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 		Status:        model.BusinessUnitStatusActive,
 		Name:          "old-name",
 		Addresses:     []string{"old-address"},
+		Country:       "CA",
 		Emails:        []string{"old-email"},
 		CreatedAt:     ts - 100,
 		CreatedBy:     "old-requester",
@@ -116,6 +129,7 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 		Status:        model.BusinessUnitStatusActive,
 		Name:          request.Name,
 		Addresses:     request.Addresses,
+		Country:       request.Country,
 		Emails:        request.Emails,
 		CreatedAt:     ts - 100,
 		CreatedBy:     "old-requester",
@@ -166,6 +180,7 @@ func (s *BusinessUnitManagerTestSuite) TestListBusinessUnits() {
 		Status:        model.BusinessUnitStatusActive,
 		Name:          "name",
 		Addresses:     []string{"address"},
+		Country:       "US",
 		Emails:        []string{"email"},
 		CreatedAt:     12345,
 		CreatedBy:     "requester",
@@ -214,6 +229,7 @@ func (s *BusinessUnitManagerTestSuite) TestSetBusinessUnitStatus() {
 		Status:        model.BusinessUnitStatusActive,
 		Name:          "name",
 		Addresses:     []string{"address"},
+		Country:       "US",
 		Emails:        []string{"email"},
 		CreatedAt:     ts - 100,
 		CreatedBy:     "old-requester",
@@ -228,6 +244,7 @@ func (s *BusinessUnitManagerTestSuite) TestSetBusinessUnitStatus() {
 		Status:        model.BusinessUnitStatusInactive,
 		Name:          "name",
 		Addresses:     []string{"address"},
+		Country:       "US",
 		Emails:        []string{"email"},
 		CreatedAt:     ts - 100,
 		CreatedBy:     "old-requester",
@@ -270,26 +287,73 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 		Requester:      "requester",
 		ApplicationID:  "application-id",
 		BusinessUnitID: did.MustParseDID("did:openebl:u0e2345"),
-		PrivateKey:     "FAKE PEM PRIVATE KEY",
-		Certificate:    "FAKE PEM CERT",
+		PrivateKeyOption: business_unit.PrivateKeyOption{
+			KeyType:   business_unit.PrivateKeyTypeECDSA,
+			CurveType: business_unit.ECDSACurveTypeP384,
+		},
+		ExpiredAfter: 86400 * 365,
 	}
 
-	expectedAuthentication := model.BusinessUnitAuthentication{
+	bu := model.BusinessUnit{
+		ID:            did.MustParseDID("did:openebl:bu1"),
+		Version:       1,
+		ApplicationID: "application-id",
+		Status:        model.BusinessUnitStatusActive,
+		Name:          "name",
+		Addresses:     []string{"address"},
+		Country:       "US",
+		Emails:        []string{"email"},
+		CreatedAt:     ts - 100,
+		CreatedBy:     "old-requester",
+	}
+
+	expectedListBuRequest := business_unit.ListBusinessUnitsRequest{
+		Limit:           1,
+		ApplicationID:   request.ApplicationID,
+		BusinessUnitIDs: []string{request.BusinessUnitID.String()},
+	}
+	listBuResult := business_unit.ListBusinessUnitsResult{
+		Total: 1,
+		Records: []business_unit.ListBusinessUnitsRecord{
+			{
+				BusinessUnit: bu,
+			},
+		},
+	}
+
+	receivedAuthentication := model.BusinessUnitAuthentication{
 		Version:      1,
 		BusinessUnit: request.BusinessUnitID,
 		Status:       model.BusinessUnitAuthenticationStatusActive,
 		CreatedAt:    ts,
 		CreatedBy:    request.Requester,
-		PrivateKey:   request.PrivateKey,
-		Certificate:  request.Certificate,
 	}
 
+	receivedCertRequest := x509.CertificateRequest{}
+
 	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, nil),
+		s.storage.EXPECT().ListBusinessUnits(gomock.Any(), s.tx, expectedListBuRequest).Return(listBuResult, nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+		s.ca.EXPECT().IssueCertificate(gomock.Any(), ts, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, ts int64, req cert_authority.IssueCertificateRequest) ([]x509.Certificate, error) {
+				s.Assert().Equal("name", req.CertificateRequest.Subject.CommonName)
+				s.Assert().Equal("US", req.CertificateRequest.Subject.Country[0])
+				s.Assert().Empty(req.CACertID)
+				s.Assert().Equal(time.Unix(ts, 0), req.NotBefore)
+				s.Assert().Equal(time.Unix(ts+request.ExpiredAfter, 0), req.NotAfter)
+				receivedCertRequest = req.CertificateRequest
+				return make([]x509.Certificate, 2), nil
+			},
+		),
 		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
 		s.storage.EXPECT().StoreAuthentication(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, auth model.BusinessUnitAuthentication) error {
-				expectedAuthentication.ID = auth.ID
-				s.Assert().Equal(expectedAuthentication, auth)
+				receivedAuthentication.ID = auth.ID
+				receivedAuthentication.PrivateKey = auth.PrivateKey
+				receivedAuthentication.Certificate = auth.Certificate
+				receivedAuthentication.CertFingerPrint = auth.CertFingerPrint
+				s.Assert().Equal(receivedAuthentication, auth)
 				return nil
 			},
 		),
@@ -300,8 +364,17 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 	newAuthentication, err := s.buManager.AddAuthentication(s.ctx, ts, request)
 	s.NoError(err)
 	s.Assert().Empty(newAuthentication.PrivateKey)
-	newAuthentication.PrivateKey = expectedAuthentication.PrivateKey
-	s.Assert().Equal(expectedAuthentication, newAuthentication)
+	newAuthentication.PrivateKey = receivedAuthentication.PrivateKey
+	s.Assert().Equal(receivedAuthentication, newAuthentication)
+	s.Assert().NotEmpty(receivedAuthentication.PrivateKey)
+	s.Assert().NotEmpty(receivedAuthentication.Certificate)
+
+	// Check if receivedCertRequest is valid and have correct public key.
+	privateKey, err := pkix.ParsePrivateKey([]byte(receivedAuthentication.PrivateKey))
+	s.Require().NoError(err)
+	publicKey := privateKey.(*ecdsa.PrivateKey).PublicKey
+	s.Assert().True(publicKey.Equal(receivedCertRequest.PublicKey))
+	s.Assert().Nil(receivedCertRequest.CheckSignature())
 }
 
 func (s *BusinessUnitManagerTestSuite) TestRevokeAuthentication() {
@@ -407,4 +480,42 @@ func (s *BusinessUnitManagerTestSuite) TestListAuthentication() {
 	s.Require().NotEmpty(result.Records)
 	s.Assert().Empty(result.Records[0].PrivateKey)
 	s.Assert().Equal(listResult, result)
+}
+
+func (s *BusinessUnitManagerTestSuite) TestGetJWSSigner() {
+	request := business_unit.GetJWSSignerRequest{
+		ApplicationID:    "application-id",
+		BusinessUnitID:   did.MustParseDID("did:openebl:u0e2345"),
+		AuthenticationID: "authentication-id",
+	}
+
+	listAuthRequest := business_unit.ListAuthenticationRequest{
+		Limit:             1,
+		ApplicationID:     request.ApplicationID,
+		BusinessUnitID:    request.BusinessUnitID.String(),
+		AuthenticationIDs: []string{request.AuthenticationID},
+	}
+
+	buAuth := model.BusinessUnitAuthentication{
+		ID:           "authentication-id",
+		Version:      1,
+		BusinessUnit: request.BusinessUnitID,
+		Status:       model.BusinessUnitAuthenticationStatusActive,
+		PrivateKey:   "FAKE PEM PRIVATE",
+		Certificate:  "FAKE PEM CERT",
+	}
+	listAuthResult := business_unit.ListAuthenticationResult{
+		Total:   1,
+		Records: []model.BusinessUnitAuthentication{buAuth},
+	}
+
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, nil),
+		s.storage.EXPECT().ListAuthentication(gomock.Any(), s.tx, listAuthRequest).Return(listAuthResult, nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+		s.jwsSignerFactory.EXPECT().NewJWSSigner(buAuth).Return(nil, nil),
+	)
+
+	_, err := s.buManager.GetJWSSigner(s.ctx, request)
+	s.NoError(err)
 }

@@ -49,6 +49,8 @@ func (s *CertificateTestSuite) TestAddCertificate() {
 		Version:         1,
 		Type:            model.BUCert,
 		Status:          model.CertStatusActive,
+		NotBefore:       ts,
+		NotAfter:        ts + 86400*365,
 		CreatedAt:       ts,
 		CreatedBy:       "user_1",
 		PrivateKey:      "PRIVATEKEY",
@@ -120,5 +122,19 @@ func (s *CertificateTestSuite) TestListCertificates() {
 		s.Require().NoError(err)
 		s.Require().Len(certs, 1)
 		s.Assert().Equal("cert2", certs[0].ID)
+	}()
+
+	func() {
+		req.ValidFrom = 1633024800
+		req.ValidTo = 1633024800 + 86400*365
+		defer func() {
+			req.ValidFrom = 0
+			req.ValidTo = 0
+		}()
+
+		certs, err = s.storage.ListCertificates(s.ctx, tx, req)
+		s.Require().NoError(err)
+		s.Require().Len(certs, 1)
+		s.Assert().Equal("cert1", certs[0].ID)
 	}()
 }

@@ -17,6 +17,9 @@ type Cert struct {
 	Type    CertType   `json:"type"`    // Type of the certificate.
 	Status  CertStatus `json:"status"`  // Status of the certificate.
 
+	NotBefore int64 `json:"not_before"` // Unix Time (in second) when the certificate becomes valid.
+	NotAfter  int64 `json:"not_after"`  // Unix Time (in second) when the certificate becomes invalid.
+
 	CreatedAt int64  `json:"created_at"` // Unix Time (in second) when the certificate was created.
 	CreatedBy string `json:"created_by"` // User who created the certificate.
 	RevokedAt int64  `json:"revoked_at"` // Unix Time (in second) when the certificate was revoked.

@@ -17,6 +17,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
+	eblpkix "github.com/openebl/openebl/pkg/pkix"
 	mock_cert_authority "github.com/openebl/openebl/test/mock/bu_server/cert_authority"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
 	"github.com/stretchr/testify/suite"
@@ -267,8 +268,10 @@ func (s *CertAuthorityTestSuite) TestIssueCertificate() {
 	}
 
 	expectedListCertRequest := cert_authority.ListCertificatesRequest{
-		Limit: 1,
-		IDs:   []string{issueRequest.CACertID},
+		Limit:     1,
+		Statuses:  []model.CertStatus{model.CertStatusActive},
+		ValidFrom: issueRequest.NotBefore.Unix(),
+		ValidTo:   issueRequest.NotAfter.Unix(),
 	}
 
 	gomock.InOrder(
@@ -277,9 +280,12 @@ func (s *CertAuthorityTestSuite) TestIssueCertificate() {
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
 
-	newCert, err := s.ca.IssueCertificate(s.ctx, time.Now().Unix(), issueRequest)
+	newCerts, err := s.ca.IssueCertificate(s.ctx, time.Now().Unix(), issueRequest)
 	s.Require().NoError(err)
-	s.Require().NotNil(newCert.PublicKey)
+	s.Require().Len(newCerts, 2)
+	s.Require().NotNil(newCerts[0].PublicKey)
+	caCerts, _ := eblpkix.ParseCertificate([]byte(s.caCert.Certificate))
+	s.Require().Equal(newCerts[1], caCerts[0])
 
 	// Test certificate request with expired CA certificate.
 	gomock.InOrder(
@@ -288,9 +294,9 @@ func (s *CertAuthorityTestSuite) TestIssueCertificate() {
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
 
-	newCert, err = s.ca.IssueCertificate(s.ctx, time.Now().AddDate(200, 0, 0).Unix(), issueRequest)
+	newCerts, err = s.ca.IssueCertificate(s.ctx, time.Now().AddDate(200, 0, 0).Unix(), issueRequest)
 	s.Require().ErrorIs(err, model.ErrCertificationExpired)
-	s.Require().Nil(newCert.PublicKey)
+	s.Require().Empty(newCerts)
 	// End of Test certificate request with expired CA certificate.
 
 	// Test certificate request with wrong public key/signature.
@@ -299,8 +305,8 @@ func (s *CertAuthorityTestSuite) TestIssueCertificate() {
 	certRequest.PublicKey = newPrivKey.Public()
 	issueRequest.CertificateRequest = *certRequest
 
-	newCert, err = s.ca.IssueCertificate(s.ctx, time.Now().Unix(), issueRequest)
+	newCerts, err = s.ca.IssueCertificate(s.ctx, time.Now().Unix(), issueRequest)
 	s.Require().Error(err)
-	s.Require().Nil(newCert.PublicKey)
+	s.Require().Empty(newCerts)
 	// End of Test certificate request with wrong public key/signature.
 }

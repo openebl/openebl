@@ -27,7 +27,7 @@ type CertAuthority interface {
 	RevokeCertificate(ctx context.Context, ts int64, req RevokeCertificateRequest) (model.Cert, error)
 
 	ListCertificates(ctx context.Context, req ListCertificatesRequest) ([]model.Cert, error)
-	IssueCertificate(ctx context.Context, ts int64, req IssueCertificateRequest) (x509.Certificate, error)
+	IssueCertificate(ctx context.Context, ts int64, req IssueCertificateRequest) ([]x509.Certificate, error)
 }
 
 type CertStorage interface {
@@ -54,13 +54,17 @@ type ListCertificatesRequest struct {
 	// Filter by type of the certificate.
 	IDs      []string           `json:"ids"`      // List of IDs of the certificates to be listed.
 	Statuses []model.CertStatus `json:"statuses"` // List of statuses of the certificates to be listed.
+
+	// ValidFrom and ValidTo must be both zero or both non-zero.
+	ValidFrom int64 `json:"valid_from"` // Unix Time (in second) when the certificate becomes valid.
+	ValidTo   int64 `json:"valid_to"`   // Unix Time (in second) when the certificate becomes invalid.
 }
 
 type IssueCertificateRequest struct {
-	CACertID           string                  `json:"ca_cert_id"` // ID of the CA certificate.
+	CACertID           string                  `json:"ca_cert_id"` // ID of the CA certificate. It's optional. If it's empty, the system choose one available CA certificate.
 	CertificateRequest x509.CertificateRequest `json:"certificate_request"`
-	NotBefore          time.Time
-	NotAfter           time.Time
+	NotBefore          time.Time               `json:"not_before"` // When the issued certificate becomes valid.
+	NotAfter           time.Time               `json:"not_after"`  // When the issued certificate becomes invalid.
 }
 
 type _CertAuthority struct {
@@ -196,31 +200,31 @@ func (ca *_CertAuthority) ListCertificates(ctx context.Context, req ListCertific
 	return result, nil
 }
 
-func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req IssueCertificateRequest) (x509.Certificate, error) {
+func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req IssueCertificateRequest) ([]x509.Certificate, error) {
 	if err := ValidateIssueCertificateRequest(req); err != nil {
-		return x509.Certificate{}, err
+		return nil, err
 	}
 	if err := req.CertificateRequest.CheckSignature(); err != nil {
-		return x509.Certificate{}, fmt.Errorf("invalid certificate request: %s%w", err.Error(), model.ErrInvalidParameter)
+		return nil, fmt.Errorf("invalid certificate request: %s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
-	cert, err := ca.getCert(ctx, req.CACertID, nil)
+	cert, err := ca.getCertByValidTime(ctx, req.NotBefore.Unix(), req.NotAfter.Unix(), nil)
 	if err != nil {
-		return x509.Certificate{}, err
+		return nil, err
 	}
 
 	privateKey, err := pkix.ParsePrivateKey([]byte(cert.PrivateKey))
 	if err != nil {
-		return x509.Certificate{}, err
+		return nil, err
 	}
 	caCerts, err := pkix.ParseCertificate([]byte(cert.Certificate))
 	if err != nil {
-		return x509.Certificate{}, err
+		return nil, err
 	}
 	caCert := caCerts[0]
 	currentTime := time.Unix(ts, 0)
 	if currentTime.Before(caCert.NotBefore) || currentTime.After(caCert.NotAfter) {
-		return x509.Certificate{}, model.ErrCertificationExpired
+		return nil, model.ErrCertificationExpired
 	}
 
 	certTemplate := x509.Certificate{
@@ -233,14 +237,17 @@ func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req Is
 
 	newCertRaw, err := x509.CreateCertificate(rand.Reader, &certTemplate, &caCert, req.CertificateRequest.PublicKey, privateKey)
 	if err != nil {
-		return x509.Certificate{}, err
+		return nil, err
 	}
 
 	newCert, err := x509.ParseCertificate(newCertRaw)
 	if err != nil {
-		return x509.Certificate{}, err
+		return nil, err
 	}
-	return *newCert, nil
+
+	certs := []x509.Certificate{*newCert}
+	certs = append(certs, caCerts...)
+	return certs, nil
 }
 
 func (ca *_CertAuthority) getCert(ctx context.Context, certID string, tx storage.Tx) (model.Cert, error) {
@@ -263,6 +270,33 @@ func (ca *_CertAuthority) getCert(ctx context.Context, certID string, tx storage
 	}
 	if len(certs) == 0 {
 		return model.Cert{}, model.ErrCertificationNotFound
+	}
+
+	return certs[0], nil
+}
+
+func (ca *_CertAuthority) getCertByValidTime(ctx context.Context, validFrom, validUntil int64, tx storage.Tx) (model.Cert, error) {
+	if tx == nil {
+		newTx, err := ca.certStorage.CreateTx(ctx)
+		if err != nil {
+			return model.Cert{}, err
+		}
+		defer newTx.Rollback(ctx)
+		tx = newTx
+	}
+
+	listReq := ListCertificatesRequest{
+		Limit:     1,
+		Statuses:  []model.CertStatus{model.CertStatusActive},
+		ValidFrom: validFrom,
+		ValidTo:   validUntil,
+	}
+	certs, err := ca.certStorage.ListCertificates(ctx, tx, listReq)
+	if err != nil {
+		return model.Cert{}, err
+	}
+	if len(certs) == 0 {
+		return model.Cert{}, model.ErrCACertificationNotAvailable
 	}
 
 	return certs[0], nil

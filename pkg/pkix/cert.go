@@ -1,6 +1,8 @@
 package pkix
 
 import (
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -118,4 +120,31 @@ func ParseCertificateRequest(certRequest []byte) (*x509.CertificateRequest, erro
 	}
 
 	return x509.ParseCertificateRequest(pemBlock.Bytes)
+}
+
+func MarshalPrivateKey(privateKey any) (string, error) {
+	switch k := privateKey.(type) {
+	case *rsa.PrivateKey:
+		keyBytes, err := x509.MarshalPKCS8PrivateKey(k)
+		if err != nil {
+			return "", err
+		}
+		return string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyBytes})), nil
+	case *ecdsa.PrivateKey:
+		keyBytes, err := x509.MarshalECPrivateKey(k)
+		if err != nil {
+			return "", err
+		}
+		return string(pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyBytes})), nil
+	default:
+		return "", errors.New("unsupported private key type")
+	}
+}
+
+func MarshalCertificates(certs []x509.Certificate) (string, error) {
+	certBytes := make([]byte, 0)
+	for _, cert := range certs {
+		certBytes = append(certBytes, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})...)
+	}
+	return string(certBytes), nil
 }

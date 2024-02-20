@@ -24,6 +24,7 @@ type BusinessUnit struct {
 
 	Name         string   `json:"name"`          // Name of the BusinessUnit.
 	Addresses    []string `json:"addresses"`     // List of addresses associated with the BusinessUnit.
+	Country      string   `json:"country"`       // Country Code of the BusinessUnit. (Eg: US, TW, JP)
 	Emails       []string `json:"emails"`        // List of emails associated with the BusinessUnit.
 	PhoneNumbers []string `json:"phone_numbers"` // List of phone numbers associated with the BusinessUnit.
 
@@ -44,7 +45,7 @@ type BusinessUnitAuthentication struct {
 	RevokedAt int64  `json:"revoked_at"` // Unix Time (in second) when the authentication was revoked.
 	RevokedBy string `json:"revoked_by"` // User who revoked the authentication.
 
-	PrivateKey        string   `json:"private_key"`        // PEM encoded private key.
-	Certificate       string   `json:"certificate"`        // PEM encoded certificate.
-	IntermediateCerts []string `json:"intermediate_certs"` // PEM encoded intermediate certificates.
+	PrivateKey      string `json:"private_key"`      // PEM encoded private key.
+	Certificate     string `json:"certificate"`      // PEM encoded certificate. It may contains multiple certificates. The first certificate is the leaf certificate. Others are intermediate certificates.
+	CertFingerPrint string `json:"cert_fingerprint"` // Fingerprint of the leaf certificate. The format is [HASH_ALGORITHM]:[FINGERPRINT_HEX_ENCODED].
 }

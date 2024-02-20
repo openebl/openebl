@@ -324,3 +324,75 @@ func (mr *MockTransactionInterfaceMockRecorder) CreateTx(ctx interface{}, option
 	varargs := append([]interface{}{ctx}, options...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTx", reflect.TypeOf((*MockTransactionInterface)(nil).CreateTx), varargs...)
 }
+
+// MockTradeDocumentStorage is a mock of TradeDocumentStorage interface.
+type MockTradeDocumentStorage struct {
+	ctrl     *gomock.Controller
+	recorder *MockTradeDocumentStorageMockRecorder
+}
+
+// MockTradeDocumentStorageMockRecorder is the mock recorder for MockTradeDocumentStorage.
+type MockTradeDocumentStorageMockRecorder struct {
+	mock *MockTradeDocumentStorage
+}
+
+// NewMockTradeDocumentStorage creates a new mock instance.
+func NewMockTradeDocumentStorage(ctrl *gomock.Controller) *MockTradeDocumentStorage {
+	mock := &MockTradeDocumentStorage{ctrl: ctrl}
+	mock.recorder = &MockTradeDocumentStorageMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockTradeDocumentStorage) EXPECT() *MockTradeDocumentStorageMockRecorder {
+	return m.recorder
+}
+
+// AddTradeDocument mocks base method.
+func (m *MockTradeDocumentStorage) AddTradeDocument(ctx context.Context, tx storage.Tx, tradeDoc storage.TradeDocument) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddTradeDocument", ctx, tx, tradeDoc)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddTradeDocument indicates an expected call of AddTradeDocument.
+func (mr *MockTradeDocumentStorageMockRecorder) AddTradeDocument(ctx, tx, tradeDoc interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTradeDocument", reflect.TypeOf((*MockTradeDocumentStorage)(nil).AddTradeDocument), ctx, tx, tradeDoc)
+}
+
+// CreateTx mocks base method.
+func (m *MockTradeDocumentStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx}
+	for _, a := range options {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CreateTx", varargs...)
+	ret0, _ := ret[0].(storage.Tx)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateTx indicates an expected call of CreateTx.
+func (mr *MockTradeDocumentStorageMockRecorder) CreateTx(ctx interface{}, options ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx}, options...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTx", reflect.TypeOf((*MockTradeDocumentStorage)(nil).CreateTx), varargs...)
+}
+
+// ListTradeDocument mocks base method.
+func (m *MockTradeDocumentStorage) ListTradeDocument(ctx context.Context, tx storage.Tx, req storage.ListTradeDocumentRequest) (storage.ListTradeDocumentResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListTradeDocument", ctx, tx, req)
+	ret0, _ := ret[0].(storage.ListTradeDocumentResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListTradeDocument indicates an expected call of ListTradeDocument.
+func (mr *MockTradeDocumentStorageMockRecorder) ListTradeDocument(ctx, tx, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTradeDocument", reflect.TypeOf((*MockTradeDocumentStorage)(nil).ListTradeDocument), ctx, tx, req)
+}

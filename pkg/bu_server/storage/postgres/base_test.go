@@ -43,6 +43,7 @@ func (s *BaseTestSuite) SetupTest() {
 	s.pgPool = pool
 
 	tableNames := []string{
+		"trade_document",
 		"certificate",
 		"certificate_history",
 		"business_unit",

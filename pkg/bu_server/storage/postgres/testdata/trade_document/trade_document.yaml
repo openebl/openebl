@@ -1,0 +1,40 @@
+# CREATE TABLE trade_document (
+#     rec_id BIGSERIAL,
+#     id TEXT PRIMARY KEY,            -- Raw ID of the whole document including JWS/JWE envelope.
+#     kind BIGINT NOT NULL,           -- Kind of the trade document.
+#     doc_id TEXT NOT NULL,           -- ID of the trade document.
+#     doc_version BIGINT NOT NULL,    -- Version of the trade document.
+#     doc BYTEA NOT NULL,             -- trade document (binary format).
+#     created_at BIGINT NOT NULL,     -- Timestamp of the creation of the trade document.
+#     meta JSONB NOT NULL             -- Metadata of the trade document.
+# );
+- rec_id: 1
+  id: "raw_doc_1"
+  kind: 1000
+  doc_id: "doc_1"
+  doc_version: 1
+  doc: "binary_data"
+  created_at: 1634567890
+  meta:
+    key1: "value1"
+    key2: "value2"
+- rec_id: 2
+  id: "raw_doc_2"
+  kind: 1000
+  doc_id: "doc_1"
+  doc_version: 2
+  doc: "new binary_data"
+  created_at: 1634567890
+  meta:
+    key1: "value1"
+    key2: "value2"
+- rec_id: 3
+  id: "raw_doc_3"
+  kind: 1001
+  doc_id: "doc_2"
+  doc_version: 1
+  doc: "doc 2"
+  created_at: 1634567890
+  meta:
+    key1: "value3"
+    key2: "value4"

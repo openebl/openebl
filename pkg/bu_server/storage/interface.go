@@ -53,3 +53,31 @@ func TxOptionWithIsolationLevel(level sql.IsolationLevel) CreateTxOption {
 		option.level = level
 	}
 }
+
+type TradeDocument struct {
+	RawID      string         // The Raw ID of the envelope of the document.
+	Kind       int            // The kind of the document. It provides the hint of how to process the document.
+	DocID      string         // The ID of the trade document.
+	DocVersion int64          // The version of the trade document.
+	Doc        []byte         // The trade document to be stored.
+	CreatedAt  int64          // When the trade document is created.
+	Meta       map[string]any // Indexing Data for search or list operations.
+}
+type ListTradeDocumentRequest struct {
+	Offset int
+	Limit  int
+
+	// The filter of the trade document.
+	Kind   int
+	DocIDs []string
+	Meta   map[string]any
+}
+type ListTradeDocumentResponse struct {
+	Total int
+	Docs  []TradeDocument
+}
+type TradeDocumentStorage interface {
+	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, error)
+	AddTradeDocument(ctx context.Context, tx Tx, tradeDoc TradeDocument) error
+	ListTradeDocument(ctx context.Context, tx Tx, req ListTradeDocumentRequest) (ListTradeDocumentResponse, error)
+}

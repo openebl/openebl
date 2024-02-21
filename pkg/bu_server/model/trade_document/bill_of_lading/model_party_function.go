@@ -14,18 +14,18 @@ type PartyFunction string
 
 // List of partyFunction
 const (
-	OS_PartyFunction  PartyFunction = "OS"
-	CN_PartyFunction  PartyFunction = "CN"
-	COW_PartyFunction PartyFunction = "COW"
-	COX_PartyFunction PartyFunction = "COX"
-	MS_PartyFunction  PartyFunction = "MS"
-	N1_PartyFunction  PartyFunction = "N1"
-	N2_PartyFunction  PartyFunction = "N2"
-	NI_PartyFunction  PartyFunction = "NI"
-	DDR_PartyFunction PartyFunction = "DDR"
-	DDS_PartyFunction PartyFunction = "DDS"
-	HE_PartyFunction  PartyFunction = "HE"
-	SCO_PartyFunction PartyFunction = "SCO"
-	BA_PartyFunction  PartyFunction = "BA"
-	ENR_PartyFunction PartyFunction = "ENR"
+	OS_PartyFunction  PartyFunction = "OS"  // Original Shipper
+	CN_PartyFunction  PartyFunction = "CN"  // Consignee
+	COW_PartyFunction PartyFunction = "COW" // Invoice payer on behalf of the consignor (shipper)
+	COX_PartyFunction PartyFunction = "COX" // Invoice payer on behalf of the consignee
+	MS_PartyFunction  PartyFunction = "MS"  // Document/message issuer/sender
+	N1_PartyFunction  PartyFunction = "N1"  // First Notify Party
+	N2_PartyFunction  PartyFunction = "N2"  // Second Notify Party
+	NI_PartyFunction  PartyFunction = "NI"  // Other Notify Party
+	DDR_PartyFunction PartyFunction = "DDR" // Consignor's freight forwarder
+	DDS_PartyFunction PartyFunction = "DDS" // Consignee's freight forwarder
+	HE_PartyFunction  PartyFunction = "HE"  // Carrier booking office (transportation office)
+	SCO_PartyFunction PartyFunction = "SCO" // Service contract owner - Defined by DCSA
+	BA_PartyFunction  PartyFunction = "BA"  // Booking Agency
+	ENR_PartyFunction PartyFunction = "ENR" // Envelope Receiver
 )

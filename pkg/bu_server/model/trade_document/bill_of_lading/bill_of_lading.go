@@ -33,8 +33,7 @@ type BillOfLading struct {
 	BillOfLading *TransportDocument       `json:"bill_of_lading,omitempty"`
 	File         *model.File              `json:"file,omitempty"`
 	DocType      BillOfLadingDocumentType `json:"doc_type,omitempty"`
-	TransferTo   string                   `json:"transfer_to,omitempty"` // DID
-	CreatedBy    string                   `json:"created_by,omitempty"`  // DID
+	CreatedBy    string                   `json:"created_by,omitempty"` // DID
 	CreatedAt    *model.DateTime          `json:"created_at,omitempty"`
 	Note         string                   `json:"note,omitempty"`
 }

@@ -41,6 +41,12 @@ func NewDateTime(t time.Time) DateTime {
 	}
 }
 
+func NewDateTimeFromUnix(t int64) DateTime {
+	return DateTime{
+		timeVal: time.Unix(t, 0).UTC(),
+	}
+}
+
 func NewDateTimeFromString(t string) (DateTime, error) {
 	ts, err := time.Parse(time.RFC3339, t)
 	if err != nil {

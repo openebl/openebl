@@ -4,13 +4,14 @@ import (
 	"fmt"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 )
 
 func ValidateCreateUserRequest(req CreateUserRequest) error {
 	err := validation.ValidateStruct(&req,
 		validation.Field(&req.RequestUser, validation.Required),
-		validation.Field(&req.UserID, validation.Required),
+		validation.Field(&req.Username, validation.Required, is.LowerCase),
 		validation.Field(&req.Password, validation.Required),
 	)
 	if err != nil {
@@ -21,7 +22,8 @@ func ValidateCreateUserRequest(req CreateUserRequest) error {
 
 func ValidateChangePasswordRequest(req ChangePasswordRequest) error {
 	err := validation.ValidateStruct(&req,
-		validation.Field(&req.UserID, validation.Required),
+		validation.Field(&req.UserID, validation.Required.When(req.Username == "")),
+		validation.Field(&req.Username, validation.Required.When(req.UserID == "")),
 		validation.Field(&req.OldPassword, validation.Required),
 		validation.Field(&req.Password, validation.Required),
 	)
@@ -34,7 +36,8 @@ func ValidateChangePasswordRequest(req ChangePasswordRequest) error {
 func ValidateResetPasswordRequest(req ResetPasswordRequest) error {
 	err := validation.ValidateStruct(&req,
 		validation.Field(&req.RequestUser, validation.Required),
-		validation.Field(&req.UserID, validation.Required),
+		validation.Field(&req.UserID, validation.Required.When(req.Username == "")),
+		validation.Field(&req.Username, validation.Required.When(req.UserID == "")),
 		validation.Field(&req.Password, validation.Required),
 	)
 	if err != nil {
@@ -46,7 +49,8 @@ func ValidateResetPasswordRequest(req ResetPasswordRequest) error {
 func ValidateUpdateUserRequest(req UpdateUserRequest) error {
 	err := validation.ValidateStruct(&req,
 		validation.Field(&req.RequestUser, validation.Required),
-		validation.Field(&req.UserID, validation.Required),
+		validation.Field(&req.UserID, validation.Required.When(req.Username == "")),
+		validation.Field(&req.Username, validation.Required.When(req.UserID == "")),
 		validation.Field(&req.Name, validation.Required),
 	)
 	if err != nil {
@@ -58,7 +62,8 @@ func ValidateUpdateUserRequest(req UpdateUserRequest) error {
 func ValidateActivateUserRequest(req ActivateUserRequest) error {
 	err := validation.ValidateStruct(&req,
 		validation.Field(&req.RequestUser, validation.Required),
-		validation.Field(&req.UserID, validation.Required),
+		validation.Field(&req.UserID, validation.Required.When(req.Username == "")),
+		validation.Field(&req.Username, validation.Required.When(req.UserID == "")),
 	)
 	if err != nil {
 		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
@@ -68,7 +73,7 @@ func ValidateActivateUserRequest(req ActivateUserRequest) error {
 
 func ValidateAuthenticateUserRequest(req AuthenticateUserRequest) error {
 	err := validation.ValidateStruct(&req,
-		validation.Field(&req.UserID, validation.Required),
+		validation.Field(&req.Username, validation.Required),
 		validation.Field(&req.Password, validation.Required),
 	)
 	if err != nil {

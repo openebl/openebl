@@ -40,7 +40,8 @@ func (s *UserManagerTestSuite) SetupTest() {
 
 	oldHashedPassword, _ := bcrypt.GenerateFromPassword([]byte("old_password"), bcrypt.DefaultCost)
 	s.oldUser = auth.User{
-		ID:        "user1",
+		ID:        "usr_001",
+		Username:  "user1",
 		Status:    auth.UserStatusActive,
 		Version:   1,
 		Password:  auth.HashedPassword(oldHashedPassword),
@@ -63,7 +64,7 @@ func (s *UserManagerTestSuite) TestCreateUser() {
 
 	req := auth.CreateUserRequest{
 		RequestUser: "request_user",
-		UserID:      "user1",
+		Username:    "user1",
 		Password:    "password1",
 		Name:        "User 1",
 		Emails:      []string{"user1@email.com"},
@@ -71,12 +72,12 @@ func (s *UserManagerTestSuite) TestCreateUser() {
 	}
 
 	expectedListUserRequest := auth.ListUserRequest{
-		Limit: 1,
-		IDs:   []string{"user1"},
+		Limit:     1,
+		Usernames: []string{"user1"},
 	}
 
 	expectedUser := auth.User{
-		ID:        "user1",
+		Username:  "user1",
 		Status:    auth.UserStatusActive,
 		Version:   1,
 		Password:  "hashed_password1",
@@ -89,13 +90,13 @@ func (s *UserManagerTestSuite) TestCreateUser() {
 		UpdatedBy: "request_user",
 	}
 
+	var storedUser auth.User
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{}, nil),
 		s.storage.EXPECT().StoreUser(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, user auth.User) error {
-				expectedUser.Password = user.Password
-				s.Assert().Equal(expectedUser, user)
+				storedUser = user
 				return nil
 			},
 		),
@@ -105,8 +106,13 @@ func (s *UserManagerTestSuite) TestCreateUser() {
 
 	user, err := s.manager.CreateUser(s.ctx, ts, req)
 	s.Require().NoError(err)
+	s.Assert().NotEmpty(storedUser.Password)
 	s.Assert().Empty(user.Password)
-	user.Password = expectedUser.Password
+	storedUser.Password = user.Password
+	s.Assert().Equal(storedUser, user)
+	s.Assert().NotEmpty(user.ID)
+	expectedUser.ID = user.ID
+	expectedUser.Password = user.Password
 	s.Assert().Equal(expectedUser, user)
 }
 
@@ -115,7 +121,7 @@ func (s *UserManagerTestSuite) TestCreateUserWithDuplicateUserID() {
 
 	req := auth.CreateUserRequest{
 		RequestUser: "request_user",
-		UserID:      "user1",
+		Username:    "user1",
 		Password:    "password1",
 		Name:        "User 1",
 		Emails:      []string{"user1@email.com"},
@@ -123,8 +129,8 @@ func (s *UserManagerTestSuite) TestCreateUserWithDuplicateUserID() {
 	}
 
 	expectedListUserRequest := auth.ListUserRequest{
-		Limit: 1,
-		IDs:   []string{"user1"},
+		Limit:     1,
+		Usernames: []string{"user1"},
 	}
 
 	gomock.InOrder(
@@ -142,20 +148,22 @@ func (s *UserManagerTestSuite) TestChangePassword() {
 	ts := time.Now().Unix()
 
 	req := auth.ChangePasswordRequest{
-		UserID:      "user1",
+		UserID:      "usr_001",
+		Username:    "user1",
 		OldPassword: "old_password",
 		Password:    "password1",
 	}
 
 	expectedListUserRequest := auth.ListUserRequest{
-		Limit: 1,
-		IDs:   []string{"user1"},
+		Limit:     1,
+		IDs:       []string{"usr_001"},
+		Usernames: []string{"user1"},
 	}
 
 	expectedUser := s.oldUser
 	expectedUser.Version += 1
 	expectedUser.UpdatedAt = ts
-	expectedUser.UpdatedBy = "user1"
+	expectedUser.UpdatedBy = "usr_001"
 
 	// Test with correct old password.
 	gomock.InOrder(
@@ -198,14 +206,16 @@ func (s *UserManagerTestSuite) TestChangePasswordWithNonExistingUser() {
 	ts := time.Now().Unix()
 
 	req := auth.ChangePasswordRequest{
-		UserID:      "user1",
+		UserID:      "usr_001",
+		Username:    "user1",
 		OldPassword: "old_password",
 		Password:    "password1",
 	}
 
 	expectedListUserRequest := auth.ListUserRequest{
-		Limit: 1,
-		IDs:   []string{"user1"},
+		Limit:     1,
+		IDs:       []string{"usr_001"},
+		Usernames: []string{"user1"},
 	}
 
 	gomock.InOrder(
@@ -224,13 +234,15 @@ func (s *UserManagerTestSuite) TestResetPassword() {
 
 	req := auth.ResetPasswordRequest{
 		RequestUser: "other_user",
-		UserID:      "user1",
+		UserID:      "usr_001",
+		Username:    "user1",
 		Password:    "password1",
 	}
 
 	expectedListUserRequest := auth.ListUserRequest{
-		Limit: 1,
-		IDs:   []string{"user1"},
+		Limit:     1,
+		IDs:       []string{"usr_001"},
+		Usernames: []string{"user1"},
 	}
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -268,13 +280,15 @@ func (s *UserManagerTestSuite) TestResetPasswordWithNonExistingUser() {
 
 	req := auth.ResetPasswordRequest{
 		RequestUser: "other_user",
-		UserID:      "user1",
+		UserID:      "usr_001",
+		Username:    "user1",
 		Password:    "password1",
 	}
 
 	expectedListUserRequest := auth.ListUserRequest{
-		Limit: 1,
-		IDs:   []string{"user1"},
+		Limit:     1,
+		IDs:       []string{"usr_001"},
+		Usernames: []string{"user1"},
 	}
 
 	gomock.InOrder(
@@ -293,15 +307,17 @@ func (s *UserManagerTestSuite) TestUpdateUser() {
 
 	req := auth.UpdateUserRequest{
 		RequestUser: "other_user",
-		UserID:      "user1",
+		UserID:      "usr_001",
+		Username:    "user1",
 		Name:        "new name",
 		Emails:      []string{"new_email@email.com"},
 		Note:        "new note",
 	}
 
 	expectedListUserRequest := auth.ListUserRequest{
-		Limit: 1,
-		IDs:   []string{"user1"},
+		Limit:     1,
+		IDs:       []string{"usr_001"},
+		Usernames: []string{"user1"},
 	}
 
 	expectedUser := s.oldUser
@@ -332,15 +348,17 @@ func (s *UserManagerTestSuite) TestUpdateUserWithNonExistingUser() {
 
 	req := auth.UpdateUserRequest{
 		RequestUser: "other_user",
-		UserID:      "user1",
+		UserID:      "usr_001",
+		Username:    "user1",
 		Name:        "new name",
 		Emails:      []string{"new_email"},
 		Note:        "new note",
 	}
 
 	expectedListUserRequest := auth.ListUserRequest{
-		Limit: 1,
-		IDs:   []string{"user1"},
+		Limit:     1,
+		IDs:       []string{"usr_001"},
+		Usernames: []string{"user1"},
 	}
 
 	gomock.InOrder(
@@ -359,12 +377,14 @@ func (s *UserManagerTestSuite) TestActivateUser() {
 
 	req := auth.ActivateUserRequest{
 		RequestUser: "admin",
-		UserID:      "user1",
+		UserID:      "usr_001",
+		Username:    "user1",
 	}
 
 	expectedListUserRequest := auth.ListUserRequest{
-		Limit: 1,
-		IDs:   []string{"user1"},
+		Limit:     1,
+		IDs:       []string{"usr_001"},
+		Usernames: []string{"user1"},
 	}
 
 	s.oldUser.Status = auth.UserStatusInactive
@@ -418,12 +438,14 @@ func (s *UserManagerTestSuite) TestDeactivateUser() {
 
 	req := auth.ActivateUserRequest{
 		RequestUser: "admin",
-		UserID:      "user1",
+		UserID:      "usr_001",
+		Username:    "user1",
 	}
 
 	expectedListUserRequest := auth.ListUserRequest{
-		Limit: 1,
-		IDs:   []string{"user1"},
+		Limit:     1,
+		IDs:       []string{"usr_001"},
+		Usernames: []string{"user1"},
 	}
 
 	s.oldUser.Status = auth.UserStatusActive
@@ -476,13 +498,13 @@ func (s *UserManagerTestSuite) TestAuthenticate() {
 	ts := time.Now().Unix()
 
 	req := auth.AuthenticateUserRequest{
-		UserID:   "user1",
+		Username: "user1",
 		Password: "old_password",
 	}
 
 	expectedListUserRequest := auth.ListUserRequest{
-		Limit: 1,
-		IDs:   []string{"user1"},
+		Limit:     1,
+		Usernames: []string{"user1"},
 	}
 
 	// Test with correct password.
@@ -501,7 +523,7 @@ func (s *UserManagerTestSuite) TestAuthenticate() {
 	)
 	userToken, err := s.manager.Authenticate(s.ctx, ts, req)
 	s.Require().NoError(err)
-	s.Assert().EqualValues(req.UserID, userToken.UserID)
+	s.Assert().EqualValues(s.oldUser.ID, userToken.UserID)
 	s.Assert().NotEmpty(userToken.Token)
 	s.Assert().EqualValues(storedUserToken, userToken)
 	// End of Test with correct password.
@@ -522,13 +544,13 @@ func (s *UserManagerTestSuite) TestAuthenticateWithNonExistingUser() {
 	ts := time.Now().Unix()
 
 	req := auth.AuthenticateUserRequest{
-		UserID:   "nonexistinguser",
+		Username: "nonexistinguser",
 		Password: "old_password",
 	}
 
 	expectedListUserRequest := auth.ListUserRequest{
-		Limit: 1,
-		IDs:   []string{"nonexistinguser"},
+		Limit:     1,
+		Usernames: []string{"nonexistinguser"},
 	}
 
 	gomock.InOrder(

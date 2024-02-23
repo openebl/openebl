@@ -32,7 +32,8 @@ func (s *UserStorageTestSuite) TearDownTest() {
 
 func (s *UserStorageTestSuite) TestStoreUser() {
 	userV1 := auth.User{
-		ID:        "test-user",
+		ID:        "usr_deadbeef-dead-beef-dead-beefdeadbeef",
+		Username:  "test-user",
 		Status:    auth.UserStatusActive,
 		Version:   1,
 		Name:      "Test User",
@@ -127,7 +128,7 @@ func (s *UserStorageTestSuite) TestListUsers() {
 	req = auth.ListUserRequest{
 		Offset: 0,
 		Limit:  10,
-		IDs:    []string{"user1", "user3"},
+		IDs:    []string{"usr_001", "usr_003"},
 	}
 	result, err = s.storage.ListUsers(s.ctx, tx, req)
 	s.Require().NoError(err)
@@ -135,6 +136,32 @@ func (s *UserStorageTestSuite) TestListUsers() {
 	s.Require().Len(result.Users, 2)
 	s.Assert().EqualValues(usersOnDB[0], result.Users[0])
 	s.Assert().EqualValues(usersOnDB[2], result.Users[1])
+
+	// Test Filter by Username
+	req = auth.ListUserRequest{
+		Offset:    0,
+		Limit:     10,
+		Usernames: []string{"user1", "user3"},
+	}
+	result, err = s.storage.ListUsers(s.ctx, tx, req)
+	s.Require().NoError(err)
+	s.Assert().EqualValues(2, result.Total)
+	s.Require().Len(result.Users, 2)
+	s.Assert().EqualValues(usersOnDB[0], result.Users[0])
+	s.Assert().EqualValues(usersOnDB[2], result.Users[1])
+
+	// Test Filter by ID and Username
+	req = auth.ListUserRequest{
+		Offset:    0,
+		Limit:     10,
+		IDs:       []string{"usr_001", "usr_002"},
+		Usernames: []string{"user1", "user3"},
+	}
+	result, err = s.storage.ListUsers(s.ctx, tx, req)
+	s.Require().NoError(err)
+	s.Assert().EqualValues(1, result.Total)
+	s.Require().Len(result.Users, 1)
+	s.Assert().EqualValues(usersOnDB[0], result.Users[0])
 }
 
 func (s *UserStorageTestSuite) TestStoreUserToken() {
@@ -149,7 +176,7 @@ func (s *UserStorageTestSuite) TestStoreUserToken() {
 
 	userToken := auth.UserToken{
 		Token:     "toooooooooooken",
-		UserID:    "user1",
+		UserID:    "usr_001",
 		CreatedAt: 1600000000,
 		ExpiredAt: 1700000000,
 	}
@@ -182,7 +209,7 @@ func (s *UserStorageTestSuite) TestGetUserToken() {
 
 	expectedUserToken := auth.UserToken{
 		Token:     "user1_token",
-		UserID:    "user1",
+		UserID:    "usr_001",
 		CreatedAt: 50000,
 		ExpiredAt: 60000,
 	}

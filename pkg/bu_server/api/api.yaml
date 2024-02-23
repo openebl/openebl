@@ -8,6 +8,8 @@ servers:
 tags:
   - name: business_unit
     description: Business unit management
+  - name: eB/L
+    description: Electronic Bill of Lading management
 paths:
   /business_unit:
     post:
@@ -354,11 +356,463 @@ paths:
           description: Authentication not found
         '500':
           description: Internal server error
+
+  /ebl:
+    get:
+      tags: [eB/L]
+      summary: List all eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: offset
+          in: query
+          description: Number of items to skip before returning the results
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          description: Maximum number of items to return
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            default: 20
+        - name: status
+          in: query
+          description: Status of the eB/L to be listed
+          schema:
+            type: string
+            enum:
+              - action_needed
+              - upcoming
+              - sent
+              - archive
+      responses:
+        '200':
+          description: eB/L retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListBillOfLadingRecord'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+    post:
+      tags: [eB/L]
+      summary: Issue or draft a new eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requester:
+                  type: string
+                  description: User who makes the request
+                file:
+                  allOf:
+                    - $ref: '#/components/schemas/FileInfo'
+                  type: object
+                  properties:
+                    content:
+                      type: string
+                      format: byte
+                      description: base64-encoded content of the document
+                number:
+                  type: string
+                  description: B/L number
+                type:
+                  type: string
+                  description: B/L type
+                pol:
+                  type: string
+                  description: Port of loading
+                pod:
+                  type: string
+                  description: Port of discharge
+                eta:
+                  type: string
+                  format: date-time
+                  description: Estimate time of arrival
+                shipper:
+                  type: string
+                  description: DID of the shipper
+                consignee:
+                  type: string
+                  description: DID of the consignee
+                release_agent:
+                  type: string
+                  description: DID of the release agent
+                note:
+                  type: string
+                  description: Optional note from the requester
+                draft:
+                  type: boolean
+                  description: Flag to indicate if the eB/L is in draft status
+              required:
+                - requester
+                - file
+                - number
+                - type
+                - pol
+                - pod
+                - eta
+                - shipper
+                - consignee
+                - release_agent
+                - draft
+      responses:
+        '201':
+          description: eB/L created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingPack'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+  /ebl/{id}:
+    get:
+      tags: [eB/L]
+      summary: Get a specific eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to retrieve.
+      responses:
+        '200':
+          description: eB/L retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetBillOfLadingRecord'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/download:
+    get:
+      tags: [eB/L]
+      summary: Download the uploaded eB/L document
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to download
+      responses:
+        '200':
+          description: eB/L file retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileRecord'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/update:
+    post:
+      tags: [eB/L]
+      summary: Update the draft eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingPack'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/transfer:
+    post:
+      tags: [eB/L]
+      summary: Transfer the eB/L to next owner
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to transfer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L transferred successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingPack'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/return:
+    post:
+      tags: [eB/L]
+      summary: Return the eB/L to last owner
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to return
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReturnBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingPack'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/surrender:
+    post:
+      tags: [eB/L]
+      summary: Transfer the eB/L to the release agent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to surrender
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SurrenderBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L surrendered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingPack'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/accomplish:
+    post:
+      tags: [eB/L]
+      summary: Accomplish the eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to accomplish
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccomplishBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L accomplished successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingPack'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/print_to_paper:
+    post:
+      tags: [eB/L]
+      summary: Print the eB/L to paper
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to print to paper
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrintToPaperBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L printed to paper successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingPack'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/amendment_request:
+    post:
+      tags: [eB/L]
+      summary: Request amendment for the eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to request amendment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmendmentRequestBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L requested amendment successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingPack'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/amend:
+    post:
+      tags: [eB/L]
+      summary: Amend the eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to amend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmendBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L amended successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingPack'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
 components:
   securitySchemes:
     bearerAuth:            # arbitrary name for the security scheme
       type: http
       scheme: bearer
+  parameters:
+    BURequestHeader:
+      in: header
+      name: X-Business-Unit-ID
+      description: DID of the business unit who makes the request
+      schema:
+        type: string
+        format: uuid
   schemas:
     PrivateKeyType:
       type: string
@@ -530,3 +984,494 @@ components:
         - requester
         - name
         - status
+    # eB/L schemas
+    BillOfLadingDocumentType:
+      type: string
+      description: B/L Document Type
+      enum:
+        - MasterBillOfLading
+        - HouseBillOfLading
+    BillOfLadingType:
+      type: string
+      description: B/L Type
+      enum:
+        - NonNegotiable
+        - Negotiable
+    BillOfLadingAction:
+      type: string
+      description: action to perform on the eB/L
+      enum:
+        - UPDATE
+        - TRANSFER
+        - RETURN
+        - SURRENDER
+        - ACCOMPLISH
+        - PRINT_TO_PAPER
+        - AMENDMENT_REQUEST
+        - AMEND
+    DocumentStatus:
+      type: string
+      description: Document status
+      enum:
+        - DRFT # Draft
+        - ISSU # Issued
+    Party:
+      type: object
+      description: Refers to a company or a legal entity
+      properties:
+        partyName:
+          type: string
+          description: Name of the party
+    DocumentParty:
+      type: object
+      description: Party involved in the transport document
+      properties:
+        party:
+          $ref: '#/components/schemas/Party'
+        partyFunction:
+          type: string
+          description: Role of the party
+          enum:
+            - DDR # Issuing agent
+            - OS  # Shipper
+            - CN  # Consignee
+            - DDS # Release agent
+    ShippingInstruction:
+      type: object
+      description: Enrichment to the original booking shard by the shipper to the carrier
+      properties:
+        shippingInstructionReference:
+          type: string
+          description: B/L Number
+        documentStatus:
+          $ref: '#/components/schemas/DocumentStatus'
+        isToOrder:
+          type: boolean
+          description: Indicate if the eB/L is negotiable
+        documentParties:
+          type: array
+          description: Parties involved in the eB/L
+          items:
+            $ref: '#/components/schemas/DocumentParty'
+    Location:
+      type: object
+      properties:
+        locationName:
+          type: string
+          description: Name of the location
+        UNLocationCode:
+          type: string
+          description: UN location code
+    ShipmentLocation:
+      type: object
+      description: Maps the relationship between shipment and location
+      properties:
+        location:
+          $ref: '#/components/schemas/Location'
+        shipmentLocationTypeCode:
+          type: string
+          enum:
+            - POL
+            - POD
+        eventDateTime:
+            type: string
+            format: date-time
+            description: When the event happened
+    Transport:
+      type: object
+      properties:
+        transportPlanStage:
+          type: string
+          enum:
+            - PRC # Pre-Carriage
+            - MNC # Main Carriage Transport
+            - ONC # On-Carriage Transport
+        plannedArrivalDate:
+          type: string
+          format: date-time
+          description: Estimated time of arrival
+    TransportDocument:
+      type: object
+      description: Document that governs the terms of carriage between shipper and carrier for maritime transportation
+      properties:
+        shippingInstruction:
+          $ref: '#/components/schemas/ShippingInstruction'
+        transportDocumentCreatedDateTime:
+          type: string
+          format: date-time
+          description: When the document was created
+        transportDocumentUpdatedDateTime:
+          type: string
+          format: date-time
+          description: When the document was updated
+        shipmentLocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShipmentLocation'
+        transports:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transport'
+    FileInfo:
+      type: object
+      description: Metadata of the uploaded document
+      properties:
+        name:
+          type: string
+          description: File name of the uploaded document
+        type:
+          type: string
+          description: MIME type of the uploaded document
+    FileRecord:
+      allOf:
+        - $ref: '#/components/schemas/FileInfo'
+      type: object
+      description: Information and content of the uploaded document
+      properties:
+        content:
+          type: string
+          format: byte
+          description: base64-encoded content of the document
+        created_date:
+          type: string
+          format: date-time
+          description: When the file was created
+    BillOfLading:
+      type: object
+      description: Event of issuing the eB/L
+      properties:
+        bill_of_lading:
+          $ref: '#/components/schemas/TransportDocument'
+        file:
+          $ref: '#/components/schemas/FileInfo'
+        doc_type:
+          $ref: '#/components/schemas/BillOfLadingDocumentType'
+        transfer_to:
+          type: string
+          description: DID of the next owner
+        created_by:
+          type: string
+          description: DID of the issuing agent
+        created_at:
+          type: string
+          format: date-time
+          description: When the eB/L was created
+        note:
+          type: string
+          description: Optional note from the requester
+    Transfer:
+      type: object
+      description: Event of transferring the eB/L
+      properties:
+        transfer_by:
+          type: string
+          description: DID of the business unit who makes the transfer
+        transfer_to:
+          type: string
+          description: DID of the business unit who receives the transfer
+        transfer_at:
+          type: string
+          format: date-time
+          description: When the eB/L was transferred
+        note:
+          type: string
+          description: Optional note from the requester
+    Return:
+      type: object
+      description: Event of returning the eB/L
+      properties:
+        return_by:
+          type: string
+          description: DID of the business unit who makes the return
+        return_to:
+          type: string
+          description: DID of the business unit who receives the return
+        return_at:
+          type: string
+          format: date-time
+          description: When the eB/L was returned
+        note:
+          type: string
+          description: Optional note from the requester
+    Surrender:
+      type: object
+      description: Event of surrendering the eB/L
+      properties:
+        surrender_by:
+          type: string
+          description: DID of the business unit who makes the surrender
+        surrender_to:
+          type: string
+          description: DID of the business unit who receives the surrender
+        surrender_at:
+          type: string
+          format: date-time
+          description: When the eB/L was surrendered
+        note:
+          type: string
+          description: Optional note from the requester
+    AmendmentRequest:
+      type: object
+      description: Event of requesting amendment for the eB/L
+      properties:
+        request_by:
+          type: string
+          description: DID of the business unit who makes the request
+        request_to:
+          type: string
+          description: DID of the business unit who receives the request
+        request_at:
+          type: string
+          format: date-time
+          description: When the eB/L was requested amendment
+        note:
+          type: string
+          description: Optional note from the requester
+    PrintToPaper:
+      type: object
+      description: Event of printing the eB/L to paper
+      properties:
+        print_by:
+          type: string
+          description: DID of the business unit who makes the print to paper
+        print_at:
+          type: string
+          format: date-time
+          description: When the eB/L was printed to paper
+        note:
+          type: string
+          description: Optional note from the requester
+    Accomplish:
+      type: object
+      description: Event of accomplishing the eB/L
+      properties:
+        accomplish_by:
+          type: string
+          description: DID of the business unit who makes the accomplish
+        accomplish_at:
+          type: string
+          format: date-time
+          description: When the eB/L was accomplished
+        note:
+          type: string
+          description: Optional note from the requester
+    BillOfLadingEvent:
+      type: object
+      description: Event of the eB/L
+      properties:
+        bill_of_lading:
+          $ref: '#/components/schemas/BillOfLading'
+        transfer:
+          $ref: '#/components/schemas/Transfer'
+        return:
+          $ref: '#/components/schemas/Return'
+        surrender:
+          $ref: '#/components/schemas/Surrender'
+        amendment_request:
+          $ref: '#/components/schemas/AmendmentRequest'
+        print_to_paper:
+          $ref: '#/components/schemas/PrintToPaper'
+        accomplish:
+          $ref: '#/components/schemas/Accomplish'
+    BillOfLadingPack:
+      type: object
+      description: Detail information of the eB/L
+      properties:
+        id:
+          type: string
+          description: Unique ID of a eB/L
+        version:
+          type: integer
+          format: int64
+          description: Version of the eB/L
+        parent_hash:
+          type: string
+          description: SHA512 hash of the previous version of the eB/L
+        current_owner:
+          type: string
+          format: uuid
+          description: DID of the current owner
+        events:
+          type: array
+          description: eB/L history event list
+          items:
+            $ref: '#/components/schemas/BillOfLadingEvent'
+    GetBillOfLadingRecord:
+      type: object
+      properties:
+        allowed_actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillOfLadingAction'
+        record:
+          $ref: '#/components/schemas/BillOfLadingPack'
+    ListBillOfLadingRecord:
+      type: object
+      properties:
+        total:
+          type: integer
+          format: int32
+          description: Total number of the eB/L
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillOfLadingPack'
+    # eB/L API request
+    BaseRequest:
+      type: object
+      properties:
+        requester:
+          type: string
+          description: User who makes the request
+      required:
+        - requester
+    UpdateBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+      type: object
+      properties:
+        file:
+          allOf:
+            - $ref: '#/components/schemas/FileInfo'
+          type: object
+          properties:
+            content:
+              type: string
+              format: byte
+              description: base64-encoded content of the document
+        number:
+          type: string
+          description: B/L number
+        document_type:
+          $ref: '#/components/schemas/BillOfLadingDocumentType'
+        bl_type:
+          $ref: '#/components/schemas/BillOfLadingType'
+        pol:
+          type: string
+          description: Port of loading
+        pod:
+          type: string
+          description: Port of discharge
+        eta:
+          type: string
+          format: date-time
+          description: Estimate time of arrival
+        shipper:
+          type: string
+          description: DID of the shipper
+        consignee:
+          type: string
+          description: DID of the consignee
+        release_agent:
+          type: string
+          description: DID of  the release agent
+        note:
+          type: string
+          description: Optional note from the requester
+        draft:
+          type: boolean
+          description: Flag to indicate if the eB/L is in draft status
+      required:
+        - file
+        - number
+        - document_type
+        - bl_type
+        - pol
+        - pod
+        - eta
+        - shipper
+        - consignee
+        - release_agent
+        - draft
+    TransferBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+      type: object
+      properties:
+        note:
+          type: string
+          description: Optional note from the requester
+    ReturnBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+      type: object
+      properties:
+        note:
+          type: string
+          description: Optional note from the requester
+    SurrenderBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+      type: object
+      properties:
+        note:
+          type: string
+          description: Optional note from the requester
+    AccomplishBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+      type: object
+      properties:
+        note:
+          type: string
+          description: Optional note from the requester
+    PrintToPaperBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+      type: object
+      properties:
+        note:
+          type: string
+          description: Optional note from the requester
+    AmendmentRequestBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+      type: object
+      properties:
+        note:
+          type: string
+          description: Optional note from the requester
+      required:
+        - note
+    AmendBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+      type: object
+      properties:
+        file:
+          allOf:
+            - $ref: '#/components/schemas/FileInfo'
+          type: object
+          properties:
+            content:
+              type: string
+              format: byte
+              description: base64-encoded content of the document
+        number:
+          type: string
+          description: B/L number
+        document_type:
+          $ref: '#/components/schemas/BillOfLadingDocumentType'
+        bl_type:
+          $ref: '#/components/schemas/BillOfLadingType'
+        pol:
+          type: string
+          description: Port of loading
+        pod:
+          type: string
+          description: Port of discharge
+        eta:
+          type: string
+          format: date-time
+          description: Estimate time of arrival
+        note:
+          type: string
+          description: Optional note from the requester
+      required:
+        - file
+        - number
+        - document_type
+        - bl_type
+        - pol
+        - pod
+        - eta

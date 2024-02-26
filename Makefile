@@ -46,6 +46,7 @@ MOCK_SOURCES := \
 	pkg/bu_server/business_unit/bu_storage.go \
 	pkg/bu_server/business_unit/bu_controller.go \
 	pkg/bu_server/business_unit/bu_jws_signer.go \
+	pkg/bu_server/trade_document/file_based_ebl.go \
 	pkg/bu_server/cert_authority/cert_authority.go
 MOCK_FILES := $(patsubst pkg/%,$(MOCK_DIR)/%,$(MOCK_SOURCES))
 

@@ -15,20 +15,25 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/api"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
+	"github.com/openebl/openebl/pkg/bu_server/middleware"
 	"github.com/openebl/openebl/pkg/bu_server/model"
+	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
+	"github.com/openebl/openebl/pkg/bu_server/trade_document"
 	"github.com/openebl/openebl/pkg/util"
 	mock_auth "github.com/openebl/openebl/test/mock/bu_server/auth"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
+	mock_trade_document "github.com/openebl/openebl/test/mock/bu_server/trade_document"
 	"github.com/stretchr/testify/suite"
 )
 
 type APITestSuite struct {
 	suite.Suite
 
-	ctx       context.Context
-	ctrl      *gomock.Controller
-	apiKeyMgr *mock_auth.MockAPIKeyAuthenticator
-	buMgr     *mock_business_unit.MockBusinessUnitManager
+	ctx         context.Context
+	ctrl        *gomock.Controller
+	apiKeyMgr   *mock_auth.MockAPIKeyAuthenticator
+	buMgr       *mock_business_unit.MockBusinessUnitManager
+	fileEBLCtrl *mock_trade_document.MockFileBaseEBLController
 
 	basePortNumber int32
 	localAddress   string
@@ -50,10 +55,11 @@ func (s *APITestSuite) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
 	s.apiKeyMgr = mock_auth.NewMockAPIKeyAuthenticator(s.ctrl)
 	s.buMgr = mock_business_unit.NewMockBusinessUnitManager(s.ctrl)
+	s.fileEBLCtrl = mock_trade_document.NewMockFileBaseEBLController(s.ctrl)
 
 	portNum := atomic.AddInt32(&s.basePortNumber, 1)
 	s.localAddress = fmt.Sprintf("localhost:%d", portNum)
-	api, err := api.NewAPIWithController(s.apiKeyMgr, s.buMgr, s.localAddress)
+	api, err := api.NewAPIWithController(s.apiKeyMgr, s.buMgr, s.fileEBLCtrl, s.localAddress)
 	s.Require().NoError(err)
 	s.api = api
 	go func() {
@@ -282,4 +288,62 @@ func (s *APITestSuite) TestSetStatus() {
 	s.Require().Equal("application/json", resp.Header.Get("Content-Type"))
 	body, _ := io.ReadAll(resp.Body)
 	s.Assert().Equal(util.StructToJSON(newBu), strings.TrimSpace(string(body)))
+}
+
+func (s *APITestSuite) TestCreateFileBasedEBL() {
+	endPoint := fmt.Sprintf("http://%s/ebl", s.localAddress)
+
+	req := trade_document.IssueFileBasedEBLRequest{
+		Requester:        "requester",
+		AuthenticationID: "bu_auth_id",
+
+		File: trade_document.File{
+			Name:    "test.txt",
+			Type:    "text/plain",
+			Content: []byte("test content"),
+		},
+		BLNumber:  "bl_number",
+		BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
+		ToOrder:   false,
+		POL: trade_document.Location{
+			LocationName: "Port of Loading",
+			UNLocCode:    "POL",
+		},
+		POD: trade_document.Location{
+			LocationName: "Port of Discharge",
+			UNLocCode:    "POD",
+		},
+		ETA:          model.NewDateTimeFromUnix(1708905600),
+		Shipper:      "shipper",
+		Consignee:    "consignee",
+		ReleaseAgent: "release agent",
+		Note:         "note",
+		Draft:        util.Ptr(true),
+	}
+
+	expectedRequest := req
+	expectedRequest.Application = s.appId
+	expectedRequest.Issuer = "issuer"
+
+	newBillOfLadingPack := bill_of_lading.BillOfLadingPack{
+		ID:      "pack_id",
+		Version: 1,
+	}
+
+	httpRequest, err := http.NewRequest("POST", endPoint, util.StructToJSONReader(req))
+	s.Require().NoError(err)
+	httpRequest.Header.Set("Authorization", "Bearer "+string(s.apiKeyString))
+	httpRequest.Header.Set(middleware.BUSINESS_UNIT_ID_HEADER, "issuer")
+
+	gomock.InOrder(
+		s.apiKeyMgr.EXPECT().Authenticate(gomock.Any(), s.apiKeyString).Return(s.apiKey, nil),
+		s.fileEBLCtrl.EXPECT().Create(gomock.Any(), gomock.Any(), expectedRequest).Return(newBillOfLadingPack, nil),
+	)
+
+	httpResponse, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	returnedBody, _ := io.ReadAll(httpResponse.Body)
+	s.Require().Equal(http.StatusOK, httpResponse.StatusCode)
+	s.Require().Equal("application/json", httpResponse.Header.Get("Content-Type"))
+	s.Require().Equal(util.StructToJSON(newBillOfLadingPack), strings.TrimSpace(string(returnedBody)))
 }

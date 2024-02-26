@@ -17,6 +17,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/middleware"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
+	"github.com/openebl/openebl/pkg/bu_server/trade_document"
 	"github.com/openebl/openebl/pkg/util"
 	"github.com/sirupsen/logrus"
 )
@@ -27,8 +28,10 @@ type APIConfig struct {
 }
 
 type API struct {
-	apiKeyMgr  auth.APIKeyAuthenticator
-	buMgr      business_unit.BusinessUnitManager
+	apiKeyMgr   auth.APIKeyAuthenticator
+	buMgr       business_unit.BusinessUnitManager
+	fileEBLCtrl trade_document.FileBaseEBLController
+
 	httpServer *http.Server
 }
 
@@ -42,7 +45,8 @@ func NewAPIWithConfig(cfg APIConfig) (*API, error) {
 
 	apiKeyMgr := auth.NewAPIKeyAuthenticator(storage)
 	buMgr := business_unit.NewBusinessUnitManager(storage, ca, nil)
-	api, err := NewAPIWithController(apiKeyMgr, buMgr, cfg.LocalAddress)
+	fileEBLCtrl := trade_document.NewFileBaseEBLController(storage, buMgr)
+	api, err := NewAPIWithController(apiKeyMgr, buMgr, fileEBLCtrl, cfg.LocalAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -50,10 +54,11 @@ func NewAPIWithConfig(cfg APIConfig) (*API, error) {
 	return api, nil
 }
 
-func NewAPIWithController(apiKeyMgr auth.APIKeyAuthenticator, buMgr business_unit.BusinessUnitManager, localAddress string) (*API, error) {
+func NewAPIWithController(apiKeyMgr auth.APIKeyAuthenticator, buMgr business_unit.BusinessUnitManager, fileEBLCtrl trade_document.FileBaseEBLController, localAddress string) (*API, error) {
 	apiServer := &API{
-		apiKeyMgr: apiKeyMgr,
-		buMgr:     buMgr,
+		apiKeyMgr:   apiKeyMgr,
+		buMgr:       buMgr,
+		fileEBLCtrl: fileEBLCtrl,
 	}
 
 	r := mux.NewRouter()
@@ -67,6 +72,10 @@ func NewAPIWithController(apiKeyMgr auth.APIKeyAuthenticator, buMgr business_uni
 	r.HandleFunc("/business_unit/{id}/authentication", apiServer.listBusinessUnitAuthentication).Methods(http.MethodGet)
 	r.HandleFunc("/business_unit/{id}/authentication/{authentication_id}", apiServer.getBusinessUnitAuthentication).Methods(http.MethodGet)
 	r.HandleFunc("/business_unit/{id}/authentication/{authentication_id}", apiServer.revokeBusinessUnitAuthentication).Methods(http.MethodDelete)
+
+	eblRouter := r.NewRoute().Subrouter()
+	eblRouter.Use(middleware.ExtractBusinessUnitID)
+	eblRouter.HandleFunc("/ebl", apiServer.createFileBasedEBL).Methods(http.MethodPost)
 
 	apiServer.httpServer = &http.Server{
 		Addr:    localAddress,

@@ -116,24 +116,24 @@ func (s *ManagerAPI) login(w http.ResponseWriter, r *http.Request) {
 	extractBasicAuthCredentials := func(r *http.Request) (string, string, error) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			return "", "", errors.New("Authorization header is missing")
+			return "", "", errors.New("header `Authorization` is missing")
 		}
 
 		authParts := strings.SplitN(authHeader, " ", 2)
 		if len(authParts) != 2 || authParts[0] != "Basic" {
-			return "", "", errors.New("Invalid Authorization header")
+			return "", "", errors.New("invalid `Authorization` header")
 		}
 
 		// Decode the base64-encoded credentials
 		decoded, err := base64.StdEncoding.DecodeString(authParts[1])
 		if err != nil {
-			return "", "", fmt.Errorf("Failed to decode credentials: %w", err)
+			return "", "", fmt.Errorf("failed to decode credentials: %w", err)
 		}
 
 		// Split the decoded credentials into username and password
 		credentials := strings.SplitN(string(decoded), ":", 2)
 		if len(credentials) != 2 {
-			return "", "", errors.New("Invalid credentials format")
+			return "", "", errors.New("invalid credentials format")
 		}
 
 		return credentials[0], credentials[1], nil
@@ -159,8 +159,9 @@ func (s *ManagerAPI) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(userToken.Token))
+	_ = json.NewEncoder(w).Encode(userToken)
 }
 
 func (s *ManagerAPI) createUser(w http.ResponseWriter, r *http.Request) {
@@ -195,7 +196,7 @@ func (s *ManagerAPI) createUser(w http.ResponseWriter, r *http.Request) {
 	// Return the created user to the client
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(user)
+	_ = json.NewEncoder(w).Encode(user)
 }
 
 func (s *ManagerAPI) getUserList(w http.ResponseWriter, r *http.Request) {
@@ -231,7 +232,7 @@ func (s *ManagerAPI) getUserList(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (s *ManagerAPI) getUser(w http.ResponseWriter, r *http.Request) {
@@ -241,21 +242,21 @@ func (s *ManagerAPI) getUser(w http.ResponseWriter, r *http.Request) {
 		Limit: 1,
 		IDs:   []string{userID},
 	}
-	reuslt, err := s.userMgr.ListUsers(r.Context(), listReq)
+	result, err := s.userMgr.ListUsers(r.Context(), listReq)
 	if err != nil {
 		logrus.Errorf("failed to get user %q: %v", userID, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if len(reuslt.Users) == 0 {
+	if len(result.Users) == 0 {
 		http.Error(w, "user not found", http.StatusNotFound)
 		return
 	}
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(reuslt.Users[0])
+	_ = json.NewEncoder(w).Encode(result.Users[0])
 }
 
 func (s *ManagerAPI) updateUser(w http.ResponseWriter, r *http.Request) {
@@ -283,7 +284,7 @@ func (s *ManagerAPI) updateUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(newUser)
+	_ = json.NewEncoder(w).Encode(newUser)
 }
 
 func (s *ManagerAPI) updateUserStatus(w http.ResponseWriter, r *http.Request) {
@@ -325,7 +326,7 @@ func (s *ManagerAPI) updateUserStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(newUser)
+	_ = json.NewEncoder(w).Encode(newUser)
 }
 
 func (s *ManagerAPI) changeUserPassword(w http.ResponseWriter, r *http.Request) {
@@ -401,7 +402,7 @@ func (s *ManagerAPI) createApplication(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(app)
+	_ = json.NewEncoder(w).Encode(app)
 }
 
 func (s *ManagerAPI) getApplicationList(w http.ResponseWriter, r *http.Request) {
@@ -440,7 +441,7 @@ func (s *ManagerAPI) getApplicationList(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (s *ManagerAPI) getApplication(w http.ResponseWriter, r *http.Request) {
@@ -464,7 +465,7 @@ func (s *ManagerAPI) getApplication(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(result.Applications[0])
+	_ = json.NewEncoder(w).Encode(result.Applications[0])
 }
 
 func (s *ManagerAPI) updateApplication(w http.ResponseWriter, r *http.Request) {
@@ -498,7 +499,7 @@ func (s *ManagerAPI) updateApplication(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(newApp)
+	_ = json.NewEncoder(w).Encode(newApp)
 }
 
 func (s *ManagerAPI) updateApplicationStatus(w http.ResponseWriter, r *http.Request) {
@@ -545,7 +546,7 @@ func (s *ManagerAPI) updateApplicationStatus(w http.ResponseWriter, r *http.Requ
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(newApp)
+	_ = json.NewEncoder(w).Encode(newApp)
 }
 
 func (s *ManagerAPI) createAPIKey(w http.ResponseWriter, r *http.Request) {
@@ -576,7 +577,7 @@ func (s *ManagerAPI) createAPIKey(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(apiKeyString))
+	_, _ = w.Write([]byte(apiKeyString))
 }
 
 func (s *ManagerAPI) listAPIKey(w http.ResponseWriter, r *http.Request) {
@@ -614,7 +615,7 @@ func (s *ManagerAPI) listAPIKey(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (s *ManagerAPI) revokeAPIKey(w http.ResponseWriter, r *http.Request) {
@@ -670,7 +671,7 @@ func (s *ManagerAPI) addCACertificate(w http.ResponseWriter, r *http.Request) {
 	// Return the added certificate to the client
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(cert)
+	_ = json.NewEncoder(w).Encode(cert)
 }
 
 func (s *ManagerAPI) getCACertificateList(w http.ResponseWriter, r *http.Request) {
@@ -706,7 +707,7 @@ func (s *ManagerAPI) getCACertificateList(w http.ResponseWriter, r *http.Request
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (s *ManagerAPI) getCACertificate(w http.ResponseWriter, r *http.Request) {
@@ -730,7 +731,7 @@ func (s *ManagerAPI) getCACertificate(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(result[0])
+	_ = json.NewEncoder(w).Encode(result[0])
 }
 
 func (s *ManagerAPI) revokeCACertificate(w http.ResponseWriter, r *http.Request) {
@@ -764,5 +765,5 @@ func (s *ManagerAPI) revokeCACertificate(w http.ResponseWriter, r *http.Request)
 	// Return the revoked certificate to the client
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(cert)
+	_ = json.NewEncoder(w).Encode(cert)
 }

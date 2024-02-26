@@ -343,7 +343,7 @@ func (s *APITestSuite) TestCreateFileBasedEBL() {
 	httpResponse, err := http.DefaultClient.Do(httpRequest)
 	s.Require().NoError(err)
 	returnedBody, _ := io.ReadAll(httpResponse.Body)
-	s.Require().Equal(http.StatusOK, httpResponse.StatusCode)
+	s.Require().Equal(http.StatusCreated, httpResponse.StatusCode)
 	s.Require().Equal("application/json", httpResponse.Header.Get("Content-Type"))
 	s.Require().Equal(util.StructToJSON(newBillOfLadingPack), strings.TrimSpace(string(returnedBody)))
 }

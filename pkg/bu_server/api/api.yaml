@@ -419,51 +419,52 @@ paths:
                 requester:
                   type: string
                   description: User who makes the request
+                authentication_id:
+                  type: string
+                  description: The ID for authentication. The eB/L will be signed with the authentication.
                 file:
-                  allOf:
-                    - $ref: '#/components/schemas/FileInfo'
-                  type: object
-                  properties:
-                    content:
-                      type: string
-                      format: byte
-                      description: base64-encoded content of the document
-                number:
+                  $ref: '#/components/schemas/File'
+                  description: The file associated with the request
+                bl_number:
                   type: string
-                  description: B/L number
-                type:
-                  type: string
-                  description: B/L type
+                  description: The bill of lading number
+                bl_doc_type:
+                  $ref: '#/components/schemas/BillOfLadingDocumentType'
+                  description: The type of the bill of lading document
+                to_order:
+                  type: boolean
+                  description: Indicates if the request is to order.
                 pol:
-                  type: string
-                  description: Port of loading
+                  $ref: '#/components/schemas/Location'
+                  description: The port of loading
                 pod:
-                  type: string
-                  description: Port of discharge
+                  $ref: '#/components/schemas/Location'
+                  description: The port of discharge
                 eta:
                   type: string
                   format: date-time
-                  description: Estimate time of arrival
+                  description: The estimated time of arrival
                 shipper:
                   type: string
-                  description: DID of the shipper
+                  description: The shipper of the eB/L. It's a DID of the business unit.
                 consignee:
                   type: string
-                  description: DID of the consignee
+                  description: The consignee of the eB/L. It's a DID of the business unit.
                 release_agent:
                   type: string
-                  description: DID of the release agent
+                  description: The release agent of the eB/L. It's a DID of the business unit.
                 note:
                   type: string
-                  description: Optional note from the requester
+                  description: Any additional notes
                 draft:
                   type: boolean
-                  description: Flag to indicate if the eB/L is in draft status
+                  nullable: true
+                  description: Indicates if the eB/L is a draft
               required:
                 - requester
                 - file
-                - number
-                - type
+                - bl_number
+                - bl_doc_type
                 - pol
                 - pod
                 - eta
@@ -1122,6 +1123,20 @@ components:
         type:
           type: string
           description: MIME type of the uploaded document
+    File:
+      type: object
+      description: Metadata of the uploaded document
+      properties:
+        name:
+          type: string
+          description: File name of the uploaded document
+        type:
+          type: string
+          description: MIME type of the uploaded document
+        content:
+          type: string
+          format: byte
+          description: base64-encoded content of the document
     FileRecord:
       allOf:
         - $ref: '#/components/schemas/FileInfo'

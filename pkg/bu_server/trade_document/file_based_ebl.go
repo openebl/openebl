@@ -28,7 +28,7 @@ type File struct {
 
 type Location struct {
 	LocationName string `json:"locationName"`
-	UNLocCode    string `json:"un_loc_code"`
+	UNLocCode    string `json:"UNLocationCode"`
 }
 
 type IssueFileBasedEBLRequest struct {

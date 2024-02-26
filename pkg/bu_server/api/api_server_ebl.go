@@ -32,7 +32,7 @@ func (a *API) createFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		logrus.Warnf("createFileBasedEBL failed to encode/write response: %v", err)
 	}

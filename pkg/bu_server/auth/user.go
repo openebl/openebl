@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
+	"github.com/openebl/openebl/pkg/util"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -23,6 +23,7 @@ const (
 
 type User struct {
 	ID       string         `json:"id"`
+	Username string         `json:"username"`
 	Status   UserStatus     `json:"status"`
 	Version  int64          `json:"version"`
 	Password HashedPassword `json:"password"`
@@ -57,7 +58,7 @@ type UserManager interface {
 }
 type CreateUserRequest struct {
 	RequestUser string      `json:"request_user"`
-	UserID      string      `json:"user_id"`
+	Username    string      `json:"username"`
 	Password    RawPassword `json:"password"`
 	Name        string      `json:"name"`
 	Emails      []string    `json:"emails"`
@@ -65,17 +66,20 @@ type CreateUserRequest struct {
 }
 type ChangePasswordRequest struct {
 	UserID      string      `json:"user_id"`
+	Username    string      `json:"username"`
 	OldPassword RawPassword `json:"old_password"`
 	Password    RawPassword `json:"password"`
 }
 type ResetPasswordRequest struct {
 	RequestUser string      `json:"request_user"`
 	UserID      string      `json:"user_id"`
+	Username    string      `json:"username"`
 	Password    RawPassword `json:"password"`
 }
 type UpdateUserRequest struct {
 	RequestUser string   `json:"request_user"`
 	UserID      string   `json:"user_id"`
+	Username    string   `json:"username"`
 	Name        string   `json:"name"`
 	Emails      []string `json:"emails"`
 	Note        string   `json:"note"`
@@ -83,16 +87,18 @@ type UpdateUserRequest struct {
 type ActivateUserRequest struct {
 	RequestUser string `json:"request_user"`
 	UserID      string `json:"user_id"`
+	Username    string `json:"username"`
 }
 type AuthenticateUserRequest struct {
-	UserID   string      `json:"user_id"`
+	Username string      `json:"username"`
 	Password RawPassword `json:"password"`
 }
 type ListUserRequest struct {
 	Offset int `json:"offset"` // Offset for pagination.
 	Limit  int `json:"limit"`  // Limit for pagination.
 
-	IDs []string `json:"ids"` // Filter by application ID.
+	IDs       []string `json:"ids"`       // Filter by user ID.
+	Usernames []string `json:"usernames"` // Filter by username.
 }
 type ListUserResult struct {
 	Total int64
@@ -125,13 +131,14 @@ func (m *_UserManager) CreateUser(ctx context.Context, ts int64, req CreateUserR
 		return User{}, err
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(string(req.Password)), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return User{}, err
 	}
 
 	user := User{
-		ID:        req.UserID,
+		ID:        "usr_" + util.NewUUID(),
+		Username:  req.Username,
 		Password:  HashedPassword(hashedPassword),
 		Status:    UserStatusActive,
 		Version:   1,
@@ -154,8 +161,8 @@ func (m *_UserManager) CreateUser(ctx context.Context, ts int64, req CreateUserR
 		ctx,
 		tx,
 		ListUserRequest{
-			Limit: 1,
-			IDs:   []string{user.ID},
+			Limit:     1,
+			Usernames: []string{user.Username},
 		},
 	)
 	if err != nil {
@@ -188,7 +195,7 @@ func (m *_UserManager) ChangePassword(ctx context.Context, ts int64, req ChangeP
 	}
 	defer tx.Rollback(ctx)
 
-	user, err := m._GetUser(ctx, tx, req.UserID)
+	user, err := m._GetUser(ctx, tx, req.UserID, req.Username)
 	if err != nil {
 		return User{}, err
 	}
@@ -197,7 +204,7 @@ func (m *_UserManager) ChangePassword(ctx context.Context, ts int64, req ChangeP
 		return User{}, err
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(string(req.Password)), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return User{}, err
 	}
@@ -228,7 +235,7 @@ func (m *_UserManager) ResetPassword(ctx context.Context, ts int64, req ResetPas
 	}
 	defer tx.Rollback(ctx)
 
-	user, err := m._GetUser(ctx, tx, req.UserID)
+	user, err := m._GetUser(ctx, tx, req.UserID, req.Username)
 	if err != nil {
 		return User{}, err
 	}
@@ -264,11 +271,12 @@ func (m *_UserManager) UpdateUser(ctx context.Context, ts int64, req UpdateUserR
 	}
 	defer tx.Rollback(ctx)
 
-	user, err := m._GetUser(ctx, tx, req.UserID)
+	user, err := m._GetUser(ctx, tx, req.UserID, req.Username)
 	if err != nil {
 		return User{}, err
 	}
 
+	// Allow to update only name, emails, and note.
 	user.UpdatedAt = ts
 	user.UpdatedBy = req.RequestUser
 	user.Name = req.Name
@@ -297,7 +305,7 @@ func (m *_UserManager) ActivateUser(ctx context.Context, ts int64, req ActivateU
 	}
 	defer tx.Rollback(ctx)
 
-	user, err := m._GetUser(ctx, tx, req.UserID)
+	user, err := m._GetUser(ctx, tx, req.UserID, req.Username)
 	if err != nil {
 		return User{}, err
 	}
@@ -329,7 +337,7 @@ func (m *_UserManager) DeactivateUser(ctx context.Context, ts int64, req Activat
 
 	defer tx.Rollback(ctx)
 
-	user, err := m._GetUser(ctx, tx, req.UserID)
+	user, err := m._GetUser(ctx, tx, req.UserID, req.Username)
 	if err != nil {
 		return User{}, err
 	}
@@ -360,7 +368,7 @@ func (m *_UserManager) Authenticate(ctx context.Context, ts int64, req Authentic
 	}
 	defer tx.Rollback(ctx)
 
-	user, err := m._GetUser(ctx, tx, req.UserID)
+	user, err := m._GetUser(ctx, tx, "", req.Username)
 	if errors.Is(err, model.ErrUserNotFound) {
 		return UserToken{}, model.ErrUserAuthenticationFail
 	}
@@ -374,7 +382,7 @@ func (m *_UserManager) Authenticate(ctx context.Context, ts int64, req Authentic
 
 	// Create a token for this user.
 	token := UserToken{
-		Token:     fmt.Sprintf("%s_%s", uuid.NewString(), uuid.NewString()),
+		Token:     fmt.Sprintf("%s.%s", util.NewUUID(), util.NewUUID()),
 		UserID:    user.ID,
 		CreatedAt: ts,
 		ExpiredAt: ts + 86400,
@@ -433,10 +441,15 @@ func (m *_UserManager) ListUsers(ctx context.Context, req ListUserRequest) (List
 	return result, nil
 }
 
-func (m *_UserManager) _GetUser(ctx context.Context, tx storage.Tx, id string) (User, error) {
+func (m *_UserManager) _GetUser(ctx context.Context, tx storage.Tx, id string, username string) (User, error) {
 	listReq := ListUserRequest{
-		IDs:   []string{id},
 		Limit: 1,
+	}
+	if id != "" {
+		listReq.IDs = append(listReq.IDs, id)
+	}
+	if username != "" {
+		listReq.Usernames = append(listReq.Usernames, username)
 	}
 
 	listResult, err := m.storage.ListUsers(ctx, tx, listReq)

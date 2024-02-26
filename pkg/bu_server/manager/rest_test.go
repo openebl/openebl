@@ -77,7 +77,7 @@ func (s *ManagerAPITestSuite) TestLogin() {
 	defer restServer.Close()
 
 	expectedRequest := auth.AuthenticateUserRequest{
-		UserID:   "username",
+		Username: "username",
 		Password: "password",
 	}
 	userToken := auth.UserToken{
@@ -107,7 +107,7 @@ func (s *ManagerAPITestSuite) TestLoginWithInvalidCredentials() {
 	defer restServer.Close()
 
 	expectedRequest := auth.AuthenticateUserRequest{
-		UserID:   "username",
+		Username: "username",
 		Password: "password",
 	}
 	gomock.InOrder(
@@ -132,7 +132,7 @@ func (s *ManagerAPITestSuite) TestCreateUser() {
 
 	expectedRequest := auth.CreateUserRequest{
 		RequestUser: "request_user",
-		UserID:      "user_id",
+		Username:    "user_id",
 		Password:    "password",
 		Name:        "name",
 		Emails:      []string{"email"},
@@ -153,7 +153,7 @@ func (s *ManagerAPITestSuite) TestCreateUser() {
 	)
 
 	createUserRequest := auth.CreateUserRequest{
-		UserID:   "user_id",
+		Username: "user_id",
 		Password: "password",
 		Name:     "name",
 		Emails:   []string{"email"},

@@ -3,7 +3,7 @@ CREATE TABLE certificate (
     id TEXT PRIMARY KEY,
     "version" BIGINT NOT NULL,
     "status" TEXT NOT NULL,
-    valid_time INT8RANGE NOT NULL, 
+    valid_time INT8RANGE NOT NULL,
     cert_type TEXT NOT NULL,
     cert_fingerprint TEXT NOT NULL,
     created_at BIGINT NOT NULL,

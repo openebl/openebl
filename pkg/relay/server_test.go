@@ -5,9 +5,8 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
-	"time"
-
 	"testing"
+	"time"
 
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/stretchr/testify/assert"

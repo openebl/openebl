@@ -13,10 +13,11 @@ import (
 func (s *_Storage) StoreUser(ctx context.Context, tx storage.Tx, user auth.User) error {
 	query := `
 WITH new_data AS (
-	INSERT INTO "user" (id, "version", status, created_at, updated_at, "user")
-	VALUES ($1, $2, $3, $4, $4, $5)
+	INSERT INTO "user" (id, username, "version", status, created_at, updated_at, "user")
+	VALUES ($1, $2, $3, $4, $5, $5, $6)
 	ON CONFLICT (id) DO UPDATE SET
 		id = excluded.id,
+		username = excluded.username,
 		"version" = excluded."version",
 		status = excluded.status,
 		updated_at = excluded.updated_at,
@@ -26,7 +27,7 @@ WITH new_data AS (
 INSERT INTO user_history (id, "version", created_at, "user")
 SELECT * FROM new_data`
 
-	_, err := tx.Exec(ctx, query, user.ID, user.Version, user.Status, user.UpdatedAt, user)
+	_, err := tx.Exec(ctx, query, user.ID, user.Username, user.Version, user.Status, user.UpdatedAt, user)
 	if err != nil {
 		return err
 	}
@@ -38,11 +39,12 @@ func (s *_Storage) ListUsers(ctx context.Context, tx storage.Tx, req auth.ListUs
 	query := `
 SELECT count(*) OVER () , "user" FROM "user"
 WHERE
-	(COALESCE(array_length($3::TEXT[], 1), 0) = 0 OR id = ANY($3))
+	(COALESCE(array_length($3::TEXT[], 1), 0) = 0 OR id = ANY($3)) AND
+	(COALESCE(array_length($4::TEXT[], 1), 0) = 0 OR username = ANY($4))
 ORDER BY rec_id ASC
 OFFSET $1 LIMIT $2`
 
-	rows, err := tx.Query(ctx, query, req.Offset, req.Limit, req.IDs)
+	rows, err := tx.Query(ctx, query, req.Offset, req.Limit, req.IDs, req.Usernames)
 	if err != nil {
 		return auth.ListUserResult{}, err
 	}

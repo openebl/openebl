@@ -146,7 +146,7 @@ func (s *ManagerAPI) login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req := auth.AuthenticateUserRequest{
-		UserID:   username,
+		Username: username,
 		Password: auth.RawPassword(password),
 	}
 	userToken, err := s.userMgr.Authenticate(r.Context(), time.Now().Unix(), req)
@@ -179,15 +179,15 @@ func (s *ManagerAPI) createUser(w http.ResponseWriter, r *http.Request) {
 	// Create the user
 	user, err := s.userMgr.CreateUser(ctx, time.Now().Unix(), req)
 	if errors.Is(err, model.ErrUserAlreadyExists) {
-		logrus.Warnf("failed to create user %q: %v", req.UserID, err)
+		logrus.Warnf("failed to create user %q: %v", req.Username, err)
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	} else if errors.Is(err, model.ErrInvalidParameter) {
-		logrus.Warnf("failed to create user %q: %v", req.UserID, err)
+		logrus.Warnf("failed to create user %q: %v", req.Username, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	} else if err != nil {
-		logrus.Errorf("failed to create user %q: %v", req.UserID, err)
+		logrus.Errorf("failed to create user %q: %v", req.Username, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

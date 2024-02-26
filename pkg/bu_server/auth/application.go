@@ -7,9 +7,9 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
+	"github.com/openebl/openebl/pkg/util"
 )
 
 // ApplicationStatus represents the status of an application.
@@ -100,7 +100,7 @@ func (m *_ApplicationManager) CreateApplication(ctx context.Context, ts int64, r
 	}
 
 	app := Application{
-		ID:           fmt.Sprintf("app_%s", uuid.New().String()),
+		ID:           fmt.Sprintf("app_%s", util.NewUUID()),
 		Version:      1,
 		Status:       ApplicationStatusInactive,
 		CreatedAt:    ts,

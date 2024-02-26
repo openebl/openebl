@@ -194,7 +194,7 @@ components:
             enum: [all]
         status:
           type: string
-          enum: [active, revoke]
+          enum: [active, revoked]
         created_at:
           type: integer
         created_by:

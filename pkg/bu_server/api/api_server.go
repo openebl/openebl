@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -81,8 +82,9 @@ func (a *API) Run() error {
 	}
 	return nil
 }
-func (a *API) Close() error {
-	return a.httpServer.Close()
+func (a *API) Close(ctx context.Context) error {
+	a.httpServer.SetKeepAlivesEnabled(false)
+	return a.httpServer.Shutdown(ctx)
 }
 
 func (a *API) createBusinessUnit(w http.ResponseWriter, r *http.Request) {

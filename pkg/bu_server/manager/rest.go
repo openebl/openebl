@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -108,8 +109,9 @@ func (s *ManagerAPI) Run() error {
 	}
 	return nil
 }
-func (s *ManagerAPI) Close() error {
-	return s.httpServer.Close()
+func (s *ManagerAPI) Close(ctx context.Context) error {
+	s.httpServer.SetKeepAlivesEnabled(false)
+	return s.httpServer.Shutdown(ctx)
 }
 
 func (s *ManagerAPI) login(w http.ResponseWriter, r *http.Request) {

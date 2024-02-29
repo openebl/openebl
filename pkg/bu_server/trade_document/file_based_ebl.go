@@ -2,8 +2,8 @@ package trade_document
 
 import (
 	"context"
-	"crypto/x509"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -51,8 +51,14 @@ type IssueFileBasedEBLRequest struct {
 	Draft        *bool                                   `json:"draft"`
 }
 
+type UpdateFileBasedEBLDraftRequest struct {
+	IssueFileBasedEBLRequest
+	ID string `json:"id"` // ID of the bill of lading pack to be updated.
+}
+
 type FileBaseEBLController interface {
 	Create(ctx context.Context, ts int64, request IssueFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error)
+	UpdateDraft(ctx context.Context, ts int64, request UpdateFileBasedEBLDraftRequest) (bill_of_lading.BillOfLadingPack, error)
 }
 
 type _FileBaseEBLController struct {
@@ -84,27 +90,14 @@ func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request I
 		currentOwner = request.Shipper
 	}
 
+	bl := CreateFileBasedBillOfLadingFromRequest(request, currentTime)
 	blPack := bill_of_lading.BillOfLadingPack{
 		ID:           uuid.NewString(),
 		Version:      1,
 		CurrentOwner: currentOwner,
 		Events: []bill_of_lading.BillOfLadingEvent{
 			{
-				BillOfLading: &bill_of_lading.BillOfLading{
-					BillOfLading: &bill_of_lading.TransportDocument{
-						TransportDocumentReference: request.BLNumber,
-					},
-					File: &model.File{
-						Name:        request.File.Name,
-						FileType:    request.File.Type,
-						Content:     request.File.Content,
-						CreatedDate: currentTime,
-					},
-					DocType:   request.BLDocType,
-					CreatedBy: request.Issuer,
-					CreatedAt: &currentTime,
-					Note:      request.Note,
-				},
+				BillOfLading: bl,
 			},
 		},
 	}
@@ -118,19 +111,6 @@ func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request I
 			},
 		}
 		blPack.Events = append(blPack.Events, transfer)
-	}
-
-	bl := blPack.Events[0].BillOfLading.BillOfLading
-	SetPOL(bl, request.POL)
-	SetPOD(bl, request.POD)
-	SetETA(bl, request.ETA)
-	SetIssuer(bl, request.Issuer)
-	SetShipper(bl, request.Shipper)
-	SetConsignee(bl, request.Consignee)
-	SetReleaseAgent(bl, request.ReleaseAgent)
-	SetToOrder(bl, request.ToOrder)
-	if request.Draft != nil {
-		SetDraft(bl, *request.Draft)
 	}
 
 	td, err := c.signBillOfLadingPack(ctx, ts, blPack, request.Application, request.Issuer, request.AuthenticationID)
@@ -153,6 +133,112 @@ func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request I
 
 	blPack.Events[0].BillOfLading.File.Content = nil
 	return blPack, nil
+}
+
+func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, request UpdateFileBasedEBLDraftRequest) (bill_of_lading.BillOfLadingPack, error) {
+	currentTime := model.NewDateTimeFromUnix(ts)
+	if err := ValidateUpdateFileBasedEBLRequest(request); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	if err := c.checkBUExistence(ctx, request.Application, []string{request.Issuer, request.Shipper, request.Consignee, request.ReleaseAgent}); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	oldPack, oldHash, err := c.getEBL(ctx, tx, request.ID)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if draft := GetDraft(&oldPack); draft == nil || !*draft {
+		return bill_of_lading.BillOfLadingPack{}, fmt.Errorf("the eBL is not a draft%w", model.ErrEBLActionNotAllowed)
+	}
+	if issuer := GetIssuer(&oldPack); issuer == nil || *issuer != request.Issuer {
+		return bill_of_lading.BillOfLadingPack{}, fmt.Errorf("the issuer is not the issuer of the eBL%w", model.ErrEBLActionNotAllowed)
+	}
+
+	var currentOwner string
+	if *request.Draft {
+		currentOwner = request.Issuer
+	} else {
+		currentOwner = request.Shipper
+	}
+
+	bl := CreateFileBasedBillOfLadingFromRequest(request.IssueFileBasedEBLRequest, currentTime)
+	blPack := bill_of_lading.BillOfLadingPack{
+		ID:           oldPack.ID,
+		Version:      oldPack.Version + 1,
+		CurrentOwner: currentOwner,
+		ParentHash:   oldHash,
+		Events: []bill_of_lading.BillOfLadingEvent{
+			{
+				BillOfLading: bl,
+			},
+		},
+	}
+
+	if !*request.Draft {
+		transfer := bill_of_lading.BillOfLadingEvent{
+			Transfer: &bill_of_lading.Transfer{
+				TransferBy: request.Issuer,
+				TransferTo: request.Shipper,
+				TransferAt: &currentTime,
+			},
+		}
+		blPack.Events = append(blPack.Events, transfer)
+	}
+
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, request.Application, request.Issuer, request.AuthenticationID)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	if err := c.storage.AddTradeDocument(ctx, tx, td); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	blPack.Events[0].BillOfLading.File.Content = nil
+	return blPack, nil
+}
+
+func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, currentTime model.DateTime) *bill_of_lading.BillOfLading {
+	bl := &bill_of_lading.BillOfLading{
+		BillOfLading: &bill_of_lading.TransportDocument{
+			TransportDocumentReference: request.BLNumber,
+		},
+		File: &model.File{
+			Name:        request.File.Name,
+			FileType:    request.File.Type,
+			Content:     request.File.Content,
+			CreatedDate: currentTime,
+		},
+		DocType:   request.BLDocType,
+		CreatedBy: request.Issuer,
+		CreatedAt: &currentTime,
+		Note:      request.Note,
+	}
+
+	td := bl.BillOfLading
+	SetPOL(td, request.POL)
+	SetPOD(td, request.POD)
+	SetETA(td, request.ETA)
+	SetIssuer(td, request.Issuer)
+	SetShipper(td, request.Shipper)
+	SetConsignee(td, request.Consignee)
+	SetReleaseAgent(td, request.ReleaseAgent)
+	SetToOrder(td, request.ToOrder)
+	if request.Draft != nil {
+		SetDraft(td, *request.Draft)
+	}
+	return bl
 }
 
 func (c *_FileBaseEBLController) checkBUExistence(ctx context.Context, appID string, buIDs []string) error {
@@ -205,12 +291,7 @@ func (c *_FileBaseEBLController) signBillOfLadingPack(ctx context.Context, ts in
 		[]byte(util.StructToJSON(blPack)),
 		jwsSigner.AvailableJWSSignAlgorithms()[0],
 		jwsSigner,
-		lo.Map(
-			jwsSigner.Cert(),
-			func(c x509.Certificate, _ int) *x509.Certificate {
-				return &c
-			},
-		),
+		jwsSigner.Cert(),
 	)
 	if err != nil {
 		return storage.TradeDocument{}, err
@@ -233,6 +314,38 @@ func (c *_FileBaseEBLController) signBillOfLadingPack(ctx context.Context, ts in
 	}
 
 	return td, nil
+}
+
+func (c *_FileBaseEBLController) getEBL(ctx context.Context, tx storage.Tx, id string) (bill_of_lading.BillOfLadingPack, string, error) {
+	req := storage.ListTradeDocumentRequest{
+		Limit:  1,
+		DocIDs: []string{id},
+	}
+
+	resp, err := c.storage.ListTradeDocument(ctx, tx, req)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, "", err
+	}
+
+	if len(resp.Docs) == 0 {
+		return bill_of_lading.BillOfLadingPack{}, "", model.ErrEBLNotFound
+	}
+
+	doc := envelope.JWS{}
+	if err := json.Unmarshal(resp.Docs[0].Doc, &doc); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, "", err
+	}
+	rawPack, err := doc.GetPayload()
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, "", err
+	}
+	pack := bill_of_lading.BillOfLadingPack{}
+	if err := json.Unmarshal(rawPack, &pack); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, "", err
+	}
+
+	hash := envelope.SHA512(resp.Docs[0].Doc)
+	return pack, hash, nil
 }
 
 func SetPOL(td *bill_of_lading.TransportDocument, pol Location) {
@@ -306,6 +419,50 @@ func SetDraft(td *bill_of_lading.TransportDocument, draft bool) {
 	} else {
 		si.DocumentStatus = bill_of_lading.ISSU_EblDocumentStatus
 	}
+}
+
+func GetDraft(blPack *bill_of_lading.BillOfLadingPack) *bool {
+	if blPack == nil || len(blPack.Events) == 0 {
+		return nil
+	}
+	firstEvent := blPack.Events[0]
+	if firstEvent.BillOfLading == nil ||
+		firstEvent.BillOfLading.BillOfLading == nil ||
+		firstEvent.BillOfLading.BillOfLading.ShippingInstruction == nil {
+		return nil
+	}
+
+	status := firstEvent.BillOfLading.BillOfLading.ShippingInstruction.DocumentStatus
+	if status == bill_of_lading.DRFT_EblDocumentStatus {
+		return util.Ptr(true)
+	}
+	if status == bill_of_lading.ISSU_EblDocumentStatus {
+		return util.Ptr(false)
+	}
+	return nil
+}
+
+func GetIssuer(blPack *bill_of_lading.BillOfLadingPack) *string {
+	if blPack == nil || len(blPack.Events) == 0 {
+		return nil
+	}
+
+	firstEvent := blPack.Events[0]
+	if firstEvent.BillOfLading == nil ||
+		firstEvent.BillOfLading.BillOfLading == nil ||
+		firstEvent.BillOfLading.BillOfLading.ShippingInstruction == nil {
+		return nil
+	}
+
+	si := firstEvent.BillOfLading.BillOfLading.ShippingInstruction
+	for i := range si.DocumentParties {
+		party := si.DocumentParties[i]
+		if party.PartyFunction != nil && *party.PartyFunction == bill_of_lading.DDR_PartyFunction {
+			return util.Ptr(party.Party.IdentifyingCodes[0].PartyCode)
+		}
+	}
+
+	return nil
 }
 
 func PrepareSI(td *bill_of_lading.TransportDocument) *bill_of_lading.ShippingInstruction {

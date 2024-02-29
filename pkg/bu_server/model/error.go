@@ -44,12 +44,20 @@ var ErrCertificationExpired = fmt.Errorf("certification expired%w", ErrCertifica
 var ErrCACertificationNotAvailable = fmt.Errorf("CA certification not available%w", ErrCertificationAuthorityError)
 
 // File Based EBL errors
+var ErrEBLNotFound = fmt.Errorf("EBL not found%w", ErrFileBasedEBLError)
+var ErrEBLActionNotAllowed = fmt.Errorf("%w", ErrFileBasedEBLError)
 
 func ErrorToHttpStatus(err error) int {
 	if err == nil {
 		return http.StatusOK
 	}
 
+	if errors.Is(err, ErrEBLActionNotAllowed) {
+		return http.StatusConflict
+	}
+	if errors.Is(err, ErrEBLNotFound) {
+		return http.StatusNotFound
+	}
 	if errors.Is(err, ErrApplicationNotFound) {
 		return http.StatusNotFound
 	}

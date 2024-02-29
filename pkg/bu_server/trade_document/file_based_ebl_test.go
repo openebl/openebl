@@ -2,15 +2,9 @@ package trade_document_test
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/json"
-	"math/big"
+	"os"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
@@ -20,7 +14,6 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/trade_document"
 	"github.com/openebl/openebl/pkg/envelope"
-	eblpkix "github.com/openebl/openebl/pkg/pkix"
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/util"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
@@ -38,7 +31,20 @@ type FileBasedEBLTestSuite struct {
 	buMgr     *mock_business_unit.MockBusinessUnitManager
 	eblCtrl   trade_document.FileBaseEBLController
 
-	jwsSigner business_unit.JWSSigner
+	issuer          model.BusinessUnit
+	issuerAuth      model.BusinessUnitAuthentication
+	issuerSigner    business_unit.JWSSigner
+	shipper         model.BusinessUnit
+	shipperAuth     model.BusinessUnitAuthentication
+	shipperSigner   business_unit.JWSSigner
+	consignee       model.BusinessUnit
+	consigneeAuth   model.BusinessUnitAuthentication
+	consigneeSigner business_unit.JWSSigner
+	releaseAgent    model.BusinessUnit
+	releaseAuth     model.BusinessUnitAuthentication
+	releaseSigner   business_unit.JWSSigner
+
+	draftEbl storage.TradeDocument
 }
 
 func TestFileBasedEBL(t *testing.T) {
@@ -46,33 +52,23 @@ func TestFileBasedEBL(t *testing.T) {
 }
 
 func (s *FileBasedEBLTestSuite) SetupSuite() {
-	ecdsaKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	s.issuer = s.loadBU("../../../testdata/bu_server/trade_document/file_based_ebl/issuer.json")
+	s.shipper = s.loadBU("../../../testdata/bu_server/trade_document/file_based_ebl/shipper.json")
+	s.consignee = s.loadBU("../../../testdata/bu_server/trade_document/file_based_ebl/consignee.json")
+	s.releaseAgent = s.loadBU("../../../testdata/bu_server/trade_document/file_based_ebl/release_agent.json")
 
-	notBefore := time.Now()
-	notAfter := notBefore.Add(365 * 24 * time.Hour) // 1 year
+	s.issuerAuth = s.loadBuAuth("../../../testdata/bu_server/trade_document/file_based_ebl/issuer_auth.json")
+	s.shipperAuth = s.loadBuAuth("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_auth.json")
+	s.consigneeAuth = s.loadBuAuth("../../../testdata/bu_server/trade_document/file_based_ebl/consignee_auth.json")
+	s.releaseAuth = s.loadBuAuth("../../../testdata/bu_server/trade_document/file_based_ebl/release_agent_auth.json")
 
-	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			Organization: []string{"Your Organization"},
-		},
-		NotBefore: notBefore,
-		NotAfter:  notAfter,
+	s.draftEbl = s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/draft_ebl_jws.json")
 
-		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-	}
+	s.issuerSigner, _ = business_unit.DefaultJWSSignerFactory.NewJWSSigner(s.issuerAuth)
+	s.shipperSigner, _ = business_unit.DefaultJWSSignerFactory.NewJWSSigner(s.shipperAuth)
+	s.consigneeSigner, _ = business_unit.DefaultJWSSignerFactory.NewJWSSigner(s.consigneeAuth)
+	s.releaseSigner, _ = business_unit.DefaultJWSSignerFactory.NewJWSSigner(s.releaseAuth)
 
-	der, _ := x509.CreateCertificate(rand.Reader, &template, &template, &ecdsaKey.PublicKey, ecdsaKey)
-	cert, _ := x509.ParseCertificate(der)
-	privKeyPEM, _ := eblpkix.MarshalPrivateKey(ecdsaKey)
-	certPEM, _ := eblpkix.MarshalCertificates([]x509.Certificate{*cert})
-
-	auth := model.BusinessUnitAuthentication{
-		PrivateKey:  string(privKeyPEM),
-		Certificate: string(certPEM),
-	}
-	s.jwsSigner, _ = business_unit.DefaultJWSSignerFactory.NewJWSSigner(auth)
 }
 
 func (s *FileBasedEBLTestSuite) SetupTest() {
@@ -86,6 +82,81 @@ func (s *FileBasedEBLTestSuite) SetupTest() {
 
 func (s *FileBasedEBLTestSuite) TearDownTest() {
 	s.ctrl.Finish()
+}
+
+func (s *FileBasedEBLTestSuite) loadBU(fileName string) model.BusinessUnit {
+	f, err := os.Open(fileName)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	var bu model.BusinessUnit
+	if err := json.NewDecoder(f).Decode(&bu); err != nil {
+		panic(err)
+	}
+	return bu
+}
+
+func (s *FileBasedEBLTestSuite) loadBuAuth(fileName string) model.BusinessUnitAuthentication {
+	f, err := os.Open(fileName)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	var auth model.BusinessUnitAuthentication
+	if err := json.NewDecoder(f).Decode(&auth); err != nil {
+		panic(err)
+	}
+	return auth
+}
+
+func (s *FileBasedEBLTestSuite) loadTradeDocument(fileName string) storage.TradeDocument {
+	raw, err := os.ReadFile(fileName)
+	if err != nil {
+		panic(err)
+	}
+
+	rawDoc := envelope.JWS{}
+	if err := json.Unmarshal(raw, &rawDoc); err != nil {
+		panic(err)
+	}
+
+	blPack := bill_of_lading.BillOfLadingPack{}
+	rawBlPack, err := rawDoc.GetPayload()
+	if err != nil {
+		panic(err)
+	}
+	if err := json.Unmarshal(rawBlPack, &blPack); err != nil {
+		panic(err)
+	}
+
+	result := storage.TradeDocument{
+		DocID:      blPack.ID,
+		DocVersion: blPack.Version,
+		Doc:        raw,
+	}
+
+	return result
+}
+
+func (s *FileBasedEBLTestSuite) extractBLPackFromRawJWS(rawJWS []byte) bill_of_lading.BillOfLadingPack {
+	jws := envelope.JWS{}
+	if err := json.Unmarshal(rawJWS, &jws); err != nil {
+		panic(err)
+	}
+
+	blPack := bill_of_lading.BillOfLadingPack{}
+	rawBlPack, err := jws.GetPayload()
+	if err != nil {
+		panic(err)
+	}
+	if err := json.Unmarshal(rawBlPack, &blPack); err != nil {
+		panic(err)
+	}
+
+	return blPack
 }
 
 func (s *FileBasedEBLTestSuite) TestCreateEBL() {
@@ -178,7 +249,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 				BusinessUnitID:   did.MustParseDID("did:openebl:issuer"),
 				AuthenticationID: "bu_auth_id",
 			},
-		).Return(s.jwsSigner, nil),
+		).Return(s.issuerSigner, nil),
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
 		s.tdStorage.EXPECT().AddTradeDocument(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, tdoc storage.TradeDocument) error {
@@ -216,4 +287,117 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 	expectedBLPack.ID = result.ID
 	s.Assert().NotEmpty(result.ID)
 	s.Assert().Equal(util.StructToJSON(expectedBLPack), util.StructToJSON(result))
+}
+
+func (s *FileBasedEBLTestSuite) TestUpdateDraftEBL() {
+	ts := int64(1708762799)
+	eta, err := model.NewDateTimeFromString("2022-01-01T00:00:00Z")
+	s.Require().NoError(err)
+
+	req := trade_document.UpdateFileBasedEBLDraftRequest{
+		ID: "316f5f2d-eb10-4563-a0d2-45858a57ad5e",
+		IssueFileBasedEBLRequest: trade_document.IssueFileBasedEBLRequest{
+			Requester:        "requester",
+			Application:      "app_id",
+			Issuer:           "did:openebl:issuer",
+			AuthenticationID: "issuer_auth1",
+			File: trade_document.File{
+				Name:    "test.txt",
+				Type:    "text/plain",
+				Content: []byte("real content"),
+			},
+			BLNumber:  "bl_number",
+			BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
+			ToOrder:   false,
+			POL: trade_document.Location{
+				LocationName: "Real Port of Loading",
+				UNLocCode:    "POL",
+			},
+			POD: trade_document.Location{
+				LocationName: "Real Port of Discharge",
+				UNLocCode:    "POD",
+			},
+			ETA:          eta,
+			Shipper:      "did:openebl:shipper",
+			Consignee:    "did:openebl:consignee",
+			ReleaseAgent: "did:openebl:release_agent",
+			Note:         "note",
+			Draft:        util.Ptr(false),
+		},
+	}
+
+	receivedTD := storage.TradeDocument{}
+
+	gomock.InOrder(
+		s.buMgr.EXPECT().ListBusinessUnits(
+			gomock.Any(),
+			business_unit.ListBusinessUnitsRequest{
+				Limit:           4,
+				ApplicationID:   "app_id",
+				BusinessUnitIDs: []string{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"},
+			},
+		).Return(
+			business_unit.ListBusinessUnitsResult{
+				Total: 4,
+				Records: []business_unit.ListBusinessUnitsRecord{
+					{
+						BusinessUnit: s.issuer,
+					},
+					{
+						BusinessUnit: s.shipper,
+					},
+					{
+						BusinessUnit: s.consignee,
+					},
+					{
+						BusinessUnit: s.releaseAgent,
+					},
+				},
+			},
+			nil,
+		),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().ListTradeDocument(
+			gomock.Any(),
+			s.tx,
+			storage.ListTradeDocumentRequest{
+				Limit:  1,
+				DocIDs: []string{req.ID},
+			},
+		).Return(
+			storage.ListTradeDocumentResponse{
+				Total: 1,
+				Docs:  []storage.TradeDocument{s.draftEbl},
+			},
+			nil,
+		),
+		s.buMgr.EXPECT().GetJWSSigner(
+			gomock.Any(),
+			business_unit.GetJWSSignerRequest{
+				ApplicationID:    "app_id",
+				BusinessUnitID:   did.MustParseDID(req.Issuer),
+				AuthenticationID: req.AuthenticationID,
+			},
+		).Return(s.issuerSigner, nil),
+		s.tdStorage.EXPECT().AddTradeDocument(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, td storage.TradeDocument) error {
+				receivedTD = td
+				return nil
+			},
+		),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	expectedBlPack := func() bill_of_lading.BillOfLadingPack {
+		td := s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_ebl_jws.json")
+		return s.extractBLPackFromRawJWS(td.Doc)
+	}()
+	blPack, err := s.eblCtrl.UpdateDraft(s.ctx, ts, req)
+	s.Require().NoError(err)
+	receivedBLPack := s.extractBLPackFromRawJWS(receivedTD.Doc)
+	s.Assert().Empty(blPack.Events[0].BillOfLading.File.Content)
+	blPack.Events[0].BillOfLading.File.Content = receivedBLPack.Events[0].BillOfLading.File.Content
+	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack))
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLPack))
 }

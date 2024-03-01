@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"net/http"
 )
 
 var ErrInvalidParameter = errors.New("")            // Base error for invalid parameter
@@ -11,6 +12,7 @@ var ErrApplicationError = errors.New("")            // Base error for Applicatio
 var ErrUserError = errors.New("")                   // Base error for User
 var ErrBusinessUnitError = errors.New("")           // Base error for Business Unit
 var ErrCertificationAuthorityError = errors.New("") // Base error for Certification Authority
+var ErrFileBasedEBLError = errors.New("")           // Base error for File Based EBL
 
 // API Key errors
 var ErrInvalidAPIKeyString = fmt.Errorf("invalid API key string%w", ErrAPIKeyError)
@@ -40,3 +42,54 @@ var ErrAuthenticationNotActive = fmt.Errorf("authentication is not active%w", Er
 var ErrCertificationNotFound = fmt.Errorf("certification not found%w", ErrCertificationAuthorityError)
 var ErrCertificationExpired = fmt.Errorf("certification expired%w", ErrCertificationAuthorityError)
 var ErrCACertificationNotAvailable = fmt.Errorf("CA certification not available%w", ErrCertificationAuthorityError)
+
+// File Based EBL errors
+
+func ErrorToHttpStatus(err error) int {
+	if err == nil {
+		return http.StatusOK
+	}
+
+	if errors.Is(err, ErrApplicationNotFound) {
+		return http.StatusNotFound
+	}
+	if errors.Is(err, ErrUserNotFound) {
+		return http.StatusNotFound
+	}
+	if errors.Is(err, ErrUserAlreadyExists) {
+		return http.StatusConflict
+	}
+	if errors.Is(err, ErrUserAuthenticationFail) {
+		return http.StatusBadRequest
+	}
+	if errors.Is(err, ErrBusinessUnitNotFound) {
+		return http.StatusNotFound
+	}
+	if errors.Is(err, ErrBusinessUnitInActive) {
+		return http.StatusConflict
+	}
+	if errors.Is(err, ErrAuthenticationNotFound) {
+		return http.StatusNotFound
+	}
+	if errors.Is(err, ErrAuthenticationNotActive) {
+		return http.StatusConflict
+	}
+	if errors.Is(err, ErrCertificationNotFound) {
+		return http.StatusNotFound
+	}
+	if errors.Is(err, ErrCertificationExpired) {
+		return http.StatusConflict
+	}
+
+	if errors.Is(err, ErrInvalidParameter) {
+		return http.StatusBadRequest
+	}
+	if errors.Is(err, ErrAPIKeyError) {
+		return http.StatusUnauthorized
+	}
+	if errors.Is(err, ErrUserError) {
+		return http.StatusUnauthorized
+	}
+
+	return http.StatusInternalServerError
+}

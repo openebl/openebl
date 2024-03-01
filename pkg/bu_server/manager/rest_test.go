@@ -74,7 +74,7 @@ func (s *ManagerAPITestSuite) TestLogin() {
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer restServer.Close()
+	defer restServer.Close(s.ctx)
 
 	expectedRequest := auth.AuthenticateUserRequest{
 		Username: "username",
@@ -96,7 +96,7 @@ func (s *ManagerAPITestSuite) TestLogin() {
 
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
 	body, _ := io.ReadAll(response.Body)
-	s.Assert().Equal(userToken.Token, string(body))
+	s.Assert().Equal(util.StructToJSON(userToken), strings.TrimSpace(string(body)))
 }
 
 func (s *ManagerAPITestSuite) TestLoginWithInvalidCredentials() {
@@ -104,7 +104,7 @@ func (s *ManagerAPITestSuite) TestLoginWithInvalidCredentials() {
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer restServer.Close()
+	defer restServer.Close(s.ctx)
 
 	expectedRequest := auth.AuthenticateUserRequest{
 		Username: "username",
@@ -128,7 +128,7 @@ func (s *ManagerAPITestSuite) TestCreateUser() {
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer restServer.Close()
+	defer restServer.Close(s.ctx)
 
 	expectedRequest := auth.CreateUserRequest{
 		RequestUser: "request_user",
@@ -175,7 +175,7 @@ func (s *ManagerAPITestSuite) TestListUser() {
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer restServer.Close()
+	defer restServer.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -220,7 +220,7 @@ func (s *ManagerAPITestSuite) TestGetUser() {
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer restServer.Close()
+	defer restServer.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -262,7 +262,7 @@ func (s *ManagerAPITestSuite) TestUpdateUser() {
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer restServer.Close()
+	defer restServer.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -302,7 +302,7 @@ func (s *ManagerAPITestSuite) TestUpdateUserStatus() {
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer restServer.Close()
+	defer restServer.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -364,7 +364,7 @@ func (s *ManagerAPITestSuite) TestChangeUserPassword() {
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer restServer.Close()
+	defer restServer.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -403,7 +403,7 @@ func (s *ManagerAPITestSuite) TestResetUserPassword() {
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer restServer.Close()
+	defer restServer.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -441,7 +441,7 @@ func (s *ManagerAPITestSuite) TestCreateApplication() {
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer restServer.Close()
+	defer restServer.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -496,7 +496,7 @@ func (s *ManagerAPITestSuite) TestListApplication() {
 	s.Require().NoError(err)
 	go func() { restServer.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer restServer.Close()
+	defer restServer.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -538,7 +538,7 @@ func (s *ManagerAPITestSuite) TestGetApplication() {
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer rest.Close()
+	defer rest.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -581,7 +581,7 @@ func (s *ManagerAPITestSuite) TestUpdateApplication() {
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer rest.Close()
+	defer rest.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -635,7 +635,7 @@ func (s *ManagerAPITestSuite) TestUpdateApplicationStatus() {
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer rest.Close()
+	defer rest.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -699,7 +699,7 @@ func (s *ManagerAPITestSuite) TestCreateAPIKey() {
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer rest.Close()
+	defer rest.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -744,7 +744,7 @@ func (s *ManagerAPITestSuite) TestListAPIKey() {
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer rest.Close()
+	defer rest.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -793,7 +793,7 @@ func (s *ManagerAPITestSuite) TestRevokeAPIKey() {
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer rest.Close()
+	defer rest.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -827,7 +827,7 @@ func (s *ManagerAPITestSuite) TestAddCACertificate() {
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer rest.Close()
+	defer rest.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -875,7 +875,7 @@ func (s *ManagerAPITestSuite) TestListCACertificates() {
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer rest.Close()
+	defer rest.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -913,7 +913,7 @@ func (s *ManagerAPITestSuite) TestGetCACertificate() {
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer rest.Close()
+	defer rest.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{
@@ -952,7 +952,7 @@ func (s *ManagerAPITestSuite) TestRevokeCACertificate() {
 	s.Require().NoError(err)
 	go func() { rest.Run() }()
 	time.Sleep(200 * time.Millisecond)
-	defer rest.Close()
+	defer rest.Close(s.ctx)
 
 	token := "user token"
 	userToken := auth.UserToken{

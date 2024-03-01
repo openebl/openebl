@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/openebl/openebl/frontend"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
 	"github.com/openebl/openebl/pkg/bu_server/middleware"
@@ -64,11 +65,14 @@ func NewManagerAPIWithControllers(
 
 	userTokenMiddleware := middleware.NewUserTokenAuth(apiServer.userMgr)
 
-	r := mux.NewRouter().PathPrefix("/api").Subrouter()
-	loginRouter := r.NewRoute().Subrouter()
+	r := mux.NewRouter()
+
+	apiRouter := r.PathPrefix("/api").Subrouter()
+
+	loginRouter := apiRouter.NewRoute().Subrouter()
 	loginRouter.HandleFunc("/login", apiServer.login).Methods(http.MethodGet)
 
-	mgrRouter := r.NewRoute().Subrouter()
+	mgrRouter := apiRouter.NewRoute().Subrouter()
 	mgrRouter.Use(userTokenMiddleware.Authenticate)
 	mgrRouter.HandleFunc("/users", apiServer.getUserList).Methods(http.MethodGet)
 	mgrRouter.HandleFunc("/users", apiServer.createUser).Methods(http.MethodPost)
@@ -90,6 +94,9 @@ func NewManagerAPIWithControllers(
 	mgrRouter.HandleFunc("/ca/certificates/{id}", apiServer.getCACertificate).Methods(http.MethodGet)
 	mgrRouter.HandleFunc("/ca/certificates/{id}", apiServer.revokeCACertificate).Methods(http.MethodDelete)
 
+	// SPA frontend handler
+	r.PathPrefix("/").HandlerFunc(frontend.Handler())
+
 	httpServer := &http.Server{
 		Addr:         localAddress,
 		Handler:      r,
@@ -103,6 +110,7 @@ func NewManagerAPIWithControllers(
 }
 
 func (s *ManagerAPI) Run() error {
+	logrus.Infof("Manager API server is running on %s", s.httpServer.Addr)
 	err := s.httpServer.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
@@ -577,9 +585,12 @@ func (s *ManagerAPI) createAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Add("Content-Type", "text/plain")
+	w.Header().Add("Content-Type", "application/json")
+	var result = map[string]any{
+		"api_key": apiKeyString,
+	}
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(apiKeyString))
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (s *ManagerAPI) listAPIKey(w http.ResponseWriter, r *http.Request) {

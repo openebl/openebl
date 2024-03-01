@@ -97,6 +97,7 @@ func NewAPIWithController(apiKeyMgr auth.APIKeyAuthenticator, buMgr business_uni
 }
 
 func (a *API) Run() error {
+	logrus.Infof("API server is running on %s", a.httpServer.Addr)
 	err := a.httpServer.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err

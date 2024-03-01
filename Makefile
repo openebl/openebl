@@ -53,7 +53,7 @@ MOCK_FILES := $(patsubst pkg/%,$(MOCK_DIR)/%,$(MOCK_SOURCES))
 .DEFAULT: all
 
 .PHONY: all
-all: $(APPS)
+all: frontend $(APPS)
 
 .PHONY: $(APPS)
 $(APPS): %: bin/%$(BIN_SUFFIX)
@@ -72,8 +72,12 @@ $(MOCK_FILES): test/mock/% : pkg/%
 	@mockgen -source $< -destination $@
 	@printf "$(green)done$(sgr0)\n"
 
+.PHONY: frontend
+frontend:
+	@$(MAKE) -C $(CURDIR)/frontend
+
 .SECONDEXPANSION:
-bin/%: $$(GOFILES) $$(GOFILES_$$(@F))
+bin/%: $$(GOFILES) $$(GOFILES_$$(@F)) $$(ASSET_FILES)
 	@printf "Building $(bold)$@$(sgr0) ... "
 	@go build -o ./bin/$(@F) ./app/$(@F:$(BIN_SUFFIX)=)
 	@printf "$(green)done$(sgr0)\n"
@@ -106,6 +110,7 @@ clean: ## Remove generated binary files
 
 .PHONY: distclean
 distclean: clean mock-clean ## Remove all generated files
+	@$(MAKE) -C $(CURDIR)/frontend clean
 
 .PHONY: help
 help: ## Show this help

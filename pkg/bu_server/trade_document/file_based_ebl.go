@@ -155,11 +155,8 @@ func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, requ
 	if err != nil {
 		return bill_of_lading.BillOfLadingPack{}, err
 	}
-	if draft := GetDraft(&oldPack); draft == nil || !*draft {
-		return bill_of_lading.BillOfLadingPack{}, fmt.Errorf("the eBL is not a draft%w", model.ErrEBLActionNotAllowed)
-	}
-	if issuer := GetIssuer(&oldPack); issuer == nil || *issuer != request.Issuer {
-		return bill_of_lading.BillOfLadingPack{}, fmt.Errorf("the issuer is not the issuer of the eBL%w", model.ErrEBLActionNotAllowed)
+	if err := IsFileEBLUpdatable(&oldPack, request.Issuer, true); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
 	}
 
 	var currentOwner string

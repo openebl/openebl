@@ -414,64 +414,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                requester:
-                  type: string
-                  description: User who makes the request
-                authentication_id:
-                  type: string
-                  description: The ID for authentication. The eB/L will be signed with the authentication.
-                file:
-                  $ref: '#/components/schemas/File'
-                  description: The file associated with the request
-                bl_number:
-                  type: string
-                  description: The bill of lading number
-                bl_doc_type:
-                  $ref: '#/components/schemas/BillOfLadingDocumentType'
-                  description: The type of the bill of lading document
-                to_order:
-                  type: boolean
-                  description: Indicates if the request is to order.
-                pol:
-                  $ref: '#/components/schemas/Location'
-                  description: The port of loading
-                pod:
-                  $ref: '#/components/schemas/Location'
-                  description: The port of discharge
-                eta:
-                  type: string
-                  format: date-time
-                  description: The estimated time of arrival
-                shipper:
-                  type: string
-                  description: The shipper of the eB/L. It's a DID of the business unit.
-                consignee:
-                  type: string
-                  description: The consignee of the eB/L. It's a DID of the business unit.
-                release_agent:
-                  type: string
-                  description: The release agent of the eB/L. It's a DID of the business unit.
-                note:
-                  type: string
-                  description: Any additional notes
-                draft:
-                  type: boolean
-                  nullable: true
-                  description: Indicates if the eB/L is a draft
-              required:
-                - requester
-                - file
-                - bl_number
-                - bl_doc_type
-                - pol
-                - pod
-                - eta
-                - shipper
-                - consignee
-                - release_agent
-                - draft
+              $ref: '#/components/schemas/UpdateBillOfLadingRequest'
       responses:
         '201':
           description: eB/L created successfully
@@ -1343,150 +1286,150 @@ components:
     UpdateBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'
-      type: object
-      properties:
-        file:
-          allOf:
-            - $ref: '#/components/schemas/FileInfo'
-          type: object
+        - type: object
           properties:
-            content:
+            authentication_id:
               type: string
-              format: byte
-              description: base64-encoded content of the document
-        number:
-          type: string
-          description: B/L number
-        document_type:
-          $ref: '#/components/schemas/BillOfLadingDocumentType'
-        bl_type:
-          $ref: '#/components/schemas/BillOfLadingType'
-        pol:
-          type: string
-          description: Port of loading
-        pod:
-          type: string
-          description: Port of discharge
-        eta:
-          type: string
-          format: date-time
-          description: Estimate time of arrival
-        shipper:
-          type: string
-          description: DID of the shipper
-        consignee:
-          type: string
-          description: DID of the consignee
-        release_agent:
-          type: string
-          description: DID of  the release agent
-        note:
-          type: string
-          description: Optional note from the requester
-        draft:
-          type: boolean
-          description: Flag to indicate if the eB/L is in draft status
-      required:
-        - file
-        - number
-        - document_type
-        - bl_type
-        - pol
-        - pod
-        - eta
-        - shipper
-        - consignee
-        - release_agent
-        - draft
+              description: The ID for authentication. The eB/L will be signed with the authentication.
+            file:
+              $ref: '#/components/schemas/File'
+              description: The file associated with the request
+            bl_number:
+              type: string
+              description: The bill of lading number
+            bl_doc_type:
+              $ref: '#/components/schemas/BillOfLadingDocumentType'
+              description: The type of the bill of lading document
+            to_order:
+              type: boolean
+              description: Indicates if the request is to order.
+            pol:
+              $ref: '#/components/schemas/Location'
+              description: The port of loading
+            pod:
+              $ref: '#/components/schemas/Location'
+              description: The port of discharge
+            eta:
+              type: string
+              format: date-time
+              description: The estimated time of arrival
+            shipper:
+              type: string
+              description: The shipper of the eB/L. It's a DID of the business unit.
+            consignee:
+              type: string
+              description: The consignee of the eB/L. It's a DID of the business unit.
+            release_agent:
+              type: string
+              description: The release agent of the eB/L. It's a DID of the business unit.
+            note:
+              type: string
+              description: Any additional notes
+            draft:
+              type: boolean
+              nullable: true
+              description: Indicates if the eB/L is a draft
+          required:
+            - file
+            - bl_number
+            - document_type
+            - bl_type
+            - pol
+            - pod
+            - eta
+            - shipper
+            - consignee
+            - release_agent
+            - draft
     TransferBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'
-      type: object
-      properties:
-        note:
-          type: string
-          description: Optional note from the requester
+        - type: object
+          properties:
+            note:
+              type: string
+              description: Optional note from the requester
     ReturnBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'
-      type: object
-      properties:
-        note:
-          type: string
-          description: Optional note from the requester
+        - type: object
+          properties:
+            note:
+              type: string
+              description: Optional note from the requester
     SurrenderBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'
-      type: object
-      properties:
-        note:
-          type: string
-          description: Optional note from the requester
+        - type: object
+          properties:
+            note:
+              type: string
+              description: Optional note from the requester
     AccomplishBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'
-      type: object
-      properties:
-        note:
-          type: string
-          description: Optional note from the requester
+        - type: object
+          properties:
+            note:
+              type: string
+              description: Optional note from the requester
     PrintToPaperBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'
-      type: object
-      properties:
-        note:
-          type: string
-          description: Optional note from the requester
+        - type: object
+          properties:
+            note:
+              type: string
+              description: Optional note from the requester
     AmendmentRequestBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'
-      type: object
-      properties:
-        note:
-          type: string
-          description: Optional note from the requester
-      required:
-        - note
+        - type: object
+          properties:
+            note:
+              type: string
+              description: Optional note from the requester
+          required:
+            - note
     AmendBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'
-      type: object
-      properties:
-        file:
-          allOf:
-            - $ref: '#/components/schemas/FileInfo'
-          type: object
+        - type: object
           properties:
-            content:
+            file:
+              allOf:
+                - $ref: '#/components/schemas/FileInfo'
+              type: object
+              properties:
+                content:
+                  type: string
+                  format: byte
+                  description: base64-encoded content of the document
+            number:
               type: string
-              format: byte
-              description: base64-encoded content of the document
-        number:
-          type: string
-          description: B/L number
-        document_type:
-          $ref: '#/components/schemas/BillOfLadingDocumentType'
-        bl_type:
-          $ref: '#/components/schemas/BillOfLadingType'
-        pol:
-          type: string
-          description: Port of loading
-        pod:
-          type: string
-          description: Port of discharge
-        eta:
-          type: string
-          format: date-time
-          description: Estimate time of arrival
-        note:
-          type: string
-          description: Optional note from the requester
-      required:
-        - file
-        - number
-        - document_type
-        - bl_type
-        - pol
-        - pod
-        - eta
+              description: B/L number
+            document_type:
+              $ref: '#/components/schemas/BillOfLadingDocumentType'
+            bl_type:
+              $ref: '#/components/schemas/BillOfLadingType'
+            pol:
+              type: string
+              description: Port of loading
+            pod:
+              type: string
+              description: Port of discharge
+            eta:
+              type: string
+              format: date-time
+              description: Estimate time of arrival
+            note:
+              type: string
+              description: Optional note from the requester
+          required:
+            - file
+            - number
+            - document_type
+            - bl_type
+            - pol
+            - pod
+            - eta

@@ -70,8 +70,12 @@ func (s *RSASigner) AvailableJWSSignAlgorithms() []envelope.SignatureAlgorithm {
 	}
 }
 
-func (s *RSASigner) Cert() []x509.Certificate {
-	return s.cert
+func (s *RSASigner) Cert() []*x509.Certificate {
+	certs := make([]*x509.Certificate, len(s.cert))
+	for i := range s.cert {
+		certs[i] = &s.cert[i]
+	}
+	return certs
 }
 
 func (s *ECDSASigner) Public() crypto.PublicKey {
@@ -94,6 +98,10 @@ func (s *ECDSASigner) AvailableJWSSignAlgorithms() []envelope.SignatureAlgorithm
 	return nil
 }
 
-func (s *ECDSASigner) Cert() []x509.Certificate {
-	return s.cert
+func (s *ECDSASigner) Cert() []*x509.Certificate {
+	certs := make([]*x509.Certificate, len(s.cert))
+	for i := range s.cert {
+		certs[i] = &s.cert[i]
+	}
+	return certs
 }

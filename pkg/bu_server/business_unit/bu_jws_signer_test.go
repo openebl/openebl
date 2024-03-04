@@ -16,7 +16,6 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/envelope"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
-	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -64,13 +63,10 @@ func TestRSASigner(t *testing.T) {
 		signer.AvailableJWSSignAlgorithms(),
 	)
 
-	certs := lo.Map(signer.Cert(), func(c x509.Certificate, _ int) *x509.Certificate {
-		return &c
-	})
 	payload := []byte("hahahahaha")
 
 	for i := range signer.AvailableJWSSignAlgorithms() {
-		signedEnvelope, err := envelope.Sign(payload, signer.AvailableJWSSignAlgorithms()[i], signer, certs)
+		signedEnvelope, err := envelope.Sign(payload, signer.AvailableJWSSignAlgorithms()[i], signer, signer.Cert())
 		require.NoError(t, err)
 		require.NoError(t, signedEnvelope.VerifySignature())
 	}
@@ -140,12 +136,8 @@ func TestECDSASigner(t *testing.T) {
 			)
 		}
 
-		certs := lo.Map(signer.Cert(), func(c x509.Certificate, _ int) *x509.Certificate {
-			return &c
-		})
-
 		for i := range signer.AvailableJWSSignAlgorithms() {
-			signedEnvelope, err := envelope.Sign(payload, signer.AvailableJWSSignAlgorithms()[i], signer, certs)
+			signedEnvelope, err := envelope.Sign(payload, signer.AvailableJWSSignAlgorithms()[i], signer, signer.Cert())
 			require.NoError(t, err)
 			require.NoError(t, signedEnvelope.VerifySignature())
 		}

@@ -56,7 +56,7 @@ type JWSSigner interface {
 	Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error)
 
 	AvailableJWSSignAlgorithms() []envelope.SignatureAlgorithm
-	Cert() []x509.Certificate
+	Cert() []*x509.Certificate
 }
 
 // CreateBusinessUnitRequest is the request to create a business unit.

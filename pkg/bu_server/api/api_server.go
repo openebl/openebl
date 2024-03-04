@@ -76,6 +76,7 @@ func NewAPIWithController(apiKeyMgr auth.APIKeyAuthenticator, buMgr business_uni
 	eblRouter := r.NewRoute().Subrouter()
 	eblRouter.Use(middleware.ExtractBusinessUnitID)
 	eblRouter.HandleFunc("/ebl", apiServer.createFileBasedEBL).Methods(http.MethodPost)
+	eblRouter.HandleFunc("/ebl/{id}/update", apiServer.updateFileBasedEBL).Methods(http.MethodPost)
 
 	apiServer.httpServer = &http.Server{
 		Addr:    localAddress,

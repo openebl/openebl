@@ -198,10 +198,10 @@ func (mr *MockJWSSignerMockRecorder) AvailableJWSSignAlgorithms() *gomock.Call {
 }
 
 // Cert mocks base method.
-func (m *MockJWSSigner) Cert() []x509.Certificate {
+func (m *MockJWSSigner) Cert() []*x509.Certificate {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Cert")
-	ret0, _ := ret[0].([]x509.Certificate)
+	ret0, _ := ret[0].([]*x509.Certificate)
 	return ret0
 }
 

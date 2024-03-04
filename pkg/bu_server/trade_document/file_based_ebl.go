@@ -71,6 +71,13 @@ type ListFileBasedEBLRecord struct {
 	Records []bill_of_lading.BillOfLadingPack `json:"records"`
 }
 
+type FileBaseEBLParticipators struct {
+	Issuer       string `json:"issuer"`
+	Shipper      string `json:"shipper"`
+	Consignee    string `json:"consignee"`
+	ReleaseAgent string `json:"release_agent"`
+}
+
 type FileBaseEBLController interface {
 	Create(ctx context.Context, ts int64, request IssueFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 	UpdateDraft(ctx context.Context, ts int64, request UpdateFileBasedEBLDraftRequest) (bill_of_lading.BillOfLadingPack, error)
@@ -531,6 +538,88 @@ func GetIssuer(blPack *bill_of_lading.BillOfLadingPack) *string {
 	}
 
 	return nil
+}
+
+func GetFileBaseEBLParticipators(blPack *bill_of_lading.BillOfLadingPack) FileBaseEBLParticipators {
+	if blPack == nil || len(blPack.Events) == 0 {
+		return FileBaseEBLParticipators{}
+	}
+
+	var bl *bill_of_lading.BillOfLading
+	for i := len(blPack.Events) - 1; i >= 0; i-- {
+		if blPack.Events[i].BillOfLading != nil {
+			bl = blPack.Events[i].BillOfLading
+			break
+		}
+	}
+	if bl == nil {
+		return FileBaseEBLParticipators{}
+	}
+	si := bl.BillOfLading.ShippingInstruction
+	if si == nil {
+		return FileBaseEBLParticipators{}
+	}
+
+	result := FileBaseEBLParticipators{}
+	for i := len(si.DocumentParties) - 1; i >= 0; i-- {
+		if len(si.DocumentParties[i].Party.IdentifyingCodes) == 0 {
+			continue
+		}
+		partyFunction := si.DocumentParties[i].PartyFunction
+		if partyFunction == nil {
+			continue
+		}
+		switch *partyFunction {
+		case bill_of_lading.DDR_PartyFunction: // Issuer
+			result.Issuer = si.DocumentParties[i].Party.IdentifyingCodes[0].PartyCode
+		case bill_of_lading.OS_PartyFunction: // Shipper
+			result.Shipper = si.DocumentParties[i].Party.IdentifyingCodes[0].PartyCode
+		case bill_of_lading.CN_PartyFunction: // Consignee
+			result.Consignee = si.DocumentParties[i].Party.IdentifyingCodes[0].PartyCode
+		case bill_of_lading.DDS_PartyFunction: // Release Agent
+			result.ReleaseAgent = si.DocumentParties[i].Party.IdentifyingCodes[0].PartyCode
+		}
+	}
+	return result
+}
+
+func GetCurrentOwner(blPack *bill_of_lading.BillOfLadingPack) string {
+	if blPack == nil || len(blPack.Events) == 0 {
+		return ""
+	}
+
+	return blPack.CurrentOwner
+}
+
+func GetLastEvent(blPack *bill_of_lading.BillOfLadingPack) *bill_of_lading.BillOfLadingEvent {
+	if blPack == nil || len(blPack.Events) == 0 {
+		return nil
+	}
+
+	return &blPack.Events[len(blPack.Events)-1]
+}
+
+// GetOwnerShipTransferringByEvent returns the transferring information of the bill of lading event.
+// The first return value is the transferring by DID, and the second return value is the transferring to DID.
+func GetOwnerShipTransferringByEvent(event *bill_of_lading.BillOfLadingEvent) (string, string) {
+	if event == nil {
+		return "", ""
+	}
+
+	if event.Transfer != nil {
+		return event.Transfer.TransferBy, event.Transfer.TransferTo
+	}
+	if event.Return != nil {
+		return event.Return.ReturnBy, event.Return.ReturnTo
+	}
+	if event.Surrender != nil {
+		return event.Surrender.SurrenderBy, event.Surrender.SurrenderTo
+	}
+	if event.AmendmentRequest != nil {
+		return event.AmendmentRequest.RequestBy, event.AmendmentRequest.RequestTo
+	}
+
+	return "", ""
 }
 
 func PrepareSI(td *bill_of_lading.TransportDocument) *bill_of_lading.ShippingInstruction {

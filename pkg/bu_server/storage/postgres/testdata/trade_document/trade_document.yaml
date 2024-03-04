@@ -16,8 +16,18 @@
   doc: "binary_data"
   created_at: 1634567890
   meta:
-    key1: "value1"
-    key2: "value2"
+    "visible_to_bu":
+      - "did:openebl:issuer"
+      - "did:openebl:shipper"
+      - "did:openebl:consignee"
+      - "did:openebl:release_agent"
+    "sent":
+      - "did:openebl:issuer"
+    "action_needed":
+      - "did:openebl:shipper"
+    "upcoming":
+      - "did:openebl:consignee"
+      - "did:openebl:release_agent"
 - rec_id: 2
   id: "raw_doc_2"
   kind: 1000
@@ -26,8 +36,18 @@
   doc: "new binary_data"
   created_at: 1634567890
   meta:
-    key1: "value1"
-    key2: "value2"
+    "visible_to_bu":
+      - "did:openebl:issuer"
+      - "did:openebl:shipper"
+      - "did:openebl:consignee"
+      - "did:openebl:release_agent"
+    "sent":
+      - "did:openebl:issuer"
+      - "did:openebl:shipper"
+    "action_needed":
+      - "did:openebl:consignee"
+    "upcoming":
+      - "did:openebl:release_agent"
 - rec_id: 3
   id: "raw_doc_3"
   kind: 1001
@@ -36,5 +56,13 @@
   doc: "doc 2"
   created_at: 1634567890
   meta:
-    key1: "value3"
-    key2: "value4"
+    "visible_to_bu":
+      - "did:openebl:issuer"
+      - "did:openebl:shipper"
+      - "did:openebl:consignee"
+      - "did:openebl:release_agent"
+    "archive":
+      - "did:openebl:issuer"
+      - "did:openebl:shipper"
+      - "did:openebl:consignee"
+      - "did:openebl:release_agent"

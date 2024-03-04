@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
@@ -56,9 +57,24 @@ type UpdateFileBasedEBLDraftRequest struct {
 	ID string `json:"id"` // ID of the bill of lading pack to be updated.
 }
 
+type ListFileBasedEBLRequest struct {
+	Application string `json:"application"`
+	Lister      string `json:"lister"`
+
+	Offset int    `json:"offset"`
+	Limit  int    `json:"limit"`
+	Status string `json:"status"`
+}
+
+type ListFileBasedEBLRecord struct {
+	Total   int                               `json:"total"`
+	Records []bill_of_lading.BillOfLadingPack `json:"records"`
+}
+
 type FileBaseEBLController interface {
 	Create(ctx context.Context, ts int64, request IssueFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 	UpdateDraft(ctx context.Context, ts int64, request UpdateFileBasedEBLDraftRequest) (bill_of_lading.BillOfLadingPack, error)
+	List(ctx context.Context, request ListFileBasedEBLRequest) (ListFileBasedEBLRecord, error)
 }
 
 type _FileBaseEBLController struct {
@@ -238,6 +254,50 @@ func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, cu
 	return bl
 }
 
+func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLRequest) (ListFileBasedEBLRecord, error) {
+	if err := ValidateListFileBasedEBLRequest(req); err != nil {
+		return ListFileBasedEBLRecord{}, err
+	}
+
+	if err := c.checkBUExistence(ctx, req.Application, []string{req.Lister}); err != nil {
+		return ListFileBasedEBLRecord{}, err
+	}
+
+	tx, err := c.storage.CreateTx(ctx)
+	if err != nil {
+		return ListFileBasedEBLRecord{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	listReq := storage.ListTradeDocumentRequest{
+		Offset: req.Offset,
+		Limit:  req.Limit,
+		Kind:   int(relay.FileBasedBillOfLading),
+		Meta:   map[string]any{strings.ToLower(req.Status): []string{req.Lister}},
+	}
+
+	listResp, err := c.storage.ListTradeDocument(ctx, tx, listReq)
+	if err != nil {
+		return ListFileBasedEBLRecord{}, err
+	}
+
+	res := ListFileBasedEBLRecord{
+		Total: listResp.Total,
+		Records: lo.Map(listResp.Docs, func(td storage.TradeDocument, _ int) bill_of_lading.BillOfLadingPack {
+			blPack, _ := ExtractBLPackFromTradeDocument(td)
+			for _, e := range blPack.Events {
+				if e.BillOfLading != nil {
+					e.BillOfLading.File.Content = nil
+				}
+			}
+
+			return blPack
+		}),
+	}
+
+	return res, nil
+}
+
 func (c *_FileBaseEBLController) checkBUExistence(ctx context.Context, appID string, buIDs []string) error {
 	req := business_unit.ListBusinessUnitsRequest{
 		Limit:           len(buIDs),
@@ -328,21 +388,32 @@ func (c *_FileBaseEBLController) getEBL(ctx context.Context, tx storage.Tx, id s
 		return bill_of_lading.BillOfLadingPack{}, "", model.ErrEBLNotFound
 	}
 
-	doc := envelope.JWS{}
-	if err := json.Unmarshal(resp.Docs[0].Doc, &doc); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, "", err
-	}
-	rawPack, err := doc.GetPayload()
+	pack, err := ExtractBLPackFromTradeDocument(resp.Docs[0])
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, "", err
-	}
-	pack := bill_of_lading.BillOfLadingPack{}
-	if err := json.Unmarshal(rawPack, &pack); err != nil {
 		return bill_of_lading.BillOfLadingPack{}, "", err
 	}
 
 	hash := envelope.SHA512(resp.Docs[0].Doc)
 	return pack, hash, nil
+}
+
+func ExtractBLPackFromTradeDocument(td storage.TradeDocument) (bill_of_lading.BillOfLadingPack, error) {
+	doc := envelope.JWS{}
+	if err := json.Unmarshal(td.Doc, &doc); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	rawPack, err := doc.GetPayload()
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	res := bill_of_lading.BillOfLadingPack{}
+	err = json.Unmarshal(rawPack, &res)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	return res, nil
 }
 
 func SetPOL(td *bill_of_lading.TransportDocument, pol Location) {
@@ -509,26 +580,52 @@ func PrepareDocumentParty(party string, partyFunction bill_of_lading.PartyFuncti
 }
 
 func GetBillOfLadingPackMeta(ctx context.Context, ts int64, blPack *bill_of_lading.BillOfLadingPack) (map[string]any, error) {
+	length := len(blPack.Events)
+
 	// Get last BillOfLading from the pack
 	var bl *bill_of_lading.BillOfLading
-	for i := len(blPack.Events) - 1; i >= 0; i-- {
+	var amendmentRequest *bill_of_lading.AmendmentRequest
+	for i := 0; i < length; i++ {
+		if blPack.Events[i].AmendmentRequest != nil {
+			amendmentRequest = blPack.Events[i].AmendmentRequest
+		}
 		if blPack.Events[i].BillOfLading != nil {
 			bl = blPack.Events[i].BillOfLading
-			break
+			amendmentRequest = nil
 		}
 	}
+
 	if bl == nil {
 		return nil, errors.New("no bill of lading found in the pack")
 	}
 
-	visibleBUs := lo.Map(
-		bl.BillOfLading.ShippingInstruction.DocumentParties,
-		func(p bill_of_lading.DocumentParty, _ int) string {
-			return p.Party.IdentifyingCodes[0].PartyCode
-		},
-	)
+	parties := lo.Map(bl.BillOfLading.ShippingInstruction.DocumentParties, func(p bill_of_lading.DocumentParty, _ int) string {
+		return p.Party.IdentifyingCodes[0].PartyCode
+	})
 
-	return map[string]any{
-		"visible_to_bu": visibleBUs,
-	}, nil
+	res := make(map[string]any)
+	if blPack.Events[length-1].Accomplish != nil || blPack.Events[length-1].PrintToPaper != nil {
+		res["visible_to_bu"] = parties
+		res["archive"] = parties
+	} else if amendmentRequest == nil {
+		_, currentOwnerIdx, _ := lo.FindIndexOf(parties, func(p string) bool {
+			return p == blPack.CurrentOwner
+		})
+
+		res["action_needed"] = []string{blPack.CurrentOwner}
+		res["visible_to_bu"] = parties
+		res["sent"] = parties[:currentOwnerIdx]
+		res["upcoming"] = parties[currentOwnerIdx+1:]
+	} else {
+		_, amendmentRequesterIdx, _ := lo.FindIndexOf(parties, func(p string) bool {
+			return p == amendmentRequest.RequestBy
+		})
+
+		res["action_needed"] = []string{blPack.CurrentOwner}
+		res["visible_to_bu"] = parties
+		res["sent"] = parties[:amendmentRequesterIdx]
+		res["upcoming"] = parties[amendmentRequesterIdx:]
+	}
+
+	return res, nil
 }

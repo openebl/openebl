@@ -64,7 +64,7 @@ WITH filtered_record AS (
 		doc,
 		created_at,
 		meta
-	FROM filtered_record ORDER BY rec_id ASC OFFSET $1 LIMIT $2 
+	FROM filtered_record ORDER BY rec_id DESC OFFSET $1 LIMIT $2 
 )
 SELECT *
 FROM paged_record

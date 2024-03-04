@@ -51,6 +51,21 @@ func (mr *MockFileBaseEBLControllerMockRecorder) Create(ctx, ts, request interfa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockFileBaseEBLController)(nil).Create), ctx, ts, request)
 }
 
+// List mocks base method.
+func (m *MockFileBaseEBLController) List(ctx context.Context, request trade_document.ListFileBasedEBLRequest) (trade_document.ListFileBasedEBLRecord, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "List", ctx, request)
+	ret0, _ := ret[0].(trade_document.ListFileBasedEBLRecord)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// List indicates an expected call of List.
+func (mr *MockFileBaseEBLControllerMockRecorder) List(ctx, request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockFileBaseEBLController)(nil).List), ctx, request)
+}
+
 // UpdateDraft mocks base method.
 func (m *MockFileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, request trade_document.UpdateFileBasedEBLDraftRequest) (bill_of_lading.BillOfLadingPack, error) {
 	m.ctrl.T.Helper()

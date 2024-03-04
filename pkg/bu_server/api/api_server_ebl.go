@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -65,5 +66,46 @@ func (a *API) updateFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		logrus.Warnf("updateFileBasedEBL failed to encode/write response: %v", err)
+	}
+}
+
+func (a *API) listFileBasedEBL(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
+	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
+
+	var req trade_document.ListFileBasedEBLRequest
+	req.Lister = buID
+	req.Application = appID
+	req.Status = r.URL.Query().Get("status")
+	offsetStr := r.URL.Query().Get("offset")
+	if offsetStr != "" {
+		offset, err := strconv.ParseInt(offsetStr, 10, 32)
+		if err != nil || offset < 0 {
+			http.Error(w, "offset is invalid", http.StatusBadRequest)
+			return
+		}
+		req.Offset = int(offset)
+	}
+	limitStr := r.URL.Query().Get("limit")
+	if limitStr != "" {
+		limit, err := strconv.ParseInt(limitStr, 10, 32)
+		if err != nil || limit < 1 {
+			http.Error(w, "limit is invalid", http.StatusBadRequest)
+			return
+		}
+		req.Limit = int(limit)
+	}
+
+	result, err := a.fileEBLCtrl.List(ctx, req)
+	if err != nil {
+		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		logrus.Warnf("listFileBasedEBL failed to encode/write response: %v", err)
 	}
 }

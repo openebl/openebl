@@ -756,7 +756,6 @@ components:
       description: DID of the business unit who makes the request
       schema:
         type: string
-        format: uuid
   schemas:
     PrivateKeyType:
       type: string
@@ -1247,7 +1246,6 @@ components:
           description: SHA512 hash of the previous version of the eB/L
         current_owner:
           type: string
-          format: uuid
           description: DID of the current owner
         events:
           type: array

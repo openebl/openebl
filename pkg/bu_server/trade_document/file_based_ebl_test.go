@@ -141,24 +141,6 @@ func (s *FileBasedEBLTestSuite) loadTradeDocument(fileName string) storage.Trade
 	return result
 }
 
-func (s *FileBasedEBLTestSuite) extractBLPackFromRawJWS(rawJWS []byte) bill_of_lading.BillOfLadingPack {
-	jws := envelope.JWS{}
-	if err := json.Unmarshal(rawJWS, &jws); err != nil {
-		panic(err)
-	}
-
-	blPack := bill_of_lading.BillOfLadingPack{}
-	rawBlPack, err := jws.GetPayload()
-	if err != nil {
-		panic(err)
-	}
-	if err := json.Unmarshal(rawBlPack, &blPack); err != nil {
-		panic(err)
-	}
-
-	return blPack
-}
-
 func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 	ts := int64(1708676399)
 	eta, err := model.NewDateTimeFromString("2022-01-01T00:00:00Z")
@@ -266,7 +248,11 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 	s.Assert().Equal(tdOnDB.DocID, result.ID)
 	s.Assert().EqualValues(relay.FileBasedBillOfLading, tdOnDB.Kind)
 	s.Assert().EqualValues(tdOnDB.DocVersion, result.Version)
-	s.Assert().EqualValues(map[string]any{"visible_to_bu": []string{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"}}, tdOnDB.Meta)
+	s.Assert().EqualValues([]string{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"}, tdOnDB.Meta["visible_to_bu"])
+	s.Assert().EqualValues([]string{"did:openebl:shipper"}, tdOnDB.Meta["action_needed"])
+	s.Assert().EqualValues([]string{"did:openebl:issuer"}, tdOnDB.Meta["sent"])
+	s.Assert().EqualValues([]string{"did:openebl:consignee", "did:openebl:release_agent"}, tdOnDB.Meta["upcoming"])
+	s.Assert().Empty(tdOnDB.Meta["archive"])
 
 	// Validate if tdOnDB and result are the same except the file content of result is empty.
 	jws := envelope.JWS{}
@@ -391,13 +377,74 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBL() {
 
 	expectedBlPack := func() bill_of_lading.BillOfLadingPack {
 		td := s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_ebl_jws.json")
-		return s.extractBLPackFromRawJWS(td.Doc)
+		res, err := trade_document.ExtractBLPackFromTradeDocument(td)
+		s.Require().NoError(err)
+		return res
 	}()
 	blPack, err := s.eblCtrl.UpdateDraft(s.ctx, ts, req)
 	s.Require().NoError(err)
-	receivedBLPack := s.extractBLPackFromRawJWS(receivedTD.Doc)
+	receivedBLPack, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
+	s.Require().NoError(err)
 	s.Assert().Empty(blPack.Events[0].BillOfLading.File.Content)
 	blPack.Events[0].BillOfLading.File.Content = receivedBLPack.Events[0].BillOfLading.File.Content
 	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack))
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLPack))
+}
+
+func (s *FileBasedEBLTestSuite) TestListEBL() {
+	req := trade_document.ListFileBasedEBLRequest{
+		Application: "appid",
+		Lister:      "did:openebl:issuer",
+		Offset:      0,
+		Limit:       20,
+		Status:      "action_needed",
+	}
+
+	listResp := storage.ListTradeDocumentResponse{
+		Total: 1,
+		Docs:  []storage.TradeDocument{s.draftEbl},
+	}
+
+	gomock.InOrder(
+		s.buMgr.EXPECT().ListBusinessUnits(
+			gomock.Any(),
+			business_unit.ListBusinessUnitsRequest{
+				Limit:           1,
+				ApplicationID:   "appid",
+				BusinessUnitIDs: []string{"did:openebl:issuer"},
+			},
+		).Return(
+			business_unit.ListBusinessUnitsResult{
+				Total: 1,
+				Records: []business_unit.ListBusinessUnitsRecord{
+					{
+						BusinessUnit: model.BusinessUnit{
+							ID:            did.MustParseDID("did:openebl:issuer"),
+							Version:       1,
+							ApplicationID: "appid",
+							Status:        model.BusinessUnitStatusActive,
+						},
+					},
+				},
+			},
+			nil,
+		),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any()).Return(s.tx, nil),
+		s.tdStorage.EXPECT().ListTradeDocument(gomock.Any(), s.tx, gomock.Any()).Return(listResp, nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	expectedBlPack := func() bill_of_lading.BillOfLadingPack {
+		td := s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/draft_ebl_jws.json")
+		res, err := trade_document.ExtractBLPackFromTradeDocument(td)
+		s.Require().NoError(err)
+		res.Events[0].BillOfLading.File.Content = nil
+		return res
+	}()
+
+	result, err := s.eblCtrl.List(s.ctx, req)
+	s.Require().NoError(err)
+	s.Require().Len(result.Records, 1)
+	s.Assert().Empty(result.Records[0].Events[0].BillOfLading.File.Content)
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result.Records[0]))
 }

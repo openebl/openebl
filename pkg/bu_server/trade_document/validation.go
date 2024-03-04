@@ -7,17 +7,6 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/model"
 )
 
-func ValidateLocation(loc Location) error {
-	if err := validation.ValidateStruct(&loc,
-		validation.Field(&loc.LocationName, validation.Required),
-		validation.Field(&loc.UNLocCode, validation.Required),
-	); err != nil {
-		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
-	}
-
-	return nil
-}
-
 type LocationRule struct{}
 
 func (r LocationRule) Validate(value interface{}) error {
@@ -72,6 +61,19 @@ func ValidateUpdateFileBasedEBLRequest(req UpdateFileBasedEBLDraftRequest) error
 		validation.Field(&req.Consignee, validation.Required),
 		validation.Field(&req.ReleaseAgent, validation.Required),
 		validation.Field(&req.Draft, validation.NotNil),
+	); err != nil {
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
+	}
+
+	return nil
+}
+
+func ValidateListFileBasedEBLRequest(req ListFileBasedEBLRequest) error {
+	if err := validation.ValidateStruct(&req,
+		validation.Field(&req.Application, validation.Required),
+		validation.Field(&req.Lister, validation.Required),
+		validation.Field(&req.Offset, validation.Min(0)),
+		validation.Field(&req.Limit, validation.Min(1)),
 	); err != nil {
 		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}

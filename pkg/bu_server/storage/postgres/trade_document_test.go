@@ -79,27 +79,29 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 
 	docsOnDB := []storage.TradeDocument{
 		{
-			RawID:      "raw_doc_2",
-			Kind:       1000,
-			DocID:      "doc_1",
-			DocVersion: 2,
-			Doc:        []byte("new binary_data"),
-			CreatedAt:  1634567890,
-			Meta: map[string]interface{}{
-				"key1": "value1",
-				"key2": "value2",
-			},
-		},
-		{
 			RawID:      "raw_doc_3",
 			Kind:       1001,
 			DocID:      "doc_2",
 			DocVersion: 1,
 			Doc:        []byte("doc 2"),
 			CreatedAt:  1634567890,
-			Meta: map[string]interface{}{
-				"key1": "value3",
-				"key2": "value4",
+			Meta: map[string]any{
+				"visible_to_bu": []any{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"},
+				"archive":       []any{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"},
+			},
+		},
+		{
+			RawID:      "raw_doc_2",
+			Kind:       1000,
+			DocID:      "doc_1",
+			DocVersion: 2,
+			Doc:        []byte("new binary_data"),
+			CreatedAt:  1634567890,
+			Meta: map[string]any{
+				"visible_to_bu": []any{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"},
+				"sent":          []any{"did:openebl:issuer", "did:openebl:shipper"},
+				"action_needed": []any{"did:openebl:consignee"},
+				"upcoming":      []any{"did:openebl:release_agent"},
 			},
 		},
 	}
@@ -133,7 +135,7 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
 		s.Require().NoError(err)
 		s.Assert().Equal(1, resp.Total)
-		s.Assert().ElementsMatch(docsOnDB[:1], resp.Docs)
+		s.Assert().ElementsMatch(docsOnDB[1:], resp.Docs)
 	}()
 
 	// List with docIDs filter
@@ -143,14 +145,50 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
 		s.Require().NoError(err)
 		s.Assert().Equal(1, resp.Total)
+		s.Assert().ElementsMatch(docsOnDB[:1], resp.Docs)
+	}()
+
+	// List with meta filter: action_needed
+	func() {
+		newReq := req
+		newReq.Meta = map[string]any{
+			"action_needed": []any{"did:openebl:consignee"},
+		}
+		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
+		s.Require().NoError(err)
+		s.Assert().Equal(1, resp.Total)
 		s.Assert().ElementsMatch(docsOnDB[1:], resp.Docs)
 	}()
 
-	// List with meta filter
+	// List with meta filter: upcoming
 	func() {
 		newReq := req
-		newReq.Meta = map[string]interface{}{
-			"key1": "value1",
+		newReq.Meta = map[string]any{
+			"upcoming": []string{"did:openebl:release_agent"},
+		}
+		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
+		s.Require().NoError(err)
+		s.Assert().Equal(1, resp.Total)
+		s.Assert().ElementsMatch(docsOnDB[1:], resp.Docs)
+	}()
+
+	// List with meta filter: sent
+	func() {
+		newReq := req
+		newReq.Meta = map[string]any{
+			"sent": []string{"did:openebl:issuer"},
+		}
+		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
+		s.Require().NoError(err)
+		s.Assert().Equal(1, resp.Total)
+		s.Assert().ElementsMatch(docsOnDB[1:], resp.Docs)
+	}()
+
+	// List with meta filter: archive
+	func() {
+		newReq := req
+		newReq.Meta = map[string]any{
+			"archive": []string{"did:openebl:issuer"},
 		}
 		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
 		s.Require().NoError(err)

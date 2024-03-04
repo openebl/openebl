@@ -407,3 +407,37 @@ func (s *APITestSuite) TestUpdateFileBasedEBL() {
 	s.Require().Equal("application/json", httpResponse.Header.Get("Content-Type"))
 	s.Require().Equal(util.StructToJSON(newBillOfLadingPack), strings.TrimSpace(string(returnedBody)))
 }
+
+func (s *APITestSuite) TestListFileBasedEBL() {
+	endPoint := fmt.Sprintf("http://%s/ebl?offset=2&limit=5&status=sent", s.localAddress)
+
+	expectedReq := trade_document.ListFileBasedEBLRequest{
+		Application: s.appId,
+		Lister:      "issuer",
+		Offset:      2,
+		Limit:       5,
+		Status:      "sent",
+	}
+
+	billOfLadingRecord := trade_document.ListFileBasedEBLRecord{
+		Total:   5,
+		Records: []bill_of_lading.BillOfLadingPack{},
+	}
+
+	httpRequest, err := http.NewRequest(http.MethodGet, endPoint, nil)
+	s.Require().NoError(err)
+	httpRequest.Header.Set("Authorization", "Bearer "+string(s.apiKeyString))
+	httpRequest.Header.Set(middleware.BUSINESS_UNIT_ID_HEADER, "issuer")
+
+	gomock.InOrder(
+		s.apiKeyMgr.EXPECT().Authenticate(gomock.Any(), s.apiKeyString).Return(s.apiKey, nil),
+		s.fileEBLCtrl.EXPECT().List(gomock.Any(), expectedReq).Return(billOfLadingRecord, nil),
+	)
+
+	httpResponse, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	returnedBody, _ := io.ReadAll(httpResponse.Body)
+	s.Require().Equal(http.StatusOK, httpResponse.StatusCode)
+	s.Require().Equal("application/json", httpResponse.Header.Get("Content-Type"))
+	s.Require().Equal(util.StructToJSON(billOfLadingRecord), strings.TrimSpace(string(returnedBody)))
+}

@@ -71,6 +71,16 @@ type ListFileBasedEBLRecord struct {
 	Records []bill_of_lading.BillOfLadingPack `json:"records"`
 }
 
+type TransferEBLRequest struct {
+	Requester        string `json:"requester"`
+	Application      string `json:"application"`
+	TransferBy       string `json:"transfer_by"`
+	AuthenticationID string `json:"authentication_id"`
+
+	ID   string `json:"id"`
+	Note string `json:"note"`
+}
+
 type FileBaseEBLParticipators struct {
 	Issuer       string `json:"issuer"`
 	Shipper      string `json:"shipper"`
@@ -82,6 +92,7 @@ type FileBaseEBLController interface {
 	Create(ctx context.Context, ts int64, request IssueFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 	UpdateDraft(ctx context.Context, ts int64, request UpdateFileBasedEBLDraftRequest) (bill_of_lading.BillOfLadingPack, error)
 	List(ctx context.Context, request ListFileBasedEBLRequest) (ListFileBasedEBLRecord, error)
+	Transfer(ctx context.Context, ts int64, request TransferEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 }
 
 type _FileBaseEBLController struct {
@@ -303,6 +314,71 @@ func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLR
 	}
 
 	return res, nil
+}
+
+func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req TransferEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+	currentTime := model.NewDateTimeFromUnix(ts)
+	if err := ValidateTransferEBLRequest(req); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	if err := c.checkBUExistence(ctx, req.Application, []string{req.TransferBy}); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err = IsFileEBLTransferable(&oldPack, req.TransferBy, true); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	nextOwner := GetNextOwnerByAction(FILE_EBL_TRANSFER, req.TransferBy, &oldPack)
+	if nextOwner == "" {
+		return bill_of_lading.BillOfLadingPack{}, errors.New("cannot determine next owner due to invalid role or action")
+	}
+
+	blPack := bill_of_lading.BillOfLadingPack{
+		ID:           oldPack.ID,
+		Version:      oldPack.Version + 1,
+		ParentHash:   oldHash,
+		Events:       oldPack.Events,
+		CurrentOwner: nextOwner,
+	}
+	transfer := bill_of_lading.BillOfLadingEvent{
+		Transfer: &bill_of_lading.Transfer{
+			TransferBy: req.TransferBy,
+			TransferTo: nextOwner,
+			TransferAt: &currentTime,
+			Note:       req.Note,
+		},
+	}
+	blPack.Events = append(blPack.Events, transfer)
+
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.TransferBy, req.AuthenticationID)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	lo.ForEach(blPack.Events, func(e bill_of_lading.BillOfLadingEvent, _ int) {
+		if e.BillOfLading != nil {
+			e.BillOfLading.File.Content = nil
+		}
+	})
+	return blPack, nil
 }
 
 func (c *_FileBaseEBLController) checkBUExistence(ctx context.Context, appID string, buIDs []string) error {
@@ -591,6 +667,45 @@ func GetCurrentOwner(blPack *bill_of_lading.BillOfLadingPack) string {
 	return blPack.CurrentOwner
 }
 
+func GetNextOwnerByAction(action FileBasedEBLAction, bu string, blPack *bill_of_lading.BillOfLadingPack) string {
+	parties := GetFileBaseEBLParticipators(blPack)
+	switch action {
+	case FILE_EBL_TRANSFER:
+		if bu == parties.Shipper {
+			return parties.Consignee
+		}
+	case FILE_EBL_RETURN:
+		if bu == parties.ReleaseAgent {
+			return parties.Consignee
+		}
+		if bu == parties.Consignee {
+			return parties.Shipper
+		}
+		if bu == parties.Shipper {
+			return parties.Issuer
+		}
+		if bu == parties.Issuer {
+			lastEvent := GetLastEvent(blPack)
+			if lastEvent.AmendmentRequest != nil {
+				return lastEvent.AmendmentRequest.RequestBy
+			}
+		}
+	case FILE_EBL_SURRENDER:
+		if bu == parties.Consignee {
+			return parties.ReleaseAgent
+		}
+	case FILE_EBL_REQUEST_AMEND:
+		return parties.Issuer
+	case FILE_EBL_AMEND:
+		lastEvent := GetLastEvent(blPack)
+		if lastEvent.AmendmentRequest != nil {
+			return lastEvent.AmendmentRequest.RequestBy
+		}
+	}
+
+	return ""
+}
+
 func GetLastEvent(blPack *bill_of_lading.BillOfLadingPack) *bill_of_lading.BillOfLadingEvent {
 	if blPack == nil || len(blPack.Events) == 0 {
 		return nil
@@ -688,32 +803,31 @@ func GetBillOfLadingPackMeta(ctx context.Context, ts int64, blPack *bill_of_ladi
 		return nil, errors.New("no bill of lading found in the pack")
 	}
 
-	parties := lo.Map(bl.BillOfLading.ShippingInstruction.DocumentParties, func(p bill_of_lading.DocumentParty, _ int) string {
-		return p.Party.IdentifyingCodes[0].PartyCode
-	})
+	parties := GetFileBaseEBLParticipators(blPack)
+	partiesByOrder := []string{parties.Issuer, parties.Shipper, parties.Consignee, parties.ReleaseAgent}
 
 	res := make(map[string]any)
 	if blPack.Events[length-1].Accomplish != nil || blPack.Events[length-1].PrintToPaper != nil {
-		res["visible_to_bu"] = parties
-		res["archive"] = parties
+		res["visible_to_bu"] = partiesByOrder
+		res["archive"] = partiesByOrder
 	} else if amendmentRequest == nil {
-		_, currentOwnerIdx, _ := lo.FindIndexOf(parties, func(p string) bool {
+		_, currentOwnerIdx, _ := lo.FindIndexOf(partiesByOrder, func(p string) bool {
 			return p == blPack.CurrentOwner
 		})
 
 		res["action_needed"] = []string{blPack.CurrentOwner}
-		res["visible_to_bu"] = parties
-		res["sent"] = parties[:currentOwnerIdx]
-		res["upcoming"] = parties[currentOwnerIdx+1:]
+		res["visible_to_bu"] = partiesByOrder
+		res["sent"] = partiesByOrder[:currentOwnerIdx]
+		res["upcoming"] = partiesByOrder[currentOwnerIdx+1:]
 	} else {
-		_, amendmentRequesterIdx, _ := lo.FindIndexOf(parties, func(p string) bool {
+		_, amendmentRequesterIdx, _ := lo.FindIndexOf(partiesByOrder, func(p string) bool {
 			return p == amendmentRequest.RequestBy
 		})
 
 		res["action_needed"] = []string{blPack.CurrentOwner}
-		res["visible_to_bu"] = parties
-		res["sent"] = parties[:amendmentRequesterIdx]
-		res["upcoming"] = parties[amendmentRequesterIdx:]
+		res["visible_to_bu"] = partiesByOrder
+		res["sent"] = partiesByOrder[:amendmentRequesterIdx]
+		res["upcoming"] = partiesByOrder[amendmentRequesterIdx:]
 	}
 
 	return res, nil

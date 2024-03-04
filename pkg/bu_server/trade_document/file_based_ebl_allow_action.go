@@ -76,7 +76,23 @@ func IsFileEBLPrintable(bl *bill_of_lading.BillOfLadingPack, bu string, withDeta
 }
 
 func IsFileEBLTransferable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {
-	return model.ErrEBLActionNotAllowed
+	if bu != GetCurrentOwner(bl) {
+		if withDetail {
+			return fmt.Errorf("not the current owner. %w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	parties := GetFileBaseEBLParticipators(bl)
+	if bu != parties.Shipper {
+		if withDetail {
+			return fmt.Errorf("not the shipper. %w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+
+	}
+
+	return nil
 }
 
 func IsFileEBLReturnable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {

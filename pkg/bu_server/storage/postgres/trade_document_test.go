@@ -118,6 +118,16 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 		s.Assert().ElementsMatch(docsOnDB, resp.Docs)
 	}()
 
+	// List with empty result
+	func() {
+		newReq := req
+		newReq.DocIDs = []string{"non-exist-doc-id"}
+		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
+		s.Require().NoError(err)
+		s.Assert().Equal(0, resp.Total)
+		s.Assert().Empty(resp.Docs)
+	}()
+
 	// List with offset
 	func() {
 		newReq := req

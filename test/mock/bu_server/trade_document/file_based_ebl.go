@@ -81,6 +81,21 @@ func (mr *MockFileBaseEBLControllerMockRecorder) List(ctx, request interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockFileBaseEBLController)(nil).List), ctx, request)
 }
 
+// Return mocks base method.
+func (m *MockFileBaseEBLController) Return(ctx context.Context, ts int64, request trade_document.ReturnFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Return", ctx, ts, request)
+	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Return indicates an expected call of Return.
+func (mr *MockFileBaseEBLControllerMockRecorder) Return(ctx, ts, request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Return", reflect.TypeOf((*MockFileBaseEBLController)(nil).Return), ctx, ts, request)
+}
+
 // Transfer mocks base method.
 func (m *MockFileBaseEBLController) Transfer(ctx context.Context, ts int64, request trade_document.TransferEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
 	m.ctrl.T.Helper()

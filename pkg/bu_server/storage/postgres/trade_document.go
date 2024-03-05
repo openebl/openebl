@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 )
@@ -87,22 +88,38 @@ FULL JOIN report ON TRUE
 
 	result := storage.ListTradeDocumentResponse{}
 	for rows.Next() {
-		var tradeDoc storage.TradeDocument
+		var rawID sql.NullString
+		var kind sql.NullInt32
+		var docID sql.NullString
+		var docVersion sql.NullInt64
+		var doc []byte
+		var createdAt sql.NullInt64
+		var meta map[string]interface{}
 		err = rows.Scan(
-			&tradeDoc.RawID,
-			&tradeDoc.Kind,
-			&tradeDoc.DocID,
-			&tradeDoc.DocVersion,
-			&tradeDoc.Doc,
-			&tradeDoc.CreatedAt,
-			&tradeDoc.Meta,
+			&rawID,
+			&kind,
+			&docID,
+			&docVersion,
+			&doc,
+			&createdAt,
+			&meta,
 			&result.Total,
 		)
 		if err != nil {
 			return storage.ListTradeDocumentResponse{}, err
 		}
-		if tradeDoc.RawID != "" {
-			result.Docs = append(result.Docs, tradeDoc)
+		if rawID.Valid {
+			result.Docs = append(result.Docs,
+				storage.TradeDocument{
+					RawID:      rawID.String,
+					Kind:       int(kind.Int32),
+					DocID:      docID.String,
+					DocVersion: docVersion.Int64,
+					Doc:        doc,
+					CreatedAt:  createdAt.Int64,
+					Meta:       meta,
+				},
+			)
 		}
 	}
 	if err := rows.Err(); err != nil {

@@ -68,6 +68,19 @@ func ValidateUpdateFileBasedEBLRequest(req UpdateFileBasedEBLDraftRequest) error
 	return nil
 }
 
+func ValidateReturnFileBasedEBLRequest(req ReturnFileBasedEBLRequest) error {
+	if err := validation.ValidateStruct(&req,
+		validation.Field(&req.Requester, validation.Required),
+		validation.Field(&req.Application, validation.Required),
+		validation.Field(&req.BusinessUnit, validation.Required),
+		validation.Field(&req.AuthenticationID, validation.Required),
+		validation.Field(&req.ID, validation.Required),
+	); err != nil {
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
+	}
+	return nil
+}
+
 func ValidateListFileBasedEBLRequest(req ListFileBasedEBLRequest) error {
 	if err := validation.ValidateStruct(&req,
 		validation.Field(&req.Application, validation.Required),

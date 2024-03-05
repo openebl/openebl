@@ -479,6 +479,43 @@ func (s *APITestSuite) TestTransferFileBasedEBL() {
 	s.Require().Equal(util.StructToJSON(newBillOfLadingPack), strings.TrimSpace(string(returnedBody)))
 }
 
+func (s *APITestSuite) TestReturnFileBasedEBL() {
+	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/return", s.localAddress)
+
+	req := trade_document.ReturnFileBasedEBLRequest{
+		Requester:        "requester",
+		AuthenticationID: "bu_auth_id",
+		Note:             "note",
+	}
+
+	expectedRequest := req
+	expectedRequest.Application = s.appId
+	expectedRequest.BusinessUnit = "consignee"
+	expectedRequest.ID = "doc_id"
+
+	newBillOfLadingPack := bill_of_lading.BillOfLadingPack{
+		ID:      "pack_id",
+		Version: 2,
+	}
+
+	httpRequest, err := http.NewRequest(http.MethodPost, endPoint, util.StructToJSONReader(req))
+	s.Require().NoError(err)
+	httpRequest.Header.Set("Authorization", "Bearer "+string(s.apiKeyString))
+	httpRequest.Header.Set(middleware.BUSINESS_UNIT_ID_HEADER, "consignee")
+
+	gomock.InOrder(
+		s.apiKeyMgr.EXPECT().Authenticate(gomock.Any(), s.apiKeyString).Return(s.apiKey, nil),
+		s.fileEBLCtrl.EXPECT().Return(gomock.Any(), gomock.Any(), expectedRequest).Return(newBillOfLadingPack, nil),
+	)
+
+	httpResponse, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	returnedBody, _ := io.ReadAll(httpResponse.Body)
+	s.Require().Equal(http.StatusOK, httpResponse.StatusCode)
+	s.Require().Equal("application/json", httpResponse.Header.Get("Content-Type"))
+	s.Require().Equal(util.StructToJSON(newBillOfLadingPack), strings.TrimSpace(string(returnedBody)))
+}
+
 func (s *APITestSuite) TestAmendmentRequestFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/amendment_request", s.localAddress)
 

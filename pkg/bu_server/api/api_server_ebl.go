@@ -138,6 +138,34 @@ func (a *API) transferEBL(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *API) returnEBL(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
+	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
+
+	var req trade_document.ReturnFileBasedEBLRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	req.Application = appID
+	req.BusinessUnit = buID
+	req.ID = mux.Vars(r)["id"]
+
+	ts := time.Now().Unix()
+	result, err := a.fileEBLCtrl.Return(ctx, ts, req)
+	if err != nil {
+		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		logrus.Warnf("returnEBL failed to encode/write response: %v", err)
+	}
+}
+
 func (a *API) amendmentRequestEBL(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)

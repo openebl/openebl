@@ -57,6 +57,16 @@ type UpdateFileBasedEBLDraftRequest struct {
 	ID string `json:"id"` // ID of the bill of lading pack to be updated.
 }
 
+type ReturnFileBasedEBLRequest struct {
+	Requester        string `json:"requester"`
+	Application      string `json:"application"`
+	BusinessUnit     string `json:"business_unit"`
+	AuthenticationID string `json:"authentication_id"`
+
+	ID   string `json:"id"`
+	Note string `json:"note"`
+}
+
 type ListFileBasedEBLRequest struct {
 	Application string `json:"application"`
 	Lister      string `json:"lister"`
@@ -101,6 +111,7 @@ type FileBaseEBLParticipators struct {
 type FileBaseEBLController interface {
 	Create(ctx context.Context, ts int64, request IssueFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 	UpdateDraft(ctx context.Context, ts int64, request UpdateFileBasedEBLDraftRequest) (bill_of_lading.BillOfLadingPack, error)
+	Return(ctx context.Context, ts int64, request ReturnFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 	List(ctx context.Context, request ListFileBasedEBLRequest) (ListFileBasedEBLRecord, error)
 	Transfer(ctx context.Context, ts int64, request TransferEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 	AmendmentRequest(ctx context.Context, ts int64, request AmendmentRequestEBLRequest) (bill_of_lading.BillOfLadingPack, error)
@@ -236,6 +247,64 @@ func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, requ
 	}
 
 	td, err := c.signBillOfLadingPack(ctx, ts, blPack, request.Application, request.Issuer, request.AuthenticationID)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	if err := c.storage.AddTradeDocument(ctx, tx, td); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	blPack.Events[0].BillOfLading.File.Content = nil
+	return blPack, nil
+}
+
+func (c *_FileBaseEBLController) Return(ctx context.Context, ts int64, req ReturnFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+	currentTime := model.NewDateTimeFromUnix(ts)
+	if err := ValidateReturnFileBasedEBLRequest(req); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err := IsFileEBLReturnable(&oldPack, req.BusinessUnit, true); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	nextOwner := GetNextOwnerByAction(FILE_EBL_RETURN, req.BusinessUnit, &oldPack)
+	if nextOwner == "" {
+		return bill_of_lading.BillOfLadingPack{}, errors.New("cannot determine next owner due to invalid role or action")
+	}
+
+	blPack := bill_of_lading.BillOfLadingPack{
+		ID:           oldPack.ID,
+		Version:      oldPack.Version + 1,
+		ParentHash:   oldHash,
+		Events:       oldPack.Events,
+		CurrentOwner: nextOwner,
+	}
+	returnEvent := bill_of_lading.BillOfLadingEvent{
+		Return: &bill_of_lading.Return{
+			ReturnBy: req.BusinessUnit,
+			ReturnTo: nextOwner,
+			ReturnAt: &currentTime,
+			Note:     req.Note,
+		},
+	}
+	blPack.Events = append(blPack.Events, returnEvent)
+
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.BusinessUnit, req.AuthenticationID)
 	if err != nil {
 		return bill_of_lading.BillOfLadingPack{}, err
 	}

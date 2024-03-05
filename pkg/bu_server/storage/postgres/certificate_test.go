@@ -96,21 +96,23 @@ func (s *CertificateTestSuite) TestListCertificates() {
 		Limit: 10,
 	}
 
-	certs, err := s.storage.ListCertificates(s.ctx, tx, req)
+	result, err := s.storage.ListCertificates(s.ctx, tx, req)
 	s.Require().NoError(err)
-	s.Require().Len(certs, 2)
-	s.Assert().Equal("cert1", certs[0].ID)
-	s.Assert().Equal("cert2", certs[1].ID)
+	s.Assert().Equal(int64(2), result.Total)
+	s.Require().Len(result.Certs, 2)
+	s.Assert().Equal("cert1", result.Certs[0].ID)
+	s.Assert().Equal("cert2", result.Certs[1].ID)
 
 	func() {
 		req.IDs = []string{"cert1"}
 		defer func() {
 			req.IDs = nil
 		}()
-		certs, err = s.storage.ListCertificates(s.ctx, tx, req)
+		result, err = s.storage.ListCertificates(s.ctx, tx, req)
 		s.Require().NoError(err)
-		s.Require().Len(certs, 1)
-		s.Assert().Equal("cert1", certs[0].ID)
+		s.Assert().Equal(int64(1), result.Total)
+		s.Require().Len(result.Certs, 1)
+		s.Assert().Equal("cert1", result.Certs[0].ID)
 	}()
 
 	func() {
@@ -118,10 +120,11 @@ func (s *CertificateTestSuite) TestListCertificates() {
 		defer func() {
 			req.Statuses = nil
 		}()
-		certs, err = s.storage.ListCertificates(s.ctx, tx, req)
+		result, err = s.storage.ListCertificates(s.ctx, tx, req)
 		s.Require().NoError(err)
-		s.Require().Len(certs, 1)
-		s.Assert().Equal("cert2", certs[0].ID)
+		s.Assert().Equal(int64(1), result.Total)
+		s.Require().Len(result.Certs, 1)
+		s.Assert().Equal("cert2", result.Certs[0].ID)
 	}()
 
 	func() {
@@ -132,9 +135,10 @@ func (s *CertificateTestSuite) TestListCertificates() {
 			req.ValidTo = 0
 		}()
 
-		certs, err = s.storage.ListCertificates(s.ctx, tx, req)
+		result, err = s.storage.ListCertificates(s.ctx, tx, req)
 		s.Require().NoError(err)
-		s.Require().Len(certs, 1)
-		s.Assert().Equal("cert1", certs[0].ID)
+		s.Assert().Equal(int64(1), result.Total)
+		s.Require().Len(result.Certs, 1)
+		s.Assert().Equal("cert1", result.Certs[0].ID)
 	}()
 }

@@ -188,6 +188,10 @@ func (s *CertAuthorityTestSuite) TestRevokeCertificate() {
 		Limit: 1,
 		IDs:   []string{req.CertID},
 	}
+	listResponse := cert_authority.ListCertificatesResponse{
+		Total: 1,
+		Certs: []model.Cert{s.caCert},
+	}
 
 	expectedCert := model.Cert{
 		Version:     2,
@@ -201,7 +205,7 @@ func (s *CertAuthorityTestSuite) TestRevokeCertificate() {
 
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
-		s.storage.EXPECT().ListCertificates(gomock.Any(), s.tx, expectedListRequest).Return([]model.Cert{s.caCert}, nil),
+		s.storage.EXPECT().ListCertificates(gomock.Any(), s.tx, expectedListRequest).Return(listResponse, nil),
 		s.storage.EXPECT().AddCertificate(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, cert model.Cert) error {
 				expectedCert.ID = cert.ID
@@ -228,18 +232,22 @@ func (s *CertAuthorityTestSuite) TestListCertificate() {
 		IDs:      []string{"id"},
 		Statuses: []model.CertStatus{model.CertStatusActive},
 	}
+	resp := cert_authority.ListCertificatesResponse{
+		Total: 1,
+		Certs: []model.Cert{s.caCert},
+	}
 
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, nil),
-		s.storage.EXPECT().ListCertificates(gomock.Any(), s.tx, req).Return([]model.Cert{s.caCert}, nil),
+		s.storage.EXPECT().ListCertificates(gomock.Any(), s.tx, req).Return(resp, nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
 
-	certs, err := s.ca.ListCertificates(s.ctx, req)
+	result, err := s.ca.ListCertificates(s.ctx, req)
 	s.Require().NoError(err)
-	s.Require().Len(certs, 1)
-	certs[0].PrivateKey = s.caCert.PrivateKey
-	s.Assert().Equal([]model.Cert{s.caCert}, certs)
+	s.Require().Len(result.Certs, 1)
+	result.Certs[0].PrivateKey = s.caCert.PrivateKey
+	s.Assert().Equal([]model.Cert{s.caCert}, result.Certs)
 }
 
 func (s *CertAuthorityTestSuite) TestIssueCertificate() {
@@ -273,10 +281,14 @@ func (s *CertAuthorityTestSuite) TestIssueCertificate() {
 		ValidFrom: issueRequest.NotBefore.Unix(),
 		ValidTo:   issueRequest.NotAfter.Unix(),
 	}
+	listCertResponse := cert_authority.ListCertificatesResponse{
+		Total: 1,
+		Certs: []model.Cert{s.caCert},
+	}
 
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Any()).Return(s.tx, nil),
-		s.storage.EXPECT().ListCertificates(gomock.Any(), s.tx, expectedListCertRequest).Return([]model.Cert{s.caCert}, nil),
+		s.storage.EXPECT().ListCertificates(gomock.Any(), s.tx, expectedListCertRequest).Return(listCertResponse, nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
 
@@ -290,7 +302,7 @@ func (s *CertAuthorityTestSuite) TestIssueCertificate() {
 	// Test certificate request with expired CA certificate.
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Any()).Return(s.tx, nil),
-		s.storage.EXPECT().ListCertificates(gomock.Any(), s.tx, expectedListCertRequest).Return([]model.Cert{s.caCert}, nil),
+		s.storage.EXPECT().ListCertificates(gomock.Any(), s.tx, expectedListCertRequest).Return(listCertResponse, nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
 

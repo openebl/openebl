@@ -101,8 +101,8 @@ type ListUserRequest struct {
 	Usernames []string `json:"usernames"` // Filter by username.
 }
 type ListUserResult struct {
-	Total int64
-	Users []User
+	Total int64  `json:"total"`
+	Users []User `json:"users"`
 }
 
 type UserStorage interface {

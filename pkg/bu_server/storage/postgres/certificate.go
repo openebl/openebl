@@ -44,9 +44,9 @@ SELECT * FROM ins
 	return nil
 }
 
-func (s *_Storage) ListCertificates(ctx context.Context, tx storage.Tx, req cert_authority.ListCertificatesRequest) ([]model.Cert, error) {
+func (s *_Storage) ListCertificates(ctx context.Context, tx storage.Tx, req cert_authority.ListCertificatesRequest) (cert_authority.ListCertificatesResponse, error) {
 	query := `
-SELECT cert FROM certificate
+SELECT count(*) OVER () AS total, cert FROM certificate
 WHERE
 	(COALESCE(ARRAY_LENGTH($3::TEXT[], 1), 0) = 0 OR id = ANY($3)) AND
 	(COALESCE(ARRAY_LENGTH($4::TEXT[], 1), 0) = 0 OR status = ANY($4)) AND 
@@ -56,17 +56,18 @@ OFFSET $1 LIMIT $2
 `
 	rows, err := tx.Query(ctx, query, req.Offset, req.Limit, req.IDs, req.Statuses, req.ValidFrom, req.ValidTo)
 	if err != nil {
-		return nil, err
+		return cert_authority.ListCertificatesResponse{}, err
 	}
 	defer rows.Close()
 
+	var total int64
 	certs := make([]model.Cert, 0, max(10, min(req.Limit, 100)))
 	for rows.Next() {
 		var cert model.Cert
-		if err := rows.Scan(&cert); err != nil {
-			return nil, err
+		if err := rows.Scan(&total, &cert); err != nil {
+			return cert_authority.ListCertificatesResponse{}, err
 		}
 		certs = append(certs, cert)
 	}
-	return certs, nil
+	return cert_authority.ListCertificatesResponse{Total: total, Certs: certs}, nil
 }

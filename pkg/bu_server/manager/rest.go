@@ -64,31 +64,31 @@ func NewManagerAPIWithControllers(
 
 	userTokenMiddleware := middleware.NewUserTokenAuth(apiServer.userMgr)
 
-	r := mux.NewRouter()
+	r := mux.NewRouter().PathPrefix("/api").Subrouter()
 	loginRouter := r.NewRoute().Subrouter()
 	loginRouter.HandleFunc("/login", apiServer.login).Methods(http.MethodGet)
 
 	mgrRouter := r.NewRoute().Subrouter()
 	mgrRouter.Use(userTokenMiddleware.Authenticate)
-	mgrRouter.HandleFunc("/user", apiServer.getUserList).Methods(http.MethodGet)
-	mgrRouter.HandleFunc("/user", apiServer.createUser).Methods(http.MethodPost)
-	mgrRouter.HandleFunc("/user/{id}", apiServer.getUser).Methods(http.MethodGet)
-	mgrRouter.HandleFunc("/user/{id}", apiServer.updateUser).Methods(http.MethodPost)
-	mgrRouter.HandleFunc("/user/{id}/status", apiServer.updateUserStatus).Methods(http.MethodPost)
-	mgrRouter.HandleFunc("/user/{id}/change_password", apiServer.changeUserPassword).Methods(http.MethodPost)
-	mgrRouter.HandleFunc("/user/{id}/reset_password", apiServer.resetUserPassword).Methods(http.MethodPost)
-	mgrRouter.HandleFunc("/application", apiServer.createApplication).Methods(http.MethodPost)
-	mgrRouter.HandleFunc("/application", apiServer.getApplicationList).Methods(http.MethodGet)
-	mgrRouter.HandleFunc("/application/{id}", apiServer.getApplication).Methods(http.MethodGet)
-	mgrRouter.HandleFunc("/application/{id}", apiServer.updateApplication).Methods(http.MethodPost)
-	mgrRouter.HandleFunc("/application/{id}/status", apiServer.updateApplicationStatus).Methods(http.MethodPost)
-	mgrRouter.HandleFunc("/application/{id}/api_key", apiServer.createAPIKey).Methods(http.MethodPost)
-	mgrRouter.HandleFunc("/application/{id}/api_key", apiServer.listAPIKey).Methods(http.MethodGet)
-	mgrRouter.HandleFunc("/application/{id}/api_key/{key_id}", apiServer.revokeAPIKey).Methods(http.MethodDelete)
-	mgrRouter.HandleFunc("/ca/certificate", apiServer.addCACertificate).Methods(http.MethodPost)
-	mgrRouter.HandleFunc("/ca/certificate", apiServer.getCACertificateList).Methods(http.MethodGet)
-	mgrRouter.HandleFunc("/ca/certificate/{id}", apiServer.getCACertificate).Methods(http.MethodGet)
-	mgrRouter.HandleFunc("/ca/certificate/{id}", apiServer.revokeCACertificate).Methods(http.MethodDelete)
+	mgrRouter.HandleFunc("/users", apiServer.getUserList).Methods(http.MethodGet)
+	mgrRouter.HandleFunc("/users", apiServer.createUser).Methods(http.MethodPost)
+	mgrRouter.HandleFunc("/users/{id}", apiServer.getUser).Methods(http.MethodGet)
+	mgrRouter.HandleFunc("/users/{id}", apiServer.updateUser).Methods(http.MethodPost)
+	mgrRouter.HandleFunc("/users/{id}/status", apiServer.updateUserStatus).Methods(http.MethodPost)
+	mgrRouter.HandleFunc("/users/{id}/change_password", apiServer.changeUserPassword).Methods(http.MethodPost)
+	mgrRouter.HandleFunc("/users/{id}/reset_password", apiServer.resetUserPassword).Methods(http.MethodPost)
+	mgrRouter.HandleFunc("/applications", apiServer.createApplication).Methods(http.MethodPost)
+	mgrRouter.HandleFunc("/applications", apiServer.getApplicationList).Methods(http.MethodGet)
+	mgrRouter.HandleFunc("/applications/{id}", apiServer.getApplication).Methods(http.MethodGet)
+	mgrRouter.HandleFunc("/applications/{id}", apiServer.updateApplication).Methods(http.MethodPost)
+	mgrRouter.HandleFunc("/applications/{id}/status", apiServer.updateApplicationStatus).Methods(http.MethodPost)
+	mgrRouter.HandleFunc("/applications/{id}/api_keys", apiServer.createAPIKey).Methods(http.MethodPost)
+	mgrRouter.HandleFunc("/applications/{id}/api_keys", apiServer.listAPIKey).Methods(http.MethodGet)
+	mgrRouter.HandleFunc("/applications/{id}/api_keys/{key_id}", apiServer.revokeAPIKey).Methods(http.MethodDelete)
+	mgrRouter.HandleFunc("/ca/certificates", apiServer.addCACertificate).Methods(http.MethodPost)
+	mgrRouter.HandleFunc("/ca/certificates", apiServer.getCACertificateList).Methods(http.MethodGet)
+	mgrRouter.HandleFunc("/ca/certificates/{id}", apiServer.getCACertificate).Methods(http.MethodGet)
+	mgrRouter.HandleFunc("/ca/certificates/{id}", apiServer.revokeCACertificate).Methods(http.MethodDelete)
 
 	httpServer := &http.Server{
 		Addr:         localAddress,
@@ -726,14 +726,14 @@ func (s *ManagerAPI) getCACertificate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(result) == 0 {
+	if len(result.Certs) == 0 {
 		http.Error(w, "CA certificate not found", http.StatusNotFound)
 		return
 	}
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(result[0])
+	_ = json.NewEncoder(w).Encode(result.Certs[0])
 }
 
 func (s *ManagerAPI) revokeCACertificate(w http.ResponseWriter, r *http.Request) {

@@ -88,7 +88,7 @@ func (s *ManagerAPITestSuite) TestLogin() {
 		s.userMgr.EXPECT().Authenticate(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(userToken, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9201/login", nil)
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9201/api/login", nil)
 	request.Header.Add("Authorization", "Basic dXNlcm5hbWU6cGFzc3dvcmQ=") // username:password
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -114,7 +114,7 @@ func (s *ManagerAPITestSuite) TestLoginWithInvalidCredentials() {
 		s.userMgr.EXPECT().Authenticate(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(auth.UserToken{}, model.ErrUserAuthenticationFail),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9202/login", nil)
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9202/api/login", nil)
 	request.Header.Add("Authorization", "Basic dXNlcm5hbWU6cGFzc3dvcmQ=") // username:password
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -159,7 +159,7 @@ func (s *ManagerAPITestSuite) TestCreateUser() {
 		Emails:   []string{"email"},
 		Note:     "note",
 	}
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9203/user", util.StructToJSONReader(createUserRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9203/api/users", util.StructToJSONReader(createUserRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -204,7 +204,7 @@ func (s *ManagerAPITestSuite) TestListUser() {
 		s.userMgr.EXPECT().ListUsers(gomock.Any(), gomock.Eq(expectedRequest)).Return(listResult, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9204/user?offset=1&limit=2", nil)
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9204/api/users?offset=1&limit=2", nil)
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -246,7 +246,7 @@ func (s *ManagerAPITestSuite) TestGetUser() {
 		s.userMgr.EXPECT().ListUsers(gomock.Any(), gomock.Eq(expectedRequest)).Return(listResult, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9205/user/user_id", nil)
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9205/api/users/user_id", nil)
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -286,7 +286,7 @@ func (s *ManagerAPITestSuite) TestUpdateUser() {
 		s.userMgr.EXPECT().UpdateUser(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(updatedUser, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9206/user/user_id", util.StructToJSONReader(expectedRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9206/api/users/user_id", util.StructToJSONReader(expectedRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -327,7 +327,7 @@ func (s *ManagerAPITestSuite) TestUpdateUserStatus() {
 		s.userMgr.EXPECT().ActivateUser(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(updatedUser, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9207/user/user_id/status", util.StructToJSONReader(restRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9207/api/users/user_id/status", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -347,7 +347,7 @@ func (s *ManagerAPITestSuite) TestUpdateUserStatus() {
 		s.userMgr.EXPECT().DeactivateUser(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(updatedUser, nil),
 	)
 
-	request, _ = http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9207/user/user_id/status", util.StructToJSONReader(restRequest))
+	request, _ = http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9207/api/users/user_id/status", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err = http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -389,7 +389,7 @@ func (s *ManagerAPITestSuite) TestChangeUserPassword() {
 		"old_password": "old password",
 		"password":     "new password",
 	}
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9208/user/user_id/change_password", util.StructToJSONReader(restRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9208/api/users/user_id/change_password", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -427,7 +427,7 @@ func (s *ManagerAPITestSuite) TestResetUserPassword() {
 	restRequest := map[string]string{
 		"password": "new password",
 	}
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9209/user/user_id/reset_password", util.StructToJSONReader(restRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9209/api/users/user_id/reset_password", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -480,7 +480,7 @@ func (s *ManagerAPITestSuite) TestCreateApplication() {
 		"phone_numbers": []string{"phone number"},
 	}
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9210/application", util.StructToJSONReader(restRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9210/api/applications", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -522,7 +522,7 @@ func (s *ManagerAPITestSuite) TestListApplication() {
 		s.appMgr.EXPECT().ListApplications(gomock.Any(), gomock.Eq(expectedRequest)).Return(listResult, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9211/application?offset=1&limit=2", nil)
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9211/api/applications?offset=1&limit=2", nil)
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -565,7 +565,7 @@ func (s *ManagerAPITestSuite) TestGetApplication() {
 		s.appMgr.EXPECT().ListApplications(gomock.Any(), gomock.Eq(expectedRequest)).Return(listResult, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9212/application/app_id", nil)
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9212/api/applications/app_id", nil)
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -620,7 +620,7 @@ func (s *ManagerAPITestSuite) TestUpdateApplication() {
 		s.appMgr.EXPECT().UpdateApplication(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(app, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9213/application/app_id", util.StructToJSONReader(restRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9213/api/applications/app_id", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -663,7 +663,7 @@ func (s *ManagerAPITestSuite) TestUpdateApplicationStatus() {
 		s.appMgr.EXPECT().ActivateApplication(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(app, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9214/application/app_id/status", util.StructToJSONReader(restRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9214/api/applications/app_id/status", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -683,7 +683,7 @@ func (s *ManagerAPITestSuite) TestUpdateApplicationStatus() {
 		s.appMgr.EXPECT().DeactivateApplication(gomock.Any(), gomock.Any(), gomock.Eq(auth.DeactivateApplicationRequest(expectedRequest))).Return(app, nil),
 	)
 
-	request, _ = http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9214/application/app_id/status", util.StructToJSONReader(restRequest))
+	request, _ = http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9214/api/applications/app_id/status", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err = http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -729,7 +729,7 @@ func (s *ManagerAPITestSuite) TestCreateAPIKey() {
 		s.apiKeyMgr.EXPECT().CreateAPIKey(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(apiKey, apiKeyString, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9215/application/app_id/api_key", util.StructToJSONReader(restRequest))
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9215/api/applications/app_id/api_keys", util.StructToJSONReader(restRequest))
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -778,7 +778,7 @@ func (s *ManagerAPITestSuite) TestListAPIKey() {
 		s.apiKeyMgr.EXPECT().ListAPIKeys(gomock.Any(), gomock.Eq(expectedRequest)).Return(listResult, nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9216/application/app_id/api_key?offset=1&limit=2", nil)
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9216/api/applications/app_id/api_keys?offset=1&limit=2", nil)
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -814,7 +814,7 @@ func (s *ManagerAPITestSuite) TestRevokeAPIKey() {
 		s.apiKeyMgr.EXPECT().RevokeAPIKey(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(nil),
 	)
 
-	request, _ := http.NewRequestWithContext(s.ctx, http.MethodDelete, "http://localhost:9217/application/app_id/api_key/api_key_id", nil)
+	request, _ := http.NewRequestWithContext(s.ctx, http.MethodDelete, "http://localhost:9217/api/applications/app_id/api_keys/api_key_id", nil)
 	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := http.DefaultClient.Do(request)
 	s.Require().NoError(err)
@@ -858,7 +858,7 @@ func (s *ManagerAPITestSuite) TestAddCACertificate() {
 		s.ca.EXPECT().AddCertificate(gomock.Any(), gomock.Any(), expectedRequest).Return(cert, nil),
 	)
 
-	httpRequest, err := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9218/ca/certificate", util.StructToJSONReader(request))
+	httpRequest, err := http.NewRequestWithContext(s.ctx, http.MethodPost, "http://localhost:9218/api/ca/certificates", util.StructToJSONReader(request))
 	s.Require().NoError(err)
 
 	httpRequest.Header.Add("Authorization", "Bearer "+token)
@@ -889,13 +889,17 @@ func (s *ManagerAPITestSuite) TestListCACertificates() {
 	cert := model.Cert{
 		ID: "cert_id",
 	}
+	certResponse := cert_authority.ListCertificatesResponse{
+		Total: 1,
+		Certs: []model.Cert{cert},
+	}
 
 	gomock.InOrder(
 		s.userMgr.EXPECT().TokenAuthorization(gomock.Any(), gomock.Any(), gomock.Eq(token)).Return(userToken, nil),
-		s.ca.EXPECT().ListCertificates(gomock.Any(), gomock.Eq(expectedRequest)).Return([]model.Cert{cert}, nil),
+		s.ca.EXPECT().ListCertificates(gomock.Any(), gomock.Eq(expectedRequest)).Return(certResponse, nil),
 	)
 
-	httpRequest, err := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9219/ca/certificate?offset=1&limit=2", nil)
+	httpRequest, err := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9219/api/ca/certificates?offset=1&limit=2", nil)
 	s.Require().NoError(err)
 
 	httpRequest.Header.Add("Authorization", "Bearer "+token)
@@ -905,7 +909,7 @@ func (s *ManagerAPITestSuite) TestListCACertificates() {
 	defer response.Body.Close()
 
 	body, _ := io.ReadAll(response.Body)
-	s.Assert().Equal(util.StructToJSON([]model.Cert{cert}), strings.TrimSpace(string(body)))
+	s.Assert().Equal(util.StructToJSON(certResponse), strings.TrimSpace(string(body)))
 }
 
 func (s *ManagerAPITestSuite) TestGetCACertificate() {
@@ -928,13 +932,17 @@ func (s *ManagerAPITestSuite) TestGetCACertificate() {
 	cert := model.Cert{
 		ID: "cert_id",
 	}
+	certResponse := cert_authority.ListCertificatesResponse{
+		Total: 1,
+		Certs: []model.Cert{cert},
+	}
 
 	gomock.InOrder(
 		s.userMgr.EXPECT().TokenAuthorization(gomock.Any(), gomock.Any(), gomock.Eq(token)).Return(userToken, nil),
-		s.ca.EXPECT().ListCertificates(gomock.Any(), gomock.Eq(expectedRequest)).Return([]model.Cert{cert}, nil),
+		s.ca.EXPECT().ListCertificates(gomock.Any(), gomock.Eq(expectedRequest)).Return(certResponse, nil),
 	)
 
-	httpRequest, err := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9220/ca/certificate/cert_id", nil)
+	httpRequest, err := http.NewRequestWithContext(s.ctx, http.MethodGet, "http://localhost:9220/api/ca/certificates/cert_id", nil)
 	s.Require().NoError(err)
 
 	httpRequest.Header.Add("Authorization", "Bearer "+token)
@@ -972,7 +980,7 @@ func (s *ManagerAPITestSuite) TestRevokeCACertificate() {
 		s.ca.EXPECT().RevokeCertificate(gomock.Any(), gomock.Any(), gomock.Eq(expectedRequest)).Return(cert, nil),
 	)
 
-	httpRequest, err := http.NewRequestWithContext(s.ctx, http.MethodDelete, "http://localhost:9221/ca/certificate/cert_id", nil)
+	httpRequest, err := http.NewRequestWithContext(s.ctx, http.MethodDelete, "http://localhost:9221/api/ca/certificates/cert_id", nil)
 	s.Require().NoError(err)
 
 	httpRequest.Header.Add("Authorization", "Bearer "+token)

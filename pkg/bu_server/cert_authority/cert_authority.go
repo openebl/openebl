@@ -26,14 +26,14 @@ type CertAuthority interface {
 	// Revoke a CA certificate.
 	RevokeCertificate(ctx context.Context, ts int64, req RevokeCertificateRequest) (model.Cert, error)
 
-	ListCertificates(ctx context.Context, req ListCertificatesRequest) ([]model.Cert, error)
+	ListCertificates(ctx context.Context, req ListCertificatesRequest) (ListCertificatesResponse, error)
 	IssueCertificate(ctx context.Context, ts int64, req IssueCertificateRequest) ([]x509.Certificate, error)
 }
 
 type CertStorage interface {
 	CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, error)
 	AddCertificate(ctx context.Context, tx storage.Tx, cert model.Cert) error
-	ListCertificates(ctx context.Context, tx storage.Tx, req ListCertificatesRequest) ([]model.Cert, error)
+	ListCertificates(ctx context.Context, tx storage.Tx, req ListCertificatesRequest) (ListCertificatesResponse, error)
 }
 
 type AddCertificateRequest struct {
@@ -58,6 +58,11 @@ type ListCertificatesRequest struct {
 	// ValidFrom and ValidTo must be both zero or both non-zero.
 	ValidFrom int64 `json:"valid_from"` // Unix Time (in second) when the certificate becomes valid.
 	ValidTo   int64 `json:"valid_to"`   // Unix Time (in second) when the certificate becomes invalid.
+}
+
+type ListCertificatesResponse struct {
+	Total int64        `json:"total"` // Total number of certificates.
+	Certs []model.Cert `json:"certs"` // List of certificates.
 }
 
 type IssueCertificateRequest struct {
@@ -179,23 +184,23 @@ func (ca *_CertAuthority) RevokeCertificate(ctx context.Context, ts int64, req R
 	return cert, nil
 }
 
-func (ca *_CertAuthority) ListCertificates(ctx context.Context, req ListCertificatesRequest) ([]model.Cert, error) {
+func (ca *_CertAuthority) ListCertificates(ctx context.Context, req ListCertificatesRequest) (ListCertificatesResponse, error) {
 	if err := ValidateListCertificatesRequest(req); err != nil {
-		return nil, err
+		return ListCertificatesResponse{}, err
 	}
 
 	tx, err := ca.certStorage.CreateTx(ctx)
 	if err != nil {
-		return nil, err
+		return ListCertificatesResponse{}, err
 	}
 	defer tx.Rollback(ctx)
 
 	result, err := ca.certStorage.ListCertificates(ctx, tx, req)
 	if err != nil {
-		return nil, err
+		return ListCertificatesResponse{}, err
 	}
-	for i := range result {
-		result[i].PrivateKey = "" // Erase PrivateKey field before returning because it is sensitive and the user should not touch it anymore.
+	for i := range result.Certs {
+		result.Certs[i].PrivateKey = "" // Erase PrivateKey field before returning because it is sensitive and the user should not touch it anymore.
 	}
 	return result, nil
 }
@@ -264,15 +269,15 @@ func (ca *_CertAuthority) getCert(ctx context.Context, certID string, tx storage
 		Limit: 1,
 		IDs:   []string{certID},
 	}
-	certs, err := ca.certStorage.ListCertificates(ctx, tx, listReq)
+	result, err := ca.certStorage.ListCertificates(ctx, tx, listReq)
 	if err != nil {
 		return model.Cert{}, err
 	}
-	if len(certs) == 0 {
+	if len(result.Certs) == 0 {
 		return model.Cert{}, model.ErrCertificationNotFound
 	}
 
-	return certs[0], nil
+	return result.Certs[0], nil
 }
 
 func (ca *_CertAuthority) getCertByValidTime(ctx context.Context, validFrom, validUntil int64, tx storage.Tx) (model.Cert, error) {
@@ -291,13 +296,13 @@ func (ca *_CertAuthority) getCertByValidTime(ctx context.Context, validFrom, val
 		ValidFrom: validFrom,
 		ValidTo:   validUntil,
 	}
-	certs, err := ca.certStorage.ListCertificates(ctx, tx, listReq)
+	result, err := ca.certStorage.ListCertificates(ctx, tx, listReq)
 	if err != nil {
 		return model.Cert{}, err
 	}
-	if len(certs) == 0 {
+	if len(result.Certs) == 0 {
 		return model.Cert{}, model.ErrCACertificationNotAvailable
 	}
 
-	return certs[0], nil
+	return result.Certs[0], nil
 }

@@ -10,5 +10,5 @@ server:
   host: {{ or .SERVER_BIND_ADDRESS "" }}
   port: {{ or .SERVER_BIND_PORT "8080" }}
 manager:
-  host: {{ or .MANAGER_BIND_ADDRESS "127.0.0.1" }}
+  host: {{ or .MANAGER_BIND_ADDRESS "" }}
   port: {{ or .MANAGER_BIND_PORT "8081" }}

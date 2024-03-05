@@ -36,6 +36,21 @@ func (m *MockFileBaseEBLController) EXPECT() *MockFileBaseEBLControllerMockRecor
 	return m.recorder
 }
 
+// AmendmentRequest mocks base method.
+func (m *MockFileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64, request trade_document.AmendmentRequestEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AmendmentRequest", ctx, ts, request)
+	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AmendmentRequest indicates an expected call of AmendmentRequest.
+func (mr *MockFileBaseEBLControllerMockRecorder) AmendmentRequest(ctx, ts, request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AmendmentRequest", reflect.TypeOf((*MockFileBaseEBLController)(nil).AmendmentRequest), ctx, ts, request)
+}
+
 // Create mocks base method.
 func (m *MockFileBaseEBLController) Create(ctx context.Context, ts int64, request trade_document.IssueFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
 	m.ctrl.T.Helper()

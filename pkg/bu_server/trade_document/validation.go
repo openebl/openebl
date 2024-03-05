@@ -94,3 +94,18 @@ func ValidateTransferEBLRequest(req TransferEBLRequest) error {
 
 	return nil
 }
+
+func ValidateAmendmentRequestEBLRequest(req AmendmentRequestEBLRequest) error {
+	if err := validation.ValidateStruct(&req,
+		validation.Field(&req.Requester, validation.Required),
+		validation.Field(&req.Application, validation.Required),
+		validation.Field(&req.RequestBy, validation.Required),
+		validation.Field(&req.AuthenticationID, validation.Required),
+		validation.Field(&req.ID, validation.Required),
+		validation.Field(&req.Note, validation.Required),
+	); err != nil {
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
+	}
+
+	return nil
+}

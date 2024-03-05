@@ -838,3 +838,67 @@ func (s *FileBasedEBLTestSuite) TestReturnAmentRequest() {
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
 }
+
+func (s *FileBasedEBLTestSuite) TestSurrender() {
+	ts := int64(1709615902)
+
+	req := trade_document.SurrenderEBLRequest{
+		Requester:        "requester",
+		Application:      "app_id",
+		RequestBy:        "did:openebl:consignee",
+		AuthenticationID: "consignee_auth1",
+		ID:               "316f5f2d-eb10-4563-a0d2-45858a57ad5e",
+		Note:             "Surrender the eBL to the release agent",
+	}
+
+	var receivedTD storage.TradeDocument
+	gomock.InOrder(
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().ListTradeDocument(
+			gomock.Any(),
+			s.tx,
+			storage.ListTradeDocumentRequest{
+				Limit:  1,
+				DocIDs: []string{req.ID},
+			},
+		).Return(
+			storage.ListTradeDocumentResponse{
+				Total: 1,
+				Docs:  []storage.TradeDocument{s.consigneeEbl},
+			},
+			nil,
+		),
+		s.buMgr.EXPECT().GetJWSSigner(
+			gomock.Any(),
+			business_unit.GetJWSSignerRequest{
+				ApplicationID:    "app_id",
+				BusinessUnitID:   did.MustParseDID("did:openebl:consignee"),
+				AuthenticationID: "consignee_auth1",
+			},
+		).Return(s.shipperSigner, nil),
+		s.tdStorage.EXPECT().AddTradeDocument(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, td storage.TradeDocument) error {
+				receivedTD = td
+				return nil
+			},
+		),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	expectedBlPack := func() bill_of_lading.BillOfLadingPack {
+		td := s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/release_agent_ebl_jws.json")
+		res, err := trade_document.ExtractBLPackFromTradeDocument(td)
+		s.Require().NoError(err)
+		return res
+	}()
+
+	result, err := s.eblCtrl.Surrender(s.ctx, ts, req)
+	s.Require().NoError(err)
+	s.Assert().Empty(result.Events[0].BillOfLading.File.Content)
+	result.Events[0].BillOfLading.File.Content = expectedBlPack.Events[0].BillOfLading.File.Content
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result))
+	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
+	s.Require().NoError(err)
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
+}

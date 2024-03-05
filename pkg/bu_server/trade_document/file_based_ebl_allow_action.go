@@ -172,7 +172,31 @@ func IsFileEBLReturnable(bl *bill_of_lading.BillOfLadingPack, bu string, withDet
 }
 
 func IsFileEBLSurrenderable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {
-	return model.ErrEBLActionNotAllowed
+	lastEvent := GetLastEvent(bl)
+	if lastEvent == nil {
+		if withDetail {
+			return fmt.Errorf("empty eBL%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	_, to := GetOwnerShipTransferringByEvent(lastEvent)
+	if to != bu {
+		if withDetail {
+			return fmt.Errorf("not the owner%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	participants := GetFileBaseEBLParticipators(bl)
+	if participants.Consignee != bu {
+		if withDetail {
+			return fmt.Errorf("not the consignee%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	return nil
 }
 
 func IsFileEBLAccomplishable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {

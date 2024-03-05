@@ -125,6 +125,8 @@ func (ca *_CertAuthority) AddCertificate(ctx context.Context, ts int64, req AddC
 		Version:         1,
 		Type:            model.BUCert,
 		Status:          model.CertStatusActive,
+		NotBefore:       cert.NotBefore.Unix(),
+		NotAfter:        cert.NotAfter.Unix(),
 		CreatedAt:       ts,
 		CreatedBy:       req.Requester,
 		PrivateKey:      req.PrivateKey,

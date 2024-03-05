@@ -68,7 +68,23 @@ func IsFileEBLAmendable(bl *bill_of_lading.BillOfLadingPack, bu string, withDeta
 }
 
 func IsFileEBLRequestAmendable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {
-	return model.ErrEBLActionNotAllowed
+	if bu != GetCurrentOwner(bl) {
+		if withDetail {
+			return fmt.Errorf("not the current owner. %w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	parties := GetFileBaseEBLParticipators(bl)
+	if bu != parties.Shipper && bu != parties.Consignee && bu != parties.ReleaseAgent {
+		if withDetail {
+			return fmt.Errorf("only [shipper, consignee, release_agent] can request amendment. %w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+
+	}
+
+	return nil
 }
 
 func IsFileEBLPrintable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {

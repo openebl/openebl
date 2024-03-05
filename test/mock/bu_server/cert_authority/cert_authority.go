@@ -69,10 +69,10 @@ func (mr *MockCertAuthorityMockRecorder) IssueCertificate(ctx, ts, req interface
 }
 
 // ListCertificates mocks base method.
-func (m *MockCertAuthority) ListCertificates(ctx context.Context, req cert_authority.ListCertificatesRequest) ([]model.Cert, error) {
+func (m *MockCertAuthority) ListCertificates(ctx context.Context, req cert_authority.ListCertificatesRequest) (cert_authority.ListCertificatesResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListCertificates", ctx, req)
-	ret0, _ := ret[0].([]model.Cert)
+	ret0, _ := ret[0].(cert_authority.ListCertificatesResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -156,10 +156,10 @@ func (mr *MockCertStorageMockRecorder) CreateTx(ctx interface{}, options ...inte
 }
 
 // ListCertificates mocks base method.
-func (m *MockCertStorage) ListCertificates(ctx context.Context, tx storage.Tx, req cert_authority.ListCertificatesRequest) ([]model.Cert, error) {
+func (m *MockCertStorage) ListCertificates(ctx context.Context, tx storage.Tx, req cert_authority.ListCertificatesRequest) (cert_authority.ListCertificatesResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListCertificates", ctx, tx, req)
-	ret0, _ := ret[0].([]model.Cert)
+	ret0, _ := ret[0].(cert_authority.ListCertificatesResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

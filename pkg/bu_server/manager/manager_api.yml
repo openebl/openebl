@@ -243,10 +243,8 @@ components:
           description: Version of the certificate.
         type:
           $ref: '#/components/schemas/CertType'
-          description: Type of the certificate.
         status:
           $ref: '#/components/schemas/CertStatus'
-          description: Status of the certificate.
         created_at:
           type: integer
           format: int64
@@ -311,7 +309,7 @@ paths:
               schema:
                 type: string
               example: user name/password mismatch
-  /user:
+  /users:
     get:
       tags: [user]
       summary: List all users.
@@ -386,7 +384,7 @@ paths:
               schema:
                 type: string
               example: user ID already exists
-  /user/{id}:
+  /users/{id}:
     get:
       tags: [user]
       summary: Get user by ID
@@ -458,7 +456,7 @@ paths:
               schema:
                 type: string
               example: user ID does not exist
-  /user/{id}/status:
+  /users/{id}/status:
     post:
       tags: [user]
       summary: Update user status.
@@ -503,7 +501,7 @@ paths:
               schema:
                 type: string
               example: user ID does not exist
-  /user/{id}/reset_password:
+  /users/{id}/reset_password:
     post:
       tags: [user]
       summary: Reset user password.
@@ -538,7 +536,7 @@ paths:
               schema:
                 type: string
               example: user ID does not exist
-  /user/{id}/change_password:
+  /users/{id}/change_password:
     post:
       tags: [user]
       summary: Change user password.
@@ -573,7 +571,7 @@ paths:
               schema:
                 type: string
               example: user ID does not exist
-  /application:
+  /applications:
     get:
       tags: [application]
       summary: List all applications.
@@ -630,7 +628,7 @@ paths:
       responses:
         '200':
           description: OK
-  /application/{id}:
+  /applications/{id}:
     get:
       tags: [application]
       summary: Get application by ID
@@ -702,7 +700,7 @@ paths:
               schema:
                 type: string
               example: application ID does not exist
-  /application/{id}/status:
+  /applications/{id}/status:
     post:
       tags: [application]
       summary: Update application status.
@@ -747,7 +745,7 @@ paths:
               schema:
                 type: string
               example: application ID does not exist
-  /application/{id}/api_key:
+  /applications/{id}/api_keys:
     get:
       tags: [api_key]
       summary: List all API keys.
@@ -782,7 +780,6 @@ paths:
           content:
             application/json:
               schema:
-                type: object
                 $ref: "#/components/schemas/ListAPIKeysResult"
         '401':
           description: The token is invalid or not provided.
@@ -823,7 +820,7 @@ paths:
             The system does not store the API key. It's unrecoverable if lost.
             The format of the API key is {key_id}:{key_secret}.
           content:
-            text/plain::
+            text/plain:
               schema:
                 type: string
               example: "V07uQkIC50SUgnDJClNJNQ:H5O-EFaLeg_Z2VRdbg7fVijObyy37DPbIT4S4kygTMk"
@@ -834,7 +831,7 @@ paths:
               schema:
                 type: string
               example: invalid token
-  /application/{id}/api_key/{key_id}:
+  /applications/{id}/api_keys/{key_id}:
     get:
       tags: [api_key]
       summary: Get API key by ID
@@ -912,7 +909,7 @@ paths:
               example: API key does not exist
       security:
         - bearerAuth: []
-  /ca/certificate:
+  /ca/certificates:
     post:
       tags: [ca]
       security:
@@ -970,9 +967,12 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Cert'
+                type: object
+                properties:
+                  certs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Cert'
         '400':
           description: Bad request, invalid parameters
           content:
@@ -985,7 +985,7 @@ paths:
             text/plain:
               schema:
                 type: string
-  /ca/certificate/{id}:
+  /ca/certificates/{id}:
     get:
       tags: [ca]
       security:

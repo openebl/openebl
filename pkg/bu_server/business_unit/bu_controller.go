@@ -348,6 +348,7 @@ func (m *_BusinessUnitManager) AddAuthentication(ctx context.Context, ts int64, 
 	}
 
 	caRequest := cert_authority.IssueCertificateRequest{
+		CACertID:           "__root__",
 		CertificateRequest: certificateRequest,
 		NotBefore:          time.Unix(ts, 0),
 		NotAfter:           time.Unix(ts+req.ExpiredAfter, 0),

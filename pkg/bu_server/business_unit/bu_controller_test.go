@@ -339,7 +339,7 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 			func(ctx context.Context, ts int64, req cert_authority.IssueCertificateRequest) ([]x509.Certificate, error) {
 				s.Assert().Equal("name", req.CertificateRequest.Subject.CommonName)
 				s.Assert().Equal("US", req.CertificateRequest.Subject.Country[0])
-				s.Assert().Empty(req.CACertID)
+				s.Assert().Equal("__root__", req.CACertID)
 				s.Assert().Equal(time.Unix(ts, 0), req.NotBefore)
 				s.Assert().Equal(time.Unix(ts+request.ExpiredAfter, 0), req.NotAfter)
 				receivedCertRequest = req.CertificateRequest

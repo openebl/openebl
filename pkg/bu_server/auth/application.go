@@ -82,8 +82,8 @@ type ListApplicationRequest struct {
 	Statuses []ApplicationStatus // Filter by status.
 }
 type ListApplicationResult struct {
-	Total        int           // Total number of applications.
-	Applications []Application // List of Applications.
+	Total        int           `json:"total"` // Total number of applications.
+	Applications []Application `json:"apps"`  // List of Applications.
 }
 
 type _ApplicationManager struct {

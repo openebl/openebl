@@ -96,6 +96,21 @@ func (mr *MockFileBaseEBLControllerMockRecorder) List(ctx, request interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockFileBaseEBLController)(nil).List), ctx, request)
 }
 
+// PrintToPaper mocks base method.
+func (m *MockFileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, request trade_document.PrintFileBasedEBLToPaperRequest) (bill_of_lading.BillOfLadingPack, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PrintToPaper", ctx, ts, request)
+	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PrintToPaper indicates an expected call of PrintToPaper.
+func (mr *MockFileBaseEBLControllerMockRecorder) PrintToPaper(ctx, ts, request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrintToPaper", reflect.TypeOf((*MockFileBaseEBLController)(nil).PrintToPaper), ctx, ts, request)
+}
+
 // Return mocks base method.
 func (m *MockFileBaseEBLController) Return(ctx context.Context, ts int64, request trade_document.ReturnFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
 	m.ctrl.T.Helper()

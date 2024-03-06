@@ -106,7 +106,7 @@ func IsFileEBLAmendable(bl *bill_of_lading.BillOfLadingPack, bu string, withDeta
 		return model.ErrEBLActionNotAllowed
 	}
 
-	participants := GetFileBaseEBLParticipators(bl)
+	participants := GetFileBaseEBLParticipatorsFromBLPack(bl)
 	if bu != participants.Issuer {
 		if withDetail {
 			return fmt.Errorf("not the issuer%w", model.ErrEBLActionNotAllowed)
@@ -125,7 +125,7 @@ func IsFileEBLRequestAmendable(bl *bill_of_lading.BillOfLadingPack, bu string, w
 		return model.ErrEBLActionNotAllowed
 	}
 
-	parties := GetFileBaseEBLParticipators(bl)
+	parties := GetFileBaseEBLParticipatorsFromBLPack(bl)
 	if bu != parties.Shipper && bu != parties.Consignee && bu != parties.ReleaseAgent {
 		if withDetail {
 			return fmt.Errorf("only [shipper, consignee, release_agent] can request amendment. %w", model.ErrEBLActionNotAllowed)
@@ -138,7 +138,37 @@ func IsFileEBLRequestAmendable(bl *bill_of_lading.BillOfLadingPack, bu string, w
 }
 
 func IsFileEBLPrintable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {
-	return model.ErrEBLActionNotAllowed
+	if draft := GetDraft(bl); draft == nil || *draft {
+		if withDetail {
+			return fmt.Errorf("not printable due to the bill of lading is draft%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	lastEvent := GetLastEvent(bl)
+	if lastEvent == nil {
+		if withDetail {
+			return fmt.Errorf("empty eBL%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	_, to := GetOwnerShipTransferringByEvent(lastEvent)
+	if bu != to {
+		if withDetail {
+			return fmt.Errorf("not the owner%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	if lastEvent.Accomplish != nil || lastEvent.PrintToPaper != nil {
+		if withDetail {
+			return fmt.Errorf("not printable due to the bill of lading is printed or accomplished%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	return nil
 }
 
 func IsFileEBLTransferable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {
@@ -149,7 +179,7 @@ func IsFileEBLTransferable(bl *bill_of_lading.BillOfLadingPack, bu string, withD
 		return model.ErrEBLActionNotAllowed
 	}
 
-	parties := GetFileBaseEBLParticipators(bl)
+	parties := GetFileBaseEBLParticipatorsFromBLPack(bl)
 	if bu != parties.Shipper {
 		if withDetail {
 			return fmt.Errorf("not the shipper. %w", model.ErrEBLActionNotAllowed)
@@ -205,7 +235,7 @@ func IsFileEBLReturnable(bl *bill_of_lading.BillOfLadingPack, bu string, withDet
 	}
 
 	// Identify the role of the bu.
-	participants := GetFileBaseEBLParticipators(bl)
+	participants := GetFileBaseEBLParticipatorsFromBLPack(bl)
 	if participants.Issuer == bu && lastEvent.AmendmentRequest == nil {
 		if withDetail {
 			return fmt.Errorf("not returnable for the issuer%w", model.ErrEBLActionNotAllowed)
@@ -238,7 +268,7 @@ func IsFileEBLSurrenderable(bl *bill_of_lading.BillOfLadingPack, bu string, with
 		return model.ErrEBLActionNotAllowed
 	}
 
-	participants := GetFileBaseEBLParticipators(bl)
+	participants := GetFileBaseEBLParticipatorsFromBLPack(bl)
 	if participants.Consignee != bu {
 		if withDetail {
 			return fmt.Errorf("not the consignee%w", model.ErrEBLActionNotAllowed)

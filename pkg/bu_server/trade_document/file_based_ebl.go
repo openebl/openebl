@@ -128,6 +128,16 @@ type SurrenderEBLRequest struct {
 	Note string `json:"note"`
 }
 
+type PrintFileBasedEBLToPaperRequest struct {
+	Requester        string `json:"requester"`
+	Application      string `json:"application"`
+	RequestBy        string `json:"request_by"`
+	AuthenticationID string `json:"authentication_id"`
+
+	ID   string `json:"id"`
+	Note string `json:"note"`
+}
+
 type FileBaseEBLParticipators struct {
 	Issuer       string `json:"issuer"`
 	Shipper      string `json:"shipper"`
@@ -144,6 +154,7 @@ type FileBaseEBLController interface {
 	AmendmentRequest(ctx context.Context, ts int64, request AmendmentRequestEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 	Amend(ctx context.Context, ts int64, request AmendFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 	Surrender(ctx context.Context, ts int64, request SurrenderEBLRequest) (bill_of_lading.BillOfLadingPack, error)
+	PrintToPaper(ctx context.Context, ts int64, request PrintFileBasedEBLToPaperRequest) (bill_of_lading.BillOfLadingPack, error)
 }
 
 type _FileBaseEBLController struct {
@@ -398,7 +409,7 @@ func AmendFileBasedBillOfLadingFromRequest(req AmendFileBasedEBLRequest, oldPack
 		Note:      req.Note,
 	}
 
-	parties := GetFileBaseEBLParticipators(&oldPack)
+	parties := GetFileBaseEBLParticipatorsFromBLPack(&oldPack)
 	td := bl.BillOfLading
 	SetPOL(td, req.POL)
 	SetPOD(td, req.POD)
@@ -707,6 +718,62 @@ func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req Su
 	return blPack, nil
 }
 
+func (c *_FileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, req PrintFileBasedEBLToPaperRequest) (bill_of_lading.BillOfLadingPack, error) {
+	if err := ValidatePrintFileBasedEBLRequest(req); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	currentTime := model.NewDateTimeFromUnix(ts)
+	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err = IsFileEBLPrintable(&oldPack, req.RequestBy, true); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	blPack := bill_of_lading.BillOfLadingPack{
+		ID:           oldPack.ID,
+		Version:      oldPack.Version + 1,
+		ParentHash:   oldHash,
+		Events:       oldPack.Events,
+		CurrentOwner: oldPack.CurrentOwner,
+	}
+	print := bill_of_lading.BillOfLadingEvent{
+		PrintToPaper: &bill_of_lading.PrintToPaper{
+			PrintBy: req.RequestBy,
+			PrintAt: &currentTime,
+			Note:    req.Note,
+		},
+	}
+	blPack.Events = append(blPack.Events, print)
+
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	lo.ForEach(blPack.Events, func(e bill_of_lading.BillOfLadingEvent, _ int) {
+		if e.BillOfLading != nil {
+			e.BillOfLading.File.Content = nil
+		}
+	})
+	return blPack, nil
+}
+
 func (c *_FileBaseEBLController) checkBUExistence(ctx context.Context, appID string, buIDs []string) error {
 	req := business_unit.ListBusinessUnitsRequest{
 		Limit:           len(buIDs),
@@ -942,7 +1009,7 @@ func GetIssuer(blPack *bill_of_lading.BillOfLadingPack) *string {
 	return nil
 }
 
-func GetFileBaseEBLParticipators(blPack *bill_of_lading.BillOfLadingPack) FileBaseEBLParticipators {
+func GetFileBaseEBLParticipatorsFromBLPack(blPack *bill_of_lading.BillOfLadingPack) FileBaseEBLParticipators {
 	if blPack == nil || len(blPack.Events) == 0 {
 		return FileBaseEBLParticipators{}
 	}
@@ -957,6 +1024,14 @@ func GetFileBaseEBLParticipators(blPack *bill_of_lading.BillOfLadingPack) FileBa
 	if bl == nil {
 		return FileBaseEBLParticipators{}
 	}
+	return GetFileBaseEBLParticipatorFromBL(bl)
+}
+
+func GetFileBaseEBLParticipatorFromBL(bl *bill_of_lading.BillOfLading) FileBaseEBLParticipators {
+	if bl.BillOfLading == nil {
+		return FileBaseEBLParticipators{}
+	}
+
 	si := bl.BillOfLading.ShippingInstruction
 	if si == nil {
 		return FileBaseEBLParticipators{}
@@ -994,7 +1069,7 @@ func GetCurrentOwner(blPack *bill_of_lading.BillOfLadingPack) string {
 }
 
 func GetNextOwnerByAction(action FileBasedEBLAction, bu string, blPack *bill_of_lading.BillOfLadingPack) string {
-	parties := GetFileBaseEBLParticipators(blPack)
+	parties := GetFileBaseEBLParticipatorsFromBLPack(blPack)
 	switch action {
 	case FILE_EBL_TRANSFER:
 		if bu == parties.Shipper {
@@ -1051,6 +1126,10 @@ func GetOwnerShipTransferringByEvent(event *bill_of_lading.BillOfLadingEvent) (s
 		return "", ""
 	}
 
+	if event.BillOfLading != nil {
+		parties := GetFileBaseEBLParticipatorFromBL(event.BillOfLading)
+		return parties.Issuer, parties.Issuer
+	}
 	if event.Transfer != nil {
 		return event.Transfer.TransferBy, event.Transfer.TransferTo
 	}
@@ -1062,6 +1141,12 @@ func GetOwnerShipTransferringByEvent(event *bill_of_lading.BillOfLadingEvent) (s
 	}
 	if event.AmendmentRequest != nil {
 		return event.AmendmentRequest.RequestBy, event.AmendmentRequest.RequestTo
+	}
+	if event.Accomplish != nil {
+		return event.Accomplish.AccomplishBy, event.Accomplish.AccomplishBy
+	}
+	if event.PrintToPaper != nil {
+		return event.PrintToPaper.PrintBy, event.PrintToPaper.PrintBy
 	}
 
 	return "", ""
@@ -1133,7 +1218,7 @@ func GetBillOfLadingPackMeta(ctx context.Context, ts int64, blPack *bill_of_ladi
 		return nil, errors.New("no bill of lading found in the pack")
 	}
 
-	parties := GetFileBaseEBLParticipators(blPack)
+	parties := GetFileBaseEBLParticipatorsFromBLPack(blPack)
 	partiesByOrder := []string{parties.Issuer, parties.Shipper, parties.Consignee, parties.ReleaseAgent}
 
 	res := make(map[string]any)

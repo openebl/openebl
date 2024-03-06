@@ -1135,3 +1135,62 @@ func (s *FileBasedEBLTestSuite) TestAccomplishEBL() {
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
 }
+
+func (s *FileBasedEBLTestSuite) TestGetEBL() {
+	req := trade_document.GetFileBasedEBLRequest{
+		Requester:   "did:openebl:requester",
+		Application: "appid",
+		ID:          "doc_id",
+	}
+
+	listReq := storage.ListTradeDocumentRequest{
+		Limit:  1,
+		DocIDs: []string{"doc_id"},
+		Meta:   map[string]any{"visible_to_bu": []string{"did:openebl:requester"}},
+	}
+	listResp := storage.ListTradeDocumentResponse{
+		Total: 1,
+		Docs:  []storage.TradeDocument{s.shipperEbl},
+	}
+
+	gomock.InOrder(
+		s.buMgr.EXPECT().ListBusinessUnits(
+			gomock.Any(),
+			business_unit.ListBusinessUnitsRequest{
+				Limit:           1,
+				ApplicationID:   "appid",
+				BusinessUnitIDs: []string{"did:openebl:requester"},
+			},
+		).Return(
+			business_unit.ListBusinessUnitsResult{
+				Total: 1,
+				Records: []business_unit.ListBusinessUnitsRecord{
+					{
+						BusinessUnit: model.BusinessUnit{
+							ID:            did.MustParseDID("did:openebl:requester"),
+							Version:       1,
+							ApplicationID: "appid",
+							Status:        model.BusinessUnitStatusActive,
+						},
+					},
+				},
+			},
+			nil,
+		),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any()).Return(s.tx, nil),
+		s.tdStorage.EXPECT().ListTradeDocument(gomock.Any(), s.tx, gomock.Eq(listReq)).Return(listResp, nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	expectedBlPack := func() bill_of_lading.BillOfLadingPack {
+		td := s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_ebl_jws.json")
+		res, err := trade_document.ExtractBLPackFromTradeDocument(td)
+		s.Require().NoError(err)
+		res.Events[0].BillOfLading.File.Content = nil
+		return res
+	}()
+
+	result, err := s.eblCtrl.Get(s.ctx, req)
+	s.Require().NoError(err)
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result))
+}

@@ -110,6 +110,30 @@ func (a *API) listFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *API) getFileBasedEBL(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
+	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
+	docID := mux.Vars(r)["id"]
+
+	var req trade_document.GetFileBasedEBLRequest
+	req.Requester = buID
+	req.Application = appID
+	req.ID = docID
+
+	result, err := a.fileEBLCtrl.Get(ctx, req)
+	if err != nil {
+		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		logrus.Warnf("listFileBasedEBL failed to encode/write response: %v", err)
+	}
+}
+
 func (a *API) transferEBL(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)

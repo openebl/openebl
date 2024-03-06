@@ -148,6 +148,13 @@ type AccomplishEBLRequest struct {
 	Note string `json:"note"`
 }
 
+type GetFileBasedEBLRequest struct {
+	Requester   string `json:"requester"`
+	Application string `json:"application"`
+
+	ID string `json:"id"`
+}
+
 type FileBaseEBLParticipators struct {
 	Issuer       string `json:"issuer"`
 	Shipper      string `json:"shipper"`
@@ -166,6 +173,7 @@ type FileBaseEBLController interface {
 	Surrender(ctx context.Context, ts int64, request SurrenderEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 	PrintToPaper(ctx context.Context, ts int64, request PrintFileBasedEBLToPaperRequest) (bill_of_lading.BillOfLadingPack, error)
 	Accomplish(ctx context.Context, ts int64, request AccomplishEBLRequest) (bill_of_lading.BillOfLadingPack, error)
+	Get(ctx context.Context, request GetFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 }
 
 type _FileBaseEBLController struct {
@@ -828,6 +836,45 @@ func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req A
 		return bill_of_lading.BillOfLadingPack{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	lo.ForEach(blPack.Events, func(e bill_of_lading.BillOfLadingEvent, _ int) {
+		if e.BillOfLading != nil {
+			e.BillOfLading.File.Content = nil
+		}
+	})
+	return blPack, nil
+}
+
+func (c *_FileBaseEBLController) Get(ctx context.Context, request GetFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+	if err := c.checkBUExistence(ctx, request.Application, []string{request.Requester}); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	tx, err := c.storage.CreateTx(ctx)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	req := storage.ListTradeDocumentRequest{
+		Limit:  1,
+		DocIDs: []string{request.ID},
+		Meta:   map[string]any{"visible_to_bu": []string{request.Requester}},
+	}
+
+	resp, err := c.storage.ListTradeDocument(ctx, tx, req)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	if len(resp.Docs) == 0 {
+		return bill_of_lading.BillOfLadingPack{}, model.ErrEBLNotFound
+	}
+
+	blPack, err := ExtractBLPackFromTradeDocument(resp.Docs[0])
+	if err != nil {
 		return bill_of_lading.BillOfLadingPack{}, err
 	}
 

@@ -77,6 +77,7 @@ func NewAPIWithController(apiKeyMgr auth.APIKeyAuthenticator, buMgr business_uni
 	eblRouter.Use(middleware.ExtractBusinessUnitID)
 	eblRouter.HandleFunc("/ebl", apiServer.listFileBasedEBL).Methods(http.MethodGet)
 	eblRouter.HandleFunc("/ebl", apiServer.createFileBasedEBL).Methods(http.MethodPost)
+	eblRouter.HandleFunc("/ebl/{id}", apiServer.getFileBasedEBL).Methods(http.MethodGet)
 	eblRouter.HandleFunc("/ebl/{id}/update", apiServer.updateFileBasedEBL).Methods(http.MethodPost)
 	eblRouter.HandleFunc("/ebl/{id}/transfer", apiServer.transferEBL).Methods(http.MethodPost)
 	eblRouter.HandleFunc("/ebl/{id}/return", apiServer.returnEBL).Methods(http.MethodPost)

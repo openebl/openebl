@@ -96,6 +96,21 @@ func (mr *MockFileBaseEBLControllerMockRecorder) Create(ctx, ts, request interfa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockFileBaseEBLController)(nil).Create), ctx, ts, request)
 }
 
+// Get mocks base method.
+func (m *MockFileBaseEBLController) Get(ctx context.Context, request trade_document.GetFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Get", ctx, request)
+	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Get indicates an expected call of Get.
+func (mr *MockFileBaseEBLControllerMockRecorder) Get(ctx, request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockFileBaseEBLController)(nil).Get), ctx, request)
+}
+
 // List mocks base method.
 func (m *MockFileBaseEBLController) List(ctx context.Context, request trade_document.ListFileBasedEBLRequest) (trade_document.ListFileBasedEBLRecord, error) {
 	m.ctrl.T.Helper()

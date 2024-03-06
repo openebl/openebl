@@ -60,9 +60,9 @@ type Surrender struct {
 }
 
 type AmendmentRequest struct {
-	RequestBy string          `json:"requested_by,omitempty"` // DID
-	RequestTo string          `json:"requested_to,omitempty"` // DID
-	RequestAt *model.DateTime `json:"requested_at,omitempty"`
+	RequestBy string          `json:"request_by,omitempty"` // DID
+	RequestTo string          `json:"request_to,omitempty"` // DID
+	RequestAt *model.DateTime `json:"request_at,omitempty"`
 	Note      string          `json:"note,omitempty"`
 }
 

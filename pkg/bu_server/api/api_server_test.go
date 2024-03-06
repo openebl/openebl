@@ -553,6 +553,61 @@ func (s *APITestSuite) TestAmendmentRequestFileBasedEBL() {
 	s.Require().Equal(util.StructToJSON(newBillOfLadingPack), strings.TrimSpace(string(returnedBody)))
 }
 
+func (s *APITestSuite) TestAmendFileBasedEBL() {
+	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/amend", s.localAddress)
+
+	req := trade_document.AmendFileBasedEBLRequest{
+		Requester:        "requester",
+		AuthenticationID: "bu_auth_id",
+
+		File: trade_document.File{
+			Name:    "new_test.txt",
+			Type:    "text/plain",
+			Content: []byte("new test content"),
+		},
+		BLNumber:  "new_bl_number",
+		BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
+		ToOrder:   false,
+		POL: trade_document.Location{
+			LocationName: "New Port of Loading",
+			UNLocCode:    "POL",
+		},
+		POD: trade_document.Location{
+			LocationName: "New Port of Discharge",
+			UNLocCode:    "POD",
+		},
+		ETA:  model.NewDateTimeFromUnix(1708905600),
+		Note: "amend note",
+	}
+
+	expectedRequest := req
+	expectedRequest.Application = s.appId
+	expectedRequest.Issuer = "issuer"
+	expectedRequest.ID = "doc_id"
+
+	newBillOfLadingPack := bill_of_lading.BillOfLadingPack{
+		ID:      "pack_id",
+		Version: 4,
+	}
+
+	httpRequest, err := http.NewRequest(http.MethodPost, endPoint, util.StructToJSONReader(req))
+	s.Require().NoError(err)
+	httpRequest.Header.Set("Authorization", "Bearer "+string(s.apiKeyString))
+	httpRequest.Header.Set(middleware.BUSINESS_UNIT_ID_HEADER, "issuer")
+
+	gomock.InOrder(
+		s.apiKeyMgr.EXPECT().Authenticate(gomock.Any(), s.apiKeyString).Return(s.apiKey, nil),
+		s.fileEBLCtrl.EXPECT().Amend(gomock.Any(), gomock.Any(), expectedRequest).Return(newBillOfLadingPack, nil),
+	)
+
+	httpResponse, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	returnedBody, _ := io.ReadAll(httpResponse.Body)
+	s.Require().Equal(http.StatusOK, httpResponse.StatusCode)
+	s.Require().Equal("application/json", httpResponse.Header.Get("Content-Type"))
+	s.Require().Equal(util.StructToJSON(newBillOfLadingPack), strings.TrimSpace(string(returnedBody)))
+}
+
 func (s *APITestSuite) TestSurrenderFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/surrender", s.localAddress)
 

@@ -83,6 +83,7 @@ func NewAPIWithController(apiKeyMgr auth.APIKeyAuthenticator, buMgr business_uni
 	eblRouter.HandleFunc("/ebl/{id}/amendment_request", apiServer.amendmentRequestEBL).Methods(http.MethodPost)
 	eblRouter.HandleFunc("/ebl/{id}/amend", apiServer.amendFileBasedEBL).Methods(http.MethodPost)
 	eblRouter.HandleFunc("/ebl/{id}/surrender", apiServer.surrenderEBL).Methods(http.MethodPost)
+	eblRouter.HandleFunc("/ebl/{id}/print_to_paper", apiServer.printEBLToPaper).Methods(http.MethodPost)
 
 	apiServer.httpServer = &http.Server{
 		Addr:    localAddress,

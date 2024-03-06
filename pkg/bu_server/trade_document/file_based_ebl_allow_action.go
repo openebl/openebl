@@ -280,5 +280,36 @@ func IsFileEBLSurrenderable(bl *bill_of_lading.BillOfLadingPack, bu string, with
 }
 
 func IsFileEBLAccomplishable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {
-	return model.ErrEBLActionNotAllowed
+	lastEvent := GetLastEvent(bl)
+	if lastEvent == nil {
+		if withDetail {
+			return fmt.Errorf("empty eBL%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	_, to := GetOwnerShipTransferringByEvent(lastEvent)
+	if to != bu {
+		if withDetail {
+			return fmt.Errorf("not the owner%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	participants := GetFileBaseEBLParticipatorsFromBLPack(bl)
+	if participants.ReleaseAgent != bu {
+		if withDetail {
+			return fmt.Errorf("not the release_agent%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	if lastEvent.Accomplish != nil || lastEvent.PrintToPaper != nil {
+		if withDetail {
+			return fmt.Errorf("not accomplishable due to the bill of lading is printed or accomplished%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	return nil
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/openebl/openebl/pkg/util"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -837,6 +838,108 @@ func (s *FileBasedEBLTestSuite) TestReturnAmentRequest() {
 	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
+}
+
+func (s *FileBasedEBLTestSuite) TestAmendEBL() {
+	ts := int64(1709613375)
+	eta, err := model.NewDateTimeFromString("2024-03-30T00:00:00Z")
+	s.Require().NoError(err)
+
+	req := trade_document.AmendFileBasedEBLRequest{
+		Requester:        "requester",
+		Application:      "app_id",
+		Issuer:           "did:openebl:issuer",
+		AuthenticationID: "issuer_auth1",
+		ID:               id,
+		File: trade_document.File{
+			Name:    "new_test.txt",
+			Type:    "text/plain",
+			Content: []byte("new test content"),
+		},
+		BLNumber:  "new_bl_number",
+		BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
+		ToOrder:   false,
+		POL: trade_document.Location{
+			LocationName: "New Port of Loading",
+			UNLocCode:    "POL",
+		},
+		POD: trade_document.Location{
+			LocationName: "New Port of Discharge",
+			UNLocCode:    "POD",
+		},
+		ETA:  eta,
+		Note: "amended by issuer",
+	}
+
+	receivedTD := storage.TradeDocument{}
+
+	gomock.InOrder(
+		s.buMgr.EXPECT().ListBusinessUnits(
+			gomock.Any(),
+			business_unit.ListBusinessUnitsRequest{
+				Limit:           1,
+				ApplicationID:   "app_id",
+				BusinessUnitIDs: []string{"did:openebl:issuer"},
+			},
+		).Return(
+			business_unit.ListBusinessUnitsResult{
+				Total:   1,
+				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
+			}, nil,
+		),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().ListTradeDocument(
+			gomock.Any(),
+			s.tx,
+			storage.ListTradeDocumentRequest{
+				Limit:  1,
+				DocIDs: []string{req.ID},
+			},
+		).Return(
+			storage.ListTradeDocumentResponse{
+				Total: 1,
+				Docs:  []storage.TradeDocument{s.issuerEblAmentRequested},
+			},
+			nil,
+		),
+		s.buMgr.EXPECT().GetJWSSigner(
+			gomock.Any(),
+			business_unit.GetJWSSignerRequest{
+				ApplicationID:    "app_id",
+				BusinessUnitID:   did.MustParseDID("did:openebl:issuer"),
+				AuthenticationID: "issuer_auth1",
+			},
+		).Return(s.issuerSigner, nil),
+		s.tdStorage.EXPECT().AddTradeDocument(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, td storage.TradeDocument) error {
+				receivedTD = td
+				return nil
+			},
+		),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	expectedBlPack := func() bill_of_lading.BillOfLadingPack {
+		td := s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/consignee_amended_ebl_jws.json")
+		res, err := trade_document.ExtractBLPackFromTradeDocument(td)
+		s.Require().NoError(err)
+		return res
+	}()
+
+	blPack, err := s.eblCtrl.Amend(s.ctx, ts, req)
+	s.Require().NoError(err)
+	receivedBLPack, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
+	s.Require().NoError(err)
+
+	lo.ForEach(blPack.Events, func(event bill_of_lading.BillOfLadingEvent, i int) {
+		if event.BillOfLading != nil {
+			s.Assert().Empty(event.BillOfLading.File.Content)
+			event.BillOfLading.File.Content = receivedBLPack.Events[i].BillOfLading.File.Content
+		}
+	})
+	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack))
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLPack))
 }
 
 func (s *FileBasedEBLTestSuite) TestSurrender() {

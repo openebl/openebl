@@ -190,7 +190,8 @@ paths:
                   type: string
                   description: User who makes the request.
                 status:
-                  $ref: '#/components/schemas/BusinessUnitStatus'
+                  allOf:
+                  - $ref: '#/components/schemas/BusinessUnitStatus'
                   description: Status of the application.
               required:
                 - requester
@@ -232,7 +233,8 @@ paths:
                   type: string
                   description: User who makes the request
                 private_key_option:
-                  $ref: '#/components/schemas/PrivateKeyOption'
+                  allOf:
+                  - $ref: '#/components/schemas/PrivateKeyOption'
                   description: Option of the private key.
                 expired_after:
                   type: integer
@@ -774,14 +776,16 @@ components:
       type: object
       properties:
         key_type:
-          $ref: '#/components/schemas/PrivateKeyType'
+          allOf:
+          - $ref: '#/components/schemas/PrivateKeyType'
           description: Type of the private key.
         bit_length:
           type: integer
           format: int32
           description: Bit length of the private key. Only used when KeyType is RSA.
         curve_type:
-          $ref: '#/components/schemas/ECDSACurveType'
+          allOf:
+          - $ref: '#/components/schemas/ECDSACurveType'
           description: Curve type of the private key. Only used when KeyType is ECDSA.
     BusinessUnitStatus:
       type: string
@@ -1290,22 +1294,26 @@ components:
               type: string
               description: The ID for authentication. The eB/L will be signed with the authentication.
             file:
-              $ref: '#/components/schemas/File'
+              allOf:
+              - $ref: '#/components/schemas/File'
               description: The file associated with the request
             bl_number:
               type: string
               description: The bill of lading number
             bl_doc_type:
-              $ref: '#/components/schemas/BillOfLadingDocumentType'
+              allOf:
+              - $ref: '#/components/schemas/BillOfLadingDocumentType'
               description: The type of the bill of lading document
             to_order:
               type: boolean
               description: Indicates if the request is to order.
             pol:
-              $ref: '#/components/schemas/Location'
+              allOf:
+              - $ref: '#/components/schemas/Location'
               description: The port of loading
             pod:
-              $ref: '#/components/schemas/Location'
+              allOf:
+              - $ref: '#/components/schemas/Location'
               description: The port of discharge
             eta:
               type: string
@@ -1328,6 +1336,7 @@ components:
               nullable: true
               description: Indicates if the eB/L is a draft
           required:
+            - authentication_id
             - file
             - bl_number
             - document_type
@@ -1344,33 +1353,53 @@ components:
         - $ref: '#/components/schemas/BaseRequest'
         - type: object
           properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
             note:
               type: string
               description: Optional note from the requester
+          required:
+            - authentication_id
     ReturnBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'
         - type: object
           properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
             note:
               type: string
               description: Optional note from the requester
+          required:
+            - authentication_id
     SurrenderBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'
         - type: object
           properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
             note:
               type: string
               description: Optional note from the requester
+          required:
+            - authentication_id
     AccomplishBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'
         - type: object
           properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
             note:
               type: string
               description: Optional note from the requester
+          required:
+            - authentication_id
     PrintToPaperBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'
@@ -1384,25 +1413,27 @@ components:
         - $ref: '#/components/schemas/BaseRequest'
         - type: object
           properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
             note:
               type: string
               description: Optional note from the requester
           required:
+            - authentication_id
             - note
     AmendBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'
         - type: object
           properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
             file:
               allOf:
-                - $ref: '#/components/schemas/FileInfo'
-              type: object
-              properties:
-                content:
-                  type: string
-                  format: byte
-                  description: base64-encoded content of the document
+                - $ref: '#/components/schemas/File'
+              description: The file associated with the request
             number:
               type: string
               description: B/L number
@@ -1424,6 +1455,7 @@ components:
               type: string
               description: Optional note from the requester
           required:
+            - authentication_id
             - file
             - number
             - document_type

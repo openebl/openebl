@@ -123,6 +123,26 @@ func ValidateAmendmentRequestEBLRequest(req AmendmentRequestEBLRequest) error {
 	return nil
 }
 
+func ValidateAmendFileBasedEBLRequest(req AmendFileBasedEBLRequest) error {
+	if err := validation.ValidateStruct(&req,
+		validation.Field(&req.Requester, validation.Required),
+		validation.Field(&req.Application, validation.Required),
+		validation.Field(&req.Issuer, validation.Required),
+		validation.Field(&req.AuthenticationID, validation.Required),
+		validation.Field(&req.ID, validation.Required),
+		validation.Field(&req.File, validation.Required),
+		validation.Field(&req.BLNumber, validation.Required),
+		validation.Field(&req.BLDocType, validation.Required),
+		validation.Field(&req.POL, validation.Required, &LocationRule{}),
+		validation.Field(&req.POD, validation.Required, &LocationRule{}),
+		validation.Field(&req.ETA, validation.Required),
+	); err != nil {
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
+	}
+
+	return nil
+}
+
 func ValidateSurrenderEBLRequest(req SurrenderEBLRequest) error {
 	if err := validation.ValidateStruct(&req,
 		validation.Field(&req.Requester, validation.Required),

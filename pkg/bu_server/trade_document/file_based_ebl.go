@@ -101,6 +101,23 @@ type AmendmentRequestEBLRequest struct {
 	Note string `json:"note"`
 }
 
+type AmendFileBasedEBLRequest struct {
+	Requester        string `json:"requester"`
+	Application      string `json:"application"`
+	Issuer           string `json:"issuer"`
+	AuthenticationID string `json:"authentication_id"`
+
+	ID        string                                  `json:"id"`
+	File      File                                    `json:"file"`
+	BLNumber  string                                  `json:"bl_number"`
+	BLDocType bill_of_lading.BillOfLadingDocumentType `json:"bl_doc_type"`
+	ToOrder   bool                                    `json:"to_order"`
+	POL       Location                                `json:"pol"`
+	POD       Location                                `json:"pod"`
+	ETA       model.DateTime                          `json:"eta"`
+	Note      string                                  `json:"note"`
+}
+
 type SurrenderEBLRequest struct {
 	Requester        string `json:"requester"`
 	Application      string `json:"application"`
@@ -125,6 +142,7 @@ type FileBaseEBLController interface {
 	List(ctx context.Context, request ListFileBasedEBLRequest) (ListFileBasedEBLRecord, error)
 	Transfer(ctx context.Context, ts int64, request TransferEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 	AmendmentRequest(ctx context.Context, ts int64, request AmendmentRequestEBLRequest) (bill_of_lading.BillOfLadingPack, error)
+	Amend(ctx context.Context, ts int64, request AmendFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 	Surrender(ctx context.Context, ts int64, request SurrenderEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 }
 
@@ -363,6 +381,37 @@ func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, cu
 	return bl
 }
 
+func AmendFileBasedBillOfLadingFromRequest(req AmendFileBasedEBLRequest, oldPack bill_of_lading.BillOfLadingPack, currentTime model.DateTime) *bill_of_lading.BillOfLading {
+	bl := &bill_of_lading.BillOfLading{
+		BillOfLading: &bill_of_lading.TransportDocument{
+			TransportDocumentReference: req.BLNumber,
+		},
+		File: &model.File{
+			Name:        req.File.Name,
+			FileType:    req.File.Type,
+			Content:     req.File.Content,
+			CreatedDate: currentTime,
+		},
+		DocType:   req.BLDocType,
+		CreatedBy: req.Issuer,
+		CreatedAt: &currentTime,
+		Note:      req.Note,
+	}
+
+	parties := GetFileBaseEBLParticipators(&oldPack)
+	td := bl.BillOfLading
+	SetPOL(td, req.POL)
+	SetPOD(td, req.POD)
+	SetETA(td, req.ETA)
+	SetIssuer(td, parties.Issuer)
+	SetShipper(td, parties.Shipper)
+	SetConsignee(td, parties.Consignee)
+	SetReleaseAgent(td, parties.ReleaseAgent)
+	SetToOrder(td, req.ToOrder)
+	SetDraft(td, false)
+	return bl
+}
+
 func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLRequest) (ListFileBasedEBLRecord, error) {
 	if err := ValidateListFileBasedEBLRequest(req); err != nil {
 		return ListFileBasedEBLRecord{}, err
@@ -519,6 +568,67 @@ func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64,
 	blPack.Events = append(blPack.Events, amendmentRequest)
 
 	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	lo.ForEach(blPack.Events, func(e bill_of_lading.BillOfLadingEvent, _ int) {
+		if e.BillOfLading != nil {
+			e.BillOfLading.File.Content = nil
+		}
+	})
+	return blPack, nil
+}
+
+func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+	currentTime := model.NewDateTimeFromUnix(ts)
+	if err := ValidateAmendFileBasedEBLRequest(req); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	if err := c.checkBUExistence(ctx, req.Application, []string{req.Issuer}); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err := IsFileEBLAmendable(&oldPack, req.Issuer, true); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	nextOwner := GetNextOwnerByAction(FILE_EBL_AMEND, req.Issuer, &oldPack)
+	blPack := bill_of_lading.BillOfLadingPack{
+		ID:           oldPack.ID,
+		Version:      oldPack.Version + 1,
+		CurrentOwner: nextOwner,
+		ParentHash:   oldHash,
+		Events:       oldPack.Events,
+	}
+
+	amendedBL := bill_of_lading.BillOfLadingEvent{BillOfLading: AmendFileBasedBillOfLadingFromRequest(req, oldPack, currentTime)}
+	transfer := bill_of_lading.BillOfLadingEvent{Transfer: &bill_of_lading.Transfer{
+		TransferBy: req.Issuer,
+		TransferTo: nextOwner,
+		TransferAt: &currentTime,
+		Note:       req.Note,
+	}}
+	blPack.Events = append(blPack.Events, amendedBL, transfer)
+
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.Issuer, req.AuthenticationID)
 	if err != nil {
 		return bill_of_lading.BillOfLadingPack{}, err
 	}
@@ -911,11 +1021,15 @@ func GetNextOwnerByAction(action FileBasedEBLAction, bu string, blPack *bill_of_
 			return parties.ReleaseAgent
 		}
 	case FILE_EBL_REQUEST_AMEND:
-		return parties.Issuer
+		if bu != parties.Issuer {
+			return parties.Issuer
+		}
 	case FILE_EBL_AMEND:
-		lastEvent := GetLastEvent(blPack)
-		if lastEvent.AmendmentRequest != nil {
-			return lastEvent.AmendmentRequest.RequestBy
+		if bu == parties.Issuer {
+			lastEvent := GetLastEvent(blPack)
+			if lastEvent.AmendmentRequest != nil {
+				return lastEvent.AmendmentRequest.RequestBy
+			}
 		}
 	}
 

@@ -48,6 +48,7 @@ type FileBasedEBLTestSuite struct {
 	draftEbl                storage.TradeDocument
 	shipperEbl              storage.TradeDocument
 	consigneeEbl            storage.TradeDocument
+	releaseAgentEbl         storage.TradeDocument
 	issuerEblAmentRequested storage.TradeDocument
 }
 
@@ -71,6 +72,7 @@ func (s *FileBasedEBLTestSuite) SetupSuite() {
 	s.draftEbl = s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/draft_ebl_jws.json")
 	s.shipperEbl = s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_ebl_jws.json")
 	s.consigneeEbl = s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/consignee_ebl_jws.json")
+	s.releaseAgentEbl = s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/release_agent_ebl_jws.json")
 	s.issuerEblAmentRequested = s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/issuer_ebl_amendment_request_by_consignee_jws.json")
 
 	s.issuerSigner, _ = business_unit.DefaultJWSSignerFactory.NewJWSSigner(s.issuerAuth)
@@ -1061,6 +1063,70 @@ func (s *FileBasedEBLTestSuite) TestPrintToPaper() {
 	}()
 
 	result, err := s.eblCtrl.PrintToPaper(s.ctx, ts, req)
+	s.Require().NoError(err)
+	s.Assert().Empty(result.Events[0].BillOfLading.File.Content)
+	result.Events[0].BillOfLading.File.Content = expectedBlPack.Events[0].BillOfLading.File.Content
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result))
+	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
+	s.Require().NoError(err)
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
+}
+
+func (s *FileBasedEBLTestSuite) TestAccomplishEBL() {
+	ts := int64(1709696923)
+
+	req := trade_document.AccomplishEBLRequest{
+		Requester:        "requester",
+		Application:      "app_id",
+		RequestBy:        "did:openebl:release_agent",
+		AuthenticationID: "release_agent_auth1",
+		ID:               id,
+		Note:             "accomplished by release agent",
+	}
+
+	var receivedTD storage.TradeDocument
+	gomock.InOrder(
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().ListTradeDocument(
+			gomock.Any(),
+			s.tx,
+			storage.ListTradeDocumentRequest{
+				Limit:  1,
+				DocIDs: []string{req.ID},
+			},
+		).Return(
+			storage.ListTradeDocumentResponse{
+				Total: 1,
+				Docs:  []storage.TradeDocument{s.releaseAgentEbl},
+			},
+			nil,
+		),
+		s.buMgr.EXPECT().GetJWSSigner(
+			gomock.Any(),
+			business_unit.GetJWSSignerRequest{
+				ApplicationID:    "app_id",
+				BusinessUnitID:   did.MustParseDID("did:openebl:release_agent"),
+				AuthenticationID: "release_agent_auth1",
+			},
+		).Return(s.releaseSigner, nil),
+		s.tdStorage.EXPECT().AddTradeDocument(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, td storage.TradeDocument) error {
+				receivedTD = td
+				return nil
+			},
+		),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	expectedBlPack := func() bill_of_lading.BillOfLadingPack {
+		td := s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/release_agent_accomplished_ebl_jws.json")
+		res, err := trade_document.ExtractBLPackFromTradeDocument(td)
+		s.Require().NoError(err)
+		return res
+	}()
+
+	result, err := s.eblCtrl.Accomplish(s.ctx, ts, req)
 	s.Require().NoError(err)
 	s.Assert().Empty(result.Events[0].BillOfLading.File.Content)
 	result.Events[0].BillOfLading.File.Content = expectedBlPack.Events[0].BillOfLading.File.Content

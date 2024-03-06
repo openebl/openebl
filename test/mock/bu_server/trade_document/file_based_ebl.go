@@ -36,6 +36,21 @@ func (m *MockFileBaseEBLController) EXPECT() *MockFileBaseEBLControllerMockRecor
 	return m.recorder
 }
 
+// Accomplish mocks base method.
+func (m *MockFileBaseEBLController) Accomplish(ctx context.Context, ts int64, request trade_document.AccomplishEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Accomplish", ctx, ts, request)
+	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Accomplish indicates an expected call of Accomplish.
+func (mr *MockFileBaseEBLControllerMockRecorder) Accomplish(ctx, ts, request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Accomplish", reflect.TypeOf((*MockFileBaseEBLController)(nil).Accomplish), ctx, ts, request)
+}
+
 // Amend mocks base method.
 func (m *MockFileBaseEBLController) Amend(ctx context.Context, ts int64, request trade_document.AmendFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
 	m.ctrl.T.Helper()

@@ -96,6 +96,21 @@ func (mr *MockFileBaseEBLControllerMockRecorder) Return(ctx, ts, request interfa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Return", reflect.TypeOf((*MockFileBaseEBLController)(nil).Return), ctx, ts, request)
 }
 
+// Surrender mocks base method.
+func (m *MockFileBaseEBLController) Surrender(ctx context.Context, ts int64, request trade_document.SurrenderEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Surrender", ctx, ts, request)
+	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Surrender indicates an expected call of Surrender.
+func (mr *MockFileBaseEBLControllerMockRecorder) Surrender(ctx, ts, request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Surrender", reflect.TypeOf((*MockFileBaseEBLController)(nil).Surrender), ctx, ts, request)
+}
+
 // Transfer mocks base method.
 func (m *MockFileBaseEBLController) Transfer(ctx context.Context, ts int64, request trade_document.TransferEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
 	m.ctrl.T.Helper()

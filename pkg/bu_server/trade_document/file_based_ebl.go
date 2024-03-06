@@ -101,6 +101,16 @@ type AmendmentRequestEBLRequest struct {
 	Note string `json:"note"`
 }
 
+type SurrenderEBLRequest struct {
+	Requester        string `json:"requester"`
+	Application      string `json:"application"`
+	RequestBy        string `json:"request_by"`
+	AuthenticationID string `json:"authentication_id"`
+
+	ID   string `json:"id"`
+	Note string `json:"note"`
+}
+
 type FileBaseEBLParticipators struct {
 	Issuer       string `json:"issuer"`
 	Shipper      string `json:"shipper"`
@@ -115,6 +125,7 @@ type FileBaseEBLController interface {
 	List(ctx context.Context, request ListFileBasedEBLRequest) (ListFileBasedEBLRecord, error)
 	Transfer(ctx context.Context, ts int64, request TransferEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 	AmendmentRequest(ctx context.Context, ts int64, request AmendmentRequestEBLRequest) (bill_of_lading.BillOfLadingPack, error)
+	Surrender(ctx context.Context, ts int64, request SurrenderEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 }
 
 type _FileBaseEBLController struct {
@@ -506,6 +517,66 @@ func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64,
 		},
 	}
 	blPack.Events = append(blPack.Events, amendmentRequest)
+
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	lo.ForEach(blPack.Events, func(e bill_of_lading.BillOfLadingEvent, _ int) {
+		if e.BillOfLading != nil {
+			e.BillOfLading.File.Content = nil
+		}
+	})
+	return blPack, nil
+}
+
+func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req SurrenderEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+	currentTime := model.NewDateTimeFromUnix(ts)
+	if err := ValidateSurrenderEBLRequest(req); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err = IsFileEBLSurrenderable(&oldPack, req.RequestBy, true); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	nextOwner := GetNextOwnerByAction(FILE_EBL_SURRENDER, req.RequestBy, &oldPack)
+	if nextOwner == "" {
+		return bill_of_lading.BillOfLadingPack{}, errors.New("cannot determine next owner due to invalid role or action")
+	}
+
+	blPack := bill_of_lading.BillOfLadingPack{
+		ID:           oldPack.ID,
+		Version:      oldPack.Version + 1,
+		ParentHash:   oldHash,
+		Events:       oldPack.Events,
+		CurrentOwner: nextOwner,
+	}
+	surrender := bill_of_lading.BillOfLadingEvent{
+		Surrender: &bill_of_lading.Surrender{
+			SurrenderBy: req.RequestBy,
+			SurrenderTo: nextOwner,
+			SurrenderAt: &currentTime,
+			Note:        req.Note,
+		},
+	}
+	blPack.Events = append(blPack.Events, surrender)
 
 	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID)
 	if err != nil {

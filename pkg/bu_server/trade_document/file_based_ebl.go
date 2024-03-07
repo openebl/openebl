@@ -1394,7 +1394,8 @@ func GetBillOfLadingPackMeta(ctx context.Context, ts int64, blPack *bill_of_ladi
 	partiesByOrder := []string{parties.Issuer, parties.Shipper, parties.Consignee, parties.ReleaseAgent}
 
 	res := make(map[string]any)
-	if blPack.Events[length-1].Accomplish != nil || blPack.Events[length-1].PrintToPaper != nil {
+	if blPack.Events[length-1].Delete != nil {
+	} else if blPack.Events[length-1].Accomplish != nil || blPack.Events[length-1].PrintToPaper != nil {
 		res["visible_to_bu"] = partiesByOrder
 		res["archive"] = partiesByOrder
 	} else if amendmentRequest == nil {

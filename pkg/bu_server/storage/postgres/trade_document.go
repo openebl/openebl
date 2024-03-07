@@ -51,7 +51,7 @@ WITH filtered_record AS (
 	WHERE
 		($3 = 0 OR $3 = kind) AND
 		(COALESCE(ARRAY_LENGTH($4::TEXT[], 1), 0) = 0 OR doc_id = ANY($4)) AND
-		($5::JSONB IS NULL OR meta @> $5)
+		(($5::JSONB IS NULL AND meta <> '{}') OR meta @> $5)
 )
 , report AS (
 	SELECT COUNT(*) AS total FROM filtered_record

@@ -66,3 +66,11 @@
       - "did:openebl:shipper"
       - "did:openebl:consignee"
       - "did:openebl:release_agent"
+- rec_id: 4
+  id: "raw_doc_4"
+  kind: 1001
+  doc_id: "doc_3"
+  doc_version: 2
+  doc: "doc 3"
+  created_at: 1634567890
+  meta: {}

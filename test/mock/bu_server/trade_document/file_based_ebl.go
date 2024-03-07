@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	model "github.com/openebl/openebl/pkg/bu_server/model"
 	bill_of_lading "github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
 	trade_document "github.com/openebl/openebl/pkg/bu_server/trade_document"
 )
@@ -124,6 +125,21 @@ func (m *MockFileBaseEBLController) Get(ctx context.Context, request trade_docum
 func (mr *MockFileBaseEBLControllerMockRecorder) Get(ctx, request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockFileBaseEBLController)(nil).Get), ctx, request)
+}
+
+// GetDocument mocks base method.
+func (m *MockFileBaseEBLController) GetDocument(ctx context.Context, request trade_document.GetFileBasedEBLRequest) (*model.File, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDocument", ctx, request)
+	ret0, _ := ret[0].(*model.File)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDocument indicates an expected call of GetDocument.
+func (mr *MockFileBaseEBLControllerMockRecorder) GetDocument(ctx, request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDocument", reflect.TypeOf((*MockFileBaseEBLController)(nil).GetDocument), ctx, request)
 }
 
 // List mocks base method.

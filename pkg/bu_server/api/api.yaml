@@ -455,7 +455,7 @@ paths:
           description: eB/L not found
         '500':
           description: Internal server error
-  /ebl/{id}/download:
+  /ebl/{id}/document:
     get:
       tags: [eB/L]
       summary: Download the uploaded eB/L document
@@ -468,18 +468,35 @@ paths:
           required: true
           schema:
             type: string
-          description: The ID of the eB/L to download
+          description: The ID of the eB/L to retrieve
       responses:
         '200':
           description: eB/L file retrieved successfully
           content:
-            application/json:
+            application/octet-stream:
               schema:
-                $ref: '#/components/schemas/FileRecord'
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/tiff:
+              schema:
+                type: string
+                format: binary
         '400':
           description: Invalid request
         '404':
-          description: eB/L not found
+          description: eB/L not found or eB/L has no document
         '500':
           description: Internal server error
   /ebl/{id}/update:
@@ -1116,20 +1133,6 @@ components:
           type: string
           format: byte
           description: base64-encoded content of the document
-    FileRecord:
-      allOf:
-        - $ref: '#/components/schemas/FileInfo'
-      type: object
-      description: Information and content of the uploaded document
-      properties:
-        content:
-          type: string
-          format: byte
-          description: base64-encoded content of the document
-        created_date:
-          type: string
-          format: date-time
-          description: When the file was created
     BillOfLading:
       type: object
       description: Event of issuing the eB/L

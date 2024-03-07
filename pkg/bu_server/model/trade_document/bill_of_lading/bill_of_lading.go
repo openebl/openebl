@@ -37,6 +37,7 @@ type BillOfLading struct {
 	CreatedBy    string                   `json:"created_by,omitempty"` // DID
 	CreatedAt    *model.DateTime          `json:"created_at,omitempty"`
 	Note         string                   `json:"note,omitempty"`
+	MetaData     string                   `json:"meta_data,omitempty"` // Fully customized metadata. It can be used to store any additional information but will not be used for any business logic.
 }
 
 type Transfer struct {
@@ -44,6 +45,7 @@ type Transfer struct {
 	TransferTo string          `json:"transfer_to,omitempty"` // DID
 	TransferAt *model.DateTime `json:"transfer_at,omitempty"`
 	Note       string          `json:"note,omitempty"`
+	MetaData   string          `json:"meta_data,omitempty"` // Fully customized metadata. It can be used to store any additional information but will not be used for any business logic.
 }
 
 type Return struct {
@@ -51,6 +53,7 @@ type Return struct {
 	ReturnTo string          `json:"return_to,omitempty"` // DID
 	ReturnAt *model.DateTime `json:"return_at,omitempty"`
 	Note     string          `json:"note,omitempty"`
+	MetaData string          `json:"meta_data,omitempty"` // Fully customized metadata. It can be used to store any additional information but will not be used for any business logic.
 }
 
 type Surrender struct {
@@ -58,6 +61,7 @@ type Surrender struct {
 	SurrenderTo string          `json:"surrender_to,omitempty"` // DID
 	SurrenderAt *model.DateTime `json:"surrender_at,omitempty"`
 	Note        string          `json:"note,omitempty"`
+	MetaData    string          `json:"meta_data,omitempty"` // Fully customized metadata. It can be used to store any additional information but will not be used for any business logic.
 }
 
 type AmendmentRequest struct {
@@ -65,22 +69,26 @@ type AmendmentRequest struct {
 	RequestTo string          `json:"request_to,omitempty"` // DID
 	RequestAt *model.DateTime `json:"request_at,omitempty"`
 	Note      string          `json:"note,omitempty"`
+	MetaData  string          `json:"meta_data,omitempty"` // Fully customized metadata. It can be used to store any additional information but will not be used for any business logic.
 }
 
 type PrintToPaper struct {
-	PrintBy string          `json:"print_by,omitempty"` // DID
-	PrintAt *model.DateTime `json:"print_at,omitempty"`
-	Note    string          `json:"note,omitempty"`
+	PrintBy  string          `json:"print_by,omitempty"` // DID
+	PrintAt  *model.DateTime `json:"print_at,omitempty"`
+	Note     string          `json:"note,omitempty"`
+	MetaData string          `json:"meta_data,omitempty"` // Fully customized metadata. It can be used to store any additional information but will not be used for any business logic.
 }
 
 type Accomplish struct {
 	AccomplishBy string          `json:"accomplish_by,omitempty"` // DID
 	AccomplishAt *model.DateTime `json:"accomplish_at,omitempty"`
 	Note         string          `json:"note,omitempty"`
+	MetaData     string          `json:"meta_data,omitempty"` // Fully customized metadata. It can be used to store any additional information but will not be used for any business logic.
 }
 
 type Delete struct {
 	DeleteBy string          `json:"delete_by,omitempty"` // DID
 	DeleteAt *model.DateTime `json:"delete_at,omitempty"`
 	Note     string          `json:"note,omitempty"`
+	MetaData string          `json:"meta_data,omitempty"` // Fully customized metadata. It can be used to store any additional information but will not be used for any business logic.
 }

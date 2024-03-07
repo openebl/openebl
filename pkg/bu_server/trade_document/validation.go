@@ -184,3 +184,15 @@ func ValidateAccomplishEBLRequest(req AccomplishEBLRequest) error {
 
 	return nil
 }
+
+func ValidateDeleteEBLRequest(req DeleteEBLRequest) error {
+	if err := validation.ValidateStruct(&req,
+		validation.Field(&req.Application, validation.Required),
+		validation.Field(&req.RequestBy, validation.Required),
+		validation.Field(&req.ID, validation.Required),
+	); err != nil {
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
+	}
+
+	return nil
+}

@@ -27,6 +27,7 @@ type BillOfLadingEvent struct {
 	AmendmentRequest *AmendmentRequest `json:"amendment_request,omitempty"`
 	PrintToPaper     *PrintToPaper     `json:"print_to_paper,omitempty"`
 	Accomplish       *Accomplish       `json:"accomplish,omitempty"`
+	Delete           *Delete           `json:"delete,omitempty"`
 }
 
 type BillOfLading struct {
@@ -76,4 +77,10 @@ type Accomplish struct {
 	AccomplishBy string          `json:"accomplish_by,omitempty"` // DID
 	AccomplishAt *model.DateTime `json:"accomplish_at,omitempty"`
 	Note         string          `json:"note,omitempty"`
+}
+
+type Delete struct {
+	DeleteBy string          `json:"delete_by,omitempty"` // DID
+	DeleteAt *model.DateTime `json:"delete_at,omitempty"`
+	Note     string          `json:"note,omitempty"`
 }

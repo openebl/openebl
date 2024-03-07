@@ -313,3 +313,22 @@ func IsFileEBLAccomplishable(bl *bill_of_lading.BillOfLadingPack, bu string, wit
 
 	return nil
 }
+
+func IsFileEBLDeletable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {
+	if draft := GetDraft(bl); draft != nil && !*draft {
+		if withDetail {
+			return fmt.Errorf("not draft eBL%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	participants := GetFileBaseEBLParticipatorsFromBLPack(bl)
+	if bu != participants.Issuer {
+		if withDetail {
+			return fmt.Errorf("not the release_agent%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	return nil
+}

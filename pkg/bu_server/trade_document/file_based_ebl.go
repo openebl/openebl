@@ -155,6 +155,16 @@ type GetFileBasedEBLRequest struct {
 	ID string `json:"id"`
 }
 
+type DeleteEBLRequest struct {
+	Requester        string `json:"requester"`
+	Application      string `json:"application"`
+	RequestBy        string `json:"request_by"`
+	AuthenticationID string `json:"authentication_id"`
+
+	ID   string `json:"id"`
+	Note string `json:"note"`
+}
+
 type FileBaseEBLParticipators struct {
 	Issuer       string `json:"issuer"`
 	Shipper      string `json:"shipper"`
@@ -174,6 +184,7 @@ type FileBaseEBLController interface {
 	PrintToPaper(ctx context.Context, ts int64, request PrintFileBasedEBLToPaperRequest) (bill_of_lading.BillOfLadingPack, error)
 	Accomplish(ctx context.Context, ts int64, request AccomplishEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 	Get(ctx context.Context, request GetFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error)
+	Delete(ctx context.Context, ts int64, request DeleteEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 }
 
 type _FileBaseEBLController struct {
@@ -847,6 +858,55 @@ func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req A
 	return blPack, nil
 }
 
+func (c *_FileBaseEBLController) Delete(ctx context.Context, ts int64, req DeleteEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+	currentTime := model.NewDateTimeFromUnix(ts)
+	if err := ValidateDeleteEBLRequest(req); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err = IsFileEBLDeletable(&oldPack, req.RequestBy, true); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	blPack := bill_of_lading.BillOfLadingPack{
+		ID:           oldPack.ID,
+		Version:      oldPack.Version + 1,
+		ParentHash:   oldHash,
+		Events:       oldPack.Events,
+		CurrentOwner: oldPack.CurrentOwner,
+	}
+	del := bill_of_lading.BillOfLadingEvent{
+		Delete: &bill_of_lading.Delete{
+			DeleteBy: req.RequestBy,
+			DeleteAt: &currentTime,
+		},
+	}
+	blPack.Events = append(blPack.Events, del)
+
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID)
+	if err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return bill_of_lading.BillOfLadingPack{}, err
+	}
+
+	blPack.Events[0].BillOfLading.File.Content = nil
+	return blPack, nil
+}
+
 func (c *_FileBaseEBLController) Get(ctx context.Context, request GetFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
 	if err := c.checkBUExistence(ctx, request.Application, []string{request.Requester}); err != nil {
 		return bill_of_lading.BillOfLadingPack{}, err
@@ -1334,7 +1394,8 @@ func GetBillOfLadingPackMeta(ctx context.Context, ts int64, blPack *bill_of_ladi
 	partiesByOrder := []string{parties.Issuer, parties.Shipper, parties.Consignee, parties.ReleaseAgent}
 
 	res := make(map[string]any)
-	if blPack.Events[length-1].Accomplish != nil || blPack.Events[length-1].PrintToPaper != nil {
+	if blPack.Events[length-1].Delete != nil {
+	} else if blPack.Events[length-1].Accomplish != nil || blPack.Events[length-1].PrintToPaper != nil {
 		res["visible_to_bu"] = partiesByOrder
 		res["archive"] = partiesByOrder
 	} else if amendmentRequest == nil {

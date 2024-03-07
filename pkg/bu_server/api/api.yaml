@@ -746,6 +746,39 @@ paths:
           description: eB/L not found
         '500':
           description: Internal server error
+  /ebl/{id}/delete:
+    post:
+      tags: [eB/L]
+      summary: Delete the draft eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to amend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L amended successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingPack'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
 components:
   securitySchemes:
     bearerAuth:            # arbitrary name for the security scheme
@@ -1463,3 +1496,16 @@ components:
             - pol
             - pod
             - eta
+    DeleteBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
+            note:
+              type: string
+              description: Optional note from the requester
+          required:
+            - authentication_id

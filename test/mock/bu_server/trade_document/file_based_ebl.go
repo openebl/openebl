@@ -96,6 +96,21 @@ func (mr *MockFileBaseEBLControllerMockRecorder) Create(ctx, ts, request interfa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockFileBaseEBLController)(nil).Create), ctx, ts, request)
 }
 
+// Delete mocks base method.
+func (m *MockFileBaseEBLController) Delete(ctx context.Context, ts int64, request trade_document.DeleteEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", ctx, ts, request)
+	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockFileBaseEBLControllerMockRecorder) Delete(ctx, ts, request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockFileBaseEBLController)(nil).Delete), ctx, ts, request)
+}
+
 // Get mocks base method.
 func (m *MockFileBaseEBLController) Get(ctx context.Context, request trade_document.GetFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
 	m.ctrl.T.Helper()

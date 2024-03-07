@@ -185,6 +185,7 @@ type FileBaseEBLController interface {
 	Accomplish(ctx context.Context, ts int64, request AccomplishEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 	Get(ctx context.Context, request GetFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error)
 	Delete(ctx context.Context, ts int64, request DeleteEBLRequest) (bill_of_lading.BillOfLadingPack, error)
+	GetDocument(ctx context.Context, request GetFileBasedEBLRequest) (*model.File, error)
 }
 
 type _FileBaseEBLController struct {
@@ -944,6 +945,47 @@ func (c *_FileBaseEBLController) Get(ctx context.Context, request GetFileBasedEB
 		}
 	})
 	return blPack, nil
+}
+
+func (c *_FileBaseEBLController) GetDocument(ctx context.Context, request GetFileBasedEBLRequest) (*model.File, error) {
+	if err := c.checkBUExistence(ctx, request.Application, []string{request.Requester}); err != nil {
+		return nil, err
+	}
+
+	tx, err := c.storage.CreateTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	req := storage.ListTradeDocumentRequest{
+		Limit:  1,
+		DocIDs: []string{request.ID},
+		Meta:   map[string]any{"visible_to_bu": []string{request.Requester}},
+	}
+
+	resp, err := c.storage.ListTradeDocument(ctx, tx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.Docs) == 0 {
+		return nil, model.ErrEBLNotFound
+	}
+
+	blPack, err := ExtractBLPackFromTradeDocument(resp.Docs[0])
+	if err != nil {
+		return nil, err
+	}
+
+	blPackEvent, _, ok := lo.FindLastIndexOf(blPack.Events, func(e bill_of_lading.BillOfLadingEvent) bool {
+		return e.BillOfLading != nil && e.BillOfLading.File != nil
+	})
+	if !ok {
+		return nil, model.ErrEBLNoDocument
+	}
+
+	return blPackEvent.BillOfLading.File, nil
 }
 
 func (c *_FileBaseEBLController) checkBUExistence(ctx context.Context, appID string, buIDs []string) error {

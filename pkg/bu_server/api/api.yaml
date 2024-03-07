@@ -1156,6 +1156,9 @@ components:
         note:
           type: string
           description: Optional note from the requester
+        meta_data:
+          type: string
+          description: All fully customized data.
     Transfer:
       type: object
       description: Event of transferring the eB/L
@@ -1173,6 +1176,9 @@ components:
         note:
           type: string
           description: Optional note from the requester
+        meta_data:
+          type: string
+          description: All fully customized data.
     Return:
       type: object
       description: Event of returning the eB/L
@@ -1190,6 +1196,9 @@ components:
         note:
           type: string
           description: Optional note from the requester
+        meta_data:
+          type: string
+          description: All fully customized data.
     Surrender:
       type: object
       description: Event of surrendering the eB/L
@@ -1207,6 +1216,9 @@ components:
         note:
           type: string
           description: Optional note from the requester
+        meta_data:
+          type: string
+          description: All fully customized data.
     AmendmentRequest:
       type: object
       description: Event of requesting amendment for the eB/L
@@ -1224,6 +1236,9 @@ components:
         note:
           type: string
           description: Optional note from the requester
+        meta_data:
+          type: string
+          description: All fully customized data.
     PrintToPaper:
       type: object
       description: Event of printing the eB/L to paper
@@ -1238,6 +1253,9 @@ components:
         note:
           type: string
           description: Optional note from the requester
+        meta_data:
+          type: string
+          description: All fully customized data.
     Accomplish:
       type: object
       description: Event of accomplishing the eB/L
@@ -1252,6 +1270,9 @@ components:
         note:
           type: string
           description: Optional note from the requester
+        meta_data:
+          type: string
+          description: All fully customized data.
     BillOfLadingEvent:
       type: object
       description: Event of the eB/L
@@ -1316,11 +1337,9 @@ components:
     BaseRequest:
       type: object
       properties:
-        requester:
+        meta_data:
           type: string
-          description: User who makes the request
-      required:
-        - requester
+          description: All fully customized data.
     UpdateBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'

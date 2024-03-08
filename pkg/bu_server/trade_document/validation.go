@@ -23,7 +23,6 @@ func (r LocationRule) Validate(value interface{}) error {
 
 func ValidateIssueFileBasedEBLRequest(req IssueFileBasedEBLRequest) error {
 	if err := validation.ValidateStruct(&req,
-		validation.Field(&req.Requester, validation.Required),
 		validation.Field(&req.AuthenticationID, validation.Required),
 		validation.Field(&req.Application, validation.Required),
 		validation.Field(&req.File, validation.Required),
@@ -47,7 +46,6 @@ func ValidateIssueFileBasedEBLRequest(req IssueFileBasedEBLRequest) error {
 func ValidateUpdateFileBasedEBLRequest(req UpdateFileBasedEBLDraftRequest) error {
 	if err := validation.ValidateStruct(&req,
 		validation.Field(&req.ID, validation.Required),
-		validation.Field(&req.Requester, validation.Required),
 		validation.Field(&req.AuthenticationID, validation.Required),
 		validation.Field(&req.Application, validation.Required),
 		validation.Field(&req.File, validation.Required),
@@ -70,7 +68,6 @@ func ValidateUpdateFileBasedEBLRequest(req UpdateFileBasedEBLDraftRequest) error
 
 func ValidateReturnFileBasedEBLRequest(req ReturnFileBasedEBLRequest) error {
 	if err := validation.ValidateStruct(&req,
-		validation.Field(&req.Requester, validation.Required),
 		validation.Field(&req.Application, validation.Required),
 		validation.Field(&req.BusinessUnit, validation.Required),
 		validation.Field(&req.AuthenticationID, validation.Required),
@@ -96,7 +93,6 @@ func ValidateListFileBasedEBLRequest(req ListFileBasedEBLRequest) error {
 
 func ValidateTransferEBLRequest(req TransferEBLRequest) error {
 	if err := validation.ValidateStruct(&req,
-		validation.Field(&req.Requester, validation.Required),
 		validation.Field(&req.Application, validation.Required),
 		validation.Field(&req.TransferBy, validation.Required),
 		validation.Field(&req.AuthenticationID, validation.Required),
@@ -110,7 +106,6 @@ func ValidateTransferEBLRequest(req TransferEBLRequest) error {
 
 func ValidateAmendmentRequestEBLRequest(req AmendmentRequestEBLRequest) error {
 	if err := validation.ValidateStruct(&req,
-		validation.Field(&req.Requester, validation.Required),
 		validation.Field(&req.Application, validation.Required),
 		validation.Field(&req.RequestBy, validation.Required),
 		validation.Field(&req.AuthenticationID, validation.Required),
@@ -125,7 +120,6 @@ func ValidateAmendmentRequestEBLRequest(req AmendmentRequestEBLRequest) error {
 
 func ValidateAmendFileBasedEBLRequest(req AmendFileBasedEBLRequest) error {
 	if err := validation.ValidateStruct(&req,
-		validation.Field(&req.Requester, validation.Required),
 		validation.Field(&req.Application, validation.Required),
 		validation.Field(&req.Issuer, validation.Required),
 		validation.Field(&req.AuthenticationID, validation.Required),
@@ -145,7 +139,6 @@ func ValidateAmendFileBasedEBLRequest(req AmendFileBasedEBLRequest) error {
 
 func ValidateSurrenderEBLRequest(req SurrenderEBLRequest) error {
 	if err := validation.ValidateStruct(&req,
-		validation.Field(&req.Requester, validation.Required),
 		validation.Field(&req.Application, validation.Required),
 		validation.Field(&req.RequestBy, validation.Required),
 		validation.Field(&req.AuthenticationID, validation.Required),
@@ -159,7 +152,6 @@ func ValidateSurrenderEBLRequest(req SurrenderEBLRequest) error {
 
 func ValidatePrintFileBasedEBLRequest(req PrintFileBasedEBLToPaperRequest) error {
 	if err := validation.ValidateStruct(&req,
-		validation.Field(&req.Requester, validation.Required),
 		validation.Field(&req.Application, validation.Required),
 		validation.Field(&req.RequestBy, validation.Required),
 		validation.Field(&req.AuthenticationID, validation.Required),
@@ -173,7 +165,6 @@ func ValidatePrintFileBasedEBLRequest(req PrintFileBasedEBLToPaperRequest) error
 
 func ValidateAccomplishEBLRequest(req AccomplishEBLRequest) error {
 	if err := validation.ValidateStruct(&req,
-		validation.Field(&req.Requester, validation.Required),
 		validation.Field(&req.Application, validation.Required),
 		validation.Field(&req.RequestBy, validation.Required),
 		validation.Field(&req.AuthenticationID, validation.Required),

@@ -33,10 +33,10 @@ type Location struct {
 }
 
 type IssueFileBasedEBLRequest struct {
-	Requester        string `json:"requester"`
 	Application      string `json:"application"`
 	Issuer           string `json:"issuer"`
 	AuthenticationID string `json:"authentication_id"`
+	MetaData         string `json:"meta_data,omitempty"`
 
 	File         File                                    `json:"file"`
 	BLNumber     string                                  `json:"bl_number"`
@@ -58,10 +58,10 @@ type UpdateFileBasedEBLDraftRequest struct {
 }
 
 type ReturnFileBasedEBLRequest struct {
-	Requester        string `json:"requester"`
 	Application      string `json:"application"`
 	BusinessUnit     string `json:"business_unit"`
 	AuthenticationID string `json:"authentication_id"`
+	MetaData         string `json:"meta_data,omitempty"`
 
 	ID   string `json:"id"`
 	Note string `json:"note"`
@@ -82,30 +82,30 @@ type ListFileBasedEBLRecord struct {
 }
 
 type TransferEBLRequest struct {
-	Requester        string `json:"requester"`
 	Application      string `json:"application"`
 	TransferBy       string `json:"transfer_by"`
 	AuthenticationID string `json:"authentication_id"`
+	MetaData         string `json:"meta_data,omitempty"`
 
 	ID   string `json:"id"`
 	Note string `json:"note"`
 }
 
 type AmendmentRequestEBLRequest struct {
-	Requester        string `json:"requester"`
 	Application      string `json:"application"`
 	RequestBy        string `json:"request_by"`
 	AuthenticationID string `json:"authentication_id"`
+	MetaData         string `json:"meta_data,omitempty"`
 
 	ID   string `json:"id"`
 	Note string `json:"note"`
 }
 
 type AmendFileBasedEBLRequest struct {
-	Requester        string `json:"requester"`
 	Application      string `json:"application"`
 	Issuer           string `json:"issuer"`
 	AuthenticationID string `json:"authentication_id"`
+	MetaData         string `json:"meta_data,omitempty"`
 
 	ID        string                                  `json:"id"`
 	File      File                                    `json:"file"`
@@ -119,30 +119,30 @@ type AmendFileBasedEBLRequest struct {
 }
 
 type SurrenderEBLRequest struct {
-	Requester        string `json:"requester"`
 	Application      string `json:"application"`
 	RequestBy        string `json:"request_by"`
 	AuthenticationID string `json:"authentication_id"`
+	MetaData         string `json:"meta_data,omitempty"`
 
 	ID   string `json:"id"`
 	Note string `json:"note"`
 }
 
 type PrintFileBasedEBLToPaperRequest struct {
-	Requester        string `json:"requester"`
 	Application      string `json:"application"`
 	RequestBy        string `json:"request_by"`
 	AuthenticationID string `json:"authentication_id"`
+	MetaData         string `json:"meta_data,omitempty"`
 
 	ID   string `json:"id"`
 	Note string `json:"note"`
 }
 
 type AccomplishEBLRequest struct {
-	Requester        string `json:"requester"`
 	Application      string `json:"application"`
 	RequestBy        string `json:"request_by"`
 	AuthenticationID string `json:"authentication_id"`
+	MetaData         string `json:"meta_data,omitempty"`
 
 	ID   string `json:"id"`
 	Note string `json:"note"`
@@ -156,10 +156,10 @@ type GetFileBasedEBLRequest struct {
 }
 
 type DeleteEBLRequest struct {
-	Requester        string `json:"requester"`
 	Application      string `json:"application"`
 	RequestBy        string `json:"request_by"`
 	AuthenticationID string `json:"authentication_id"`
+	MetaData         string `json:"meta_data,omitempty"`
 
 	ID   string `json:"id"`
 	Note string `json:"note"`
@@ -235,6 +235,7 @@ func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request I
 				TransferBy: request.Issuer,
 				TransferTo: request.Shipper,
 				TransferAt: &currentTime,
+				MetaData:   request.MetaData,
 			},
 		}
 		blPack.Events = append(blPack.Events, transfer)
@@ -312,6 +313,8 @@ func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, requ
 				TransferBy: request.Issuer,
 				TransferTo: request.Shipper,
 				TransferAt: &currentTime,
+				Note:       request.Note,
+				MetaData:   request.MetaData,
 			},
 		}
 		blPack.Events = append(blPack.Events, transfer)
@@ -371,6 +374,7 @@ func (c *_FileBaseEBLController) Return(ctx context.Context, ts int64, req Retur
 			ReturnTo: nextOwner,
 			ReturnAt: &currentTime,
 			Note:     req.Note,
+			MetaData: req.MetaData,
 		},
 	}
 	blPack.Events = append(blPack.Events, returnEvent)
@@ -406,6 +410,7 @@ func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, cu
 		CreatedBy: request.Issuer,
 		CreatedAt: &currentTime,
 		Note:      request.Note,
+		MetaData:  request.MetaData,
 	}
 
 	td := bl.BillOfLading
@@ -438,6 +443,7 @@ func AmendFileBasedBillOfLadingFromRequest(req AmendFileBasedEBLRequest, oldPack
 		CreatedBy: req.Issuer,
 		CreatedAt: &currentTime,
 		Note:      req.Note,
+		MetaData:  req.MetaData,
 	}
 
 	parties := GetFileBaseEBLParticipatorsFromBLPack(&oldPack)
@@ -540,6 +546,7 @@ func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req Tra
 			TransferTo: nextOwner,
 			TransferAt: &currentTime,
 			Note:       req.Note,
+			MetaData:   req.MetaData,
 		},
 	}
 	blPack.Events = append(blPack.Events, transfer)
@@ -605,6 +612,7 @@ func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64,
 			RequestTo: nextOwner,
 			RequestAt: &currentTime,
 			Note:      req.Note,
+			MetaData:  req.MetaData,
 		},
 	}
 	blPack.Events = append(blPack.Events, amendmentRequest)
@@ -667,6 +675,7 @@ func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendF
 		TransferTo: nextOwner,
 		TransferAt: &currentTime,
 		Note:       req.Note,
+		MetaData:   req.MetaData,
 	}}
 	blPack.Events = append(blPack.Events, amendedBL, transfer)
 
@@ -726,6 +735,7 @@ func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req Su
 			SurrenderTo: nextOwner,
 			SurrenderAt: &currentTime,
 			Note:        req.Note,
+			MetaData:    req.MetaData,
 		},
 	}
 	blPack.Events = append(blPack.Events, surrender)
@@ -778,9 +788,10 @@ func (c *_FileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, req
 	}
 	print := bill_of_lading.BillOfLadingEvent{
 		PrintToPaper: &bill_of_lading.PrintToPaper{
-			PrintBy: req.RequestBy,
-			PrintAt: &currentTime,
-			Note:    req.Note,
+			PrintBy:  req.RequestBy,
+			PrintAt:  &currentTime,
+			Note:     req.Note,
+			MetaData: req.MetaData,
 		},
 	}
 	blPack.Events = append(blPack.Events, print)
@@ -836,6 +847,7 @@ func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req A
 			AccomplishBy: req.RequestBy,
 			AccomplishAt: &currentTime,
 			Note:         req.Note,
+			MetaData:     req.MetaData,
 		},
 	}
 	blPack.Events = append(blPack.Events, accomplish)
@@ -889,6 +901,7 @@ func (c *_FileBaseEBLController) Delete(ctx context.Context, ts int64, req Delet
 		Delete: &bill_of_lading.Delete{
 			DeleteBy: req.RequestBy,
 			DeleteAt: &currentTime,
+			MetaData: req.MetaData,
 		},
 	}
 	blPack.Events = append(blPack.Events, del)

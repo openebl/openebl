@@ -158,7 +158,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 	s.Require().NoError(err)
 
 	req := trade_document.IssueFileBasedEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		Application:      "appid",
 		Issuer:           "did:openebl:issuer",
 		AuthenticationID: "bu_auth_id",
@@ -278,7 +278,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 	s.Assert().Equal(util.StructToJSON(result), util.StructToJSON(blPackOnDB))
 
 	// Validate the content of result (BillOfLadingPack).
-	expectedBLPackJson := `{"id":"316f5f2d-eb10-4563-a0d2-45858a57ad5e","version":1,"parent_hash":"","events":[{"bill_of_lading":{"bill_of_lading":{"transportDocumentReference":"bl_number","carrierCode":"","carrierCodeListProvider":"","issuingParty":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:issuer"}]},"shipmentLocations":[{"location":{"locationName":"Port of Loading","address":null,"UNLocationCode":"POL","facilityCode":"","facilityCodeListProvider":""},"shipmentLocationTypeCode":"POL"},{"location":{"locationName":"Port of Discharge","address":null,"UNLocationCode":"POD","facilityCode":"","facilityCodeListProvider":""},"shipmentLocationTypeCode":"POD","eventDateTime":"2022-01-01T00:00:00Z"}],"shippingInstruction":{"shippingInstructionReference":"","documentStatus":"ISSU","transportDocumentTypeCode":"","consignmentItems":null,"utilizedTransportEquipments":null,"documentParties":[{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:issuer"}]},"partyFunction":"DDR","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:shipper"}]},"partyFunction":"OS","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:consignee"}]},"partyFunction":"CN","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:release_agent"}]},"partyFunction":"DDS","isToBeNotified":false}]}},"file":{"name":"test.txt","file_type":"text/plain","content":"dGVzdCBjb250ZW50","created_date":"2024-02-23T08:19:59Z"},"doc_type":"HouseBillOfLading","created_by":"did:openebl:issuer","created_at":"2024-02-23T08:19:59Z","note":"note"}},{"transfer":{"transfer_by":"did:openebl:issuer","transfer_to":"did:openebl:shipper","transfer_at":"2024-02-23T08:19:59Z"}}],"current_owner":"did:openebl:shipper"}`
+	expectedBLPackJson := `{"id":"316f5f2d-eb10-4563-a0d2-45858a57ad5e","version":1,"parent_hash":"","events":[{"bill_of_lading":{"bill_of_lading":{"transportDocumentReference":"bl_number","carrierCode":"","carrierCodeListProvider":"","issuingParty":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:issuer"}]},"shipmentLocations":[{"location":{"locationName":"Port of Loading","address":null,"UNLocationCode":"POL","facilityCode":"","facilityCodeListProvider":""},"shipmentLocationTypeCode":"POL"},{"location":{"locationName":"Port of Discharge","address":null,"UNLocationCode":"POD","facilityCode":"","facilityCodeListProvider":""},"shipmentLocationTypeCode":"POD","eventDateTime":"2022-01-01T00:00:00Z"}],"shippingInstruction":{"shippingInstructionReference":"","documentStatus":"ISSU","transportDocumentTypeCode":"","consignmentItems":null,"utilizedTransportEquipments":null,"documentParties":[{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:issuer"}]},"partyFunction":"DDR","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:shipper"}]},"partyFunction":"OS","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:consignee"}]},"partyFunction":"CN","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:release_agent"}]},"partyFunction":"DDS","isToBeNotified":false}]}},"file":{"name":"test.txt","file_type":"text/plain","content":"dGVzdCBjb250ZW50","created_date":"2024-02-23T08:19:59Z"},"doc_type":"HouseBillOfLading","created_by":"did:openebl:issuer","created_at":"2024-02-23T08:19:59Z","note":"note", "meta_data":"requester"}},{"transfer":{"transfer_by":"did:openebl:issuer","transfer_to":"did:openebl:shipper","transfer_at":"2024-02-23T08:19:59Z","meta_data":"requester"}}],"current_owner":"did:openebl:shipper"}`
 	expectedBLPack := bill_of_lading.BillOfLadingPack{}
 	json.Unmarshal([]byte(expectedBLPackJson), &expectedBLPack)
 	expectedBLPack.ID = result.ID
@@ -294,7 +294,7 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBL() {
 	req := trade_document.UpdateFileBasedEBLDraftRequest{
 		ID: id,
 		IssueFileBasedEBLRequest: trade_document.IssueFileBasedEBLRequest{
-			Requester:        "requester",
+			MetaData:         "requester",
 			Application:      "app_id",
 			Issuer:           "did:openebl:issuer",
 			AuthenticationID: "issuer_auth1",
@@ -464,7 +464,7 @@ func (s *FileBasedEBLTestSuite) TestTransferEBL() {
 	ts := int64(1709529502)
 
 	req := trade_document.TransferEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		Application:      "app_id",
 		TransferBy:       "did:openebl:shipper",
 		AuthenticationID: "shipper_auth1",
@@ -542,7 +542,7 @@ func (s *FileBasedEBLTestSuite) TestTransferEBL_ActionNotAllowed() {
 	ts := int64(1709529502)
 
 	req := trade_document.TransferEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		Application:      "app_id",
 		TransferBy:       "did:openebl:shipper",
 		AuthenticationID: "shipper_auth1",
@@ -591,7 +591,7 @@ func (s *FileBasedEBLTestSuite) TestAmendmentRequestEBL() {
 	ts := int64(1709546001)
 
 	req := trade_document.AmendmentRequestEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		Application:      "app_id",
 		RequestBy:        "did:openebl:consignee",
 		AuthenticationID: "consignee_auth1",
@@ -669,7 +669,7 @@ func (s *FileBasedEBLTestSuite) TestAmendmentRequestEBL_ActionNotAllowed() {
 	ts := int64(1709546001)
 
 	req := trade_document.AmendmentRequestEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		Application:      "app_id",
 		RequestBy:        "did:openebl:issuer",
 		AuthenticationID: "issuer_auth1",
@@ -718,7 +718,7 @@ func (s *FileBasedEBLTestSuite) TestReturn() {
 	ts := int64(1709615902)
 
 	req := trade_document.ReturnFileBasedEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		Application:      "app_id",
 		BusinessUnit:     "did:openebl:consignee",
 		AuthenticationID: "consignee_auth1",
@@ -782,7 +782,7 @@ func (s *FileBasedEBLTestSuite) TestReturnAmentRequest() {
 	ts := int64(1709615902)
 
 	req := trade_document.ReturnFileBasedEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		Application:      "app_id",
 		BusinessUnit:     "did:openebl:issuer",
 		AuthenticationID: "issuer_auth1",
@@ -848,7 +848,7 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL() {
 	s.Require().NoError(err)
 
 	req := trade_document.AmendFileBasedEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		Application:      "app_id",
 		Issuer:           "did:openebl:issuer",
 		AuthenticationID: "issuer_auth1",
@@ -948,7 +948,7 @@ func (s *FileBasedEBLTestSuite) TestSurrender() {
 	ts := int64(1709615902)
 
 	req := trade_document.SurrenderEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		Application:      "app_id",
 		RequestBy:        "did:openebl:consignee",
 		AuthenticationID: "consignee_auth1",
@@ -1012,7 +1012,7 @@ func (s *FileBasedEBLTestSuite) TestPrintToPaper() {
 	ts := int64(1709615902)
 
 	req := trade_document.PrintFileBasedEBLToPaperRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		Application:      "app_id",
 		RequestBy:        "did:openebl:consignee",
 		AuthenticationID: "consignee_auth1",
@@ -1076,7 +1076,7 @@ func (s *FileBasedEBLTestSuite) TestAccomplishEBL() {
 	ts := int64(1709696923)
 
 	req := trade_document.AccomplishEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		Application:      "app_id",
 		RequestBy:        "did:openebl:release_agent",
 		AuthenticationID: "release_agent_auth1",
@@ -1199,7 +1199,7 @@ func (s *FileBasedEBLTestSuite) TestDeleteDraftEBL() {
 	ts := int64(1709776508)
 
 	req := trade_document.DeleteEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		Application:      "app_id",
 		RequestBy:        "did:openebl:issuer",
 		AuthenticationID: "issuer_auth1",
@@ -1256,6 +1256,9 @@ func (s *FileBasedEBLTestSuite) TestDeleteDraftEBL() {
 	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
+
+	os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/deleted_ebl_jws.json", receivedTD.Doc, 0644)
+	os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/deleted_ebl.json", []byte(util.StructToJSON(expectedBlPack)), 0644)
 }
 
 func (s *FileBasedEBLTestSuite) TestGetEBLDocument() {

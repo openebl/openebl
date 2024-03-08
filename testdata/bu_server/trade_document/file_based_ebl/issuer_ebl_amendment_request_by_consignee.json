@@ -1,7 +1,7 @@
 {
     "id": "316f5f2d-eb10-4563-a0d2-45858a57ad5e",
     "version": 4,
-    "parent_hash": "68d562c589f58f9d8ce77d663d19500771ab3677e1ddd5050eb632c70479c082e96e3b3d109327cb9b5902be5164ac585acfc29048532b3b6e16e96bdebd6fe4",
+    "parent_hash": "fe55ad06b87a0733e0fdd96ee5545d756039aca149cfe657ff62016ef464ed37ef67599ea6543641aeba25a04f1bb28b751ea083a908fcdbdb1e41e2890cbd80",
     "events": [
         {
             "bill_of_lading": {
@@ -112,14 +112,17 @@
                 "doc_type": "HouseBillOfLading",
                 "created_by": "did:openebl:issuer",
                 "created_at": "2024-02-24T08:19:59Z",
-                "note": "note"
+                "note": "note",
+                "meta_data": "requester"
             }
         },
         {
             "transfer": {
                 "transfer_by": "did:openebl:issuer",
                 "transfer_to": "did:openebl:shipper",
-                "transfer_at": "2024-02-24T08:19:59Z"
+                "transfer_at": "2024-02-24T08:19:59Z",
+                "note": "note",
+                "meta_data": "requester"
             }
         },
         {
@@ -127,7 +130,8 @@
                 "transfer_by": "did:openebl:shipper",
                 "transfer_to": "did:openebl:consignee",
                 "transfer_at": "2024-03-04T05:18:22Z",
-                "note": "note"
+                "note": "note",
+                "meta_data": "requester"
             }
         },
         {
@@ -135,7 +139,8 @@
                 "request_by": "did:openebl:consignee",
                 "request_to": "did:openebl:issuer",
                 "request_at": "2024-03-04T09:53:21Z",
-                "note": "amendment request note"
+                "note": "amendment request note",
+                "meta_data": "requester"
             }
         }
     ],

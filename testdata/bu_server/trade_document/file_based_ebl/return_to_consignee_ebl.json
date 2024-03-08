@@ -1,7 +1,7 @@
 {
     "id": "316f5f2d-eb10-4563-a0d2-45858a57ad5e",
     "version": 5,
-    "parent_hash": "aa714ead34445cb30dca70152817965782415c4faacea4708ea8453e1ebd735c5873b1e853449bee5b3e8ca2d246ea87de501903f017efd4343677b2f58a4b0f",
+    "parent_hash": "435995986c14c9b29147ec299f718d005172f2ca82fd8e35304b9f06f0788feb52eb03176928079a9253e9d0ab085d646d0566d57f4ce58444e1beca80df03e7",
     "events": [
         {
             "bill_of_lading": {
@@ -112,14 +112,17 @@
                 "doc_type": "HouseBillOfLading",
                 "created_by": "did:openebl:issuer",
                 "created_at": "2024-02-24T08:19:59Z",
-                "note": "note"
+                "note": "note",
+                "meta_data": "requester"
             }
         },
         {
             "transfer": {
                 "transfer_by": "did:openebl:issuer",
                 "transfer_to": "did:openebl:shipper",
-                "transfer_at": "2024-02-24T08:19:59Z"
+                "transfer_at": "2024-02-24T08:19:59Z",
+                "note": "note",
+                "meta_data": "requester"
             }
         },
         {
@@ -127,7 +130,8 @@
                 "transfer_by": "did:openebl:shipper",
                 "transfer_to": "did:openebl:consignee",
                 "transfer_at": "2024-03-04T05:18:22Z",
-                "note": "note"
+                "note": "note",
+                "meta_data": "requester"
             }
         },
         {
@@ -135,7 +139,8 @@
                 "request_by": "did:openebl:consignee",
                 "request_to": "did:openebl:issuer",
                 "request_at": "2024-03-04T09:53:21Z",
-                "note": "amendment request note"
+                "note": "amendment request note",
+                "meta_data": "requester"
             }
         },
         {
@@ -143,7 +148,8 @@
                 "return_by": "did:openebl:issuer",
                 "return_to": "did:openebl:consignee",
                 "return_at": "2024-03-05T05:18:22Z",
-                "note": "Return the ownership back to the ament requester (consignee in this case)"
+                "note": "Return the ownership back to the ament requester (consignee in this case)",
+                "meta_data": "requester"
             }
         }
     ],

@@ -294,7 +294,7 @@ func (s *APITestSuite) TestCreateFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl", s.localAddress)
 
 	req := trade_document.IssueFileBasedEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		AuthenticationID: "bu_auth_id",
 
 		File: trade_document.File{
@@ -353,7 +353,7 @@ func (s *APITestSuite) TestUpdateFileBasedEBL() {
 
 	req := trade_document.UpdateFileBasedEBLDraftRequest{
 		IssueFileBasedEBLRequest: trade_document.IssueFileBasedEBLRequest{
-			Requester:        "requester",
+			MetaData:         "requester",
 			AuthenticationID: "bu_auth_id",
 			File: trade_document.File{
 				Name:    "test.txt",
@@ -446,7 +446,7 @@ func (s *APITestSuite) TestTransferFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/transfer", s.localAddress)
 
 	req := trade_document.TransferEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		AuthenticationID: "bu_auth_id",
 		Note:             "note",
 	}
@@ -483,7 +483,7 @@ func (s *APITestSuite) TestReturnFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/return", s.localAddress)
 
 	req := trade_document.ReturnFileBasedEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		AuthenticationID: "bu_auth_id",
 		Note:             "note",
 	}
@@ -520,7 +520,7 @@ func (s *APITestSuite) TestAmendmentRequestFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/amendment_request", s.localAddress)
 
 	req := trade_document.AmendmentRequestEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		AuthenticationID: "bu_auth_id",
 		Note:             "note",
 	}
@@ -557,7 +557,7 @@ func (s *APITestSuite) TestAmendFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/amend", s.localAddress)
 
 	req := trade_document.AmendFileBasedEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		AuthenticationID: "bu_auth_id",
 
 		File: trade_document.File{
@@ -612,7 +612,7 @@ func (s *APITestSuite) TestSurrenderFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/surrender", s.localAddress)
 
 	req := trade_document.SurrenderEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		AuthenticationID: "bu_auth_id",
 	}
 
@@ -648,7 +648,7 @@ func (s *APITestSuite) TestPrintFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/print_to_paper", s.localAddress)
 
 	req := trade_document.PrintFileBasedEBLToPaperRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		AuthenticationID: "bu_auth_id",
 	}
 
@@ -684,7 +684,7 @@ func (s *APITestSuite) TestAccomplishFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/accomplish", s.localAddress)
 
 	req := trade_document.AccomplishEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		AuthenticationID: "bu_auth_id",
 	}
 
@@ -752,7 +752,7 @@ func (s *APITestSuite) TestDeleteFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/delete", s.localAddress)
 
 	req := trade_document.DeleteEBLRequest{
-		Requester:        "requester",
+		MetaData:         "requester",
 		AuthenticationID: "bu_auth_id",
 	}
 

@@ -337,7 +337,8 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 		s.ca.EXPECT().IssueCertificate(gomock.Any(), ts, gomock.Any()).DoAndReturn(
 			func(ctx context.Context, ts int64, req cert_authority.IssueCertificateRequest) ([]x509.Certificate, error) {
-				s.Assert().Equal("name", req.CertificateRequest.Subject.CommonName)
+				s.Assert().Equal("name", req.CertificateRequest.Subject.Organization[0])
+				s.Assert().Equal("did:openebl:bu1", req.CertificateRequest.Subject.CommonName)
 				s.Assert().Equal("US", req.CertificateRequest.Subject.Country[0])
 				s.Assert().Equal("__root__", req.CACertID)
 				s.Assert().Equal(time.Unix(ts, 0), req.NotBefore)

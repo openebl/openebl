@@ -77,8 +77,13 @@ type ListFileBasedEBLRequest struct {
 }
 
 type ListFileBasedEBLRecord struct {
-	Total   int                               `json:"total"`
-	Records []bill_of_lading.BillOfLadingPack `json:"records"`
+	Total   int                           `json:"total"`
+	Records []FileBasedBillOfLadingRecord `json:"records"`
+}
+
+type FileBasedBillOfLadingRecord struct {
+	AllowActions []FileBasedEBLAction             `json:"allow_actions"`
+	BL           *bill_of_lading.BillOfLadingPack `json:"bl"`
 }
 
 type TransferEBLRequest struct {
@@ -173,18 +178,18 @@ type FileBaseEBLParticipators struct {
 }
 
 type FileBaseEBLController interface {
-	Create(ctx context.Context, ts int64, request IssueFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error)
-	UpdateDraft(ctx context.Context, ts int64, request UpdateFileBasedEBLDraftRequest) (bill_of_lading.BillOfLadingPack, error)
-	Return(ctx context.Context, ts int64, request ReturnFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error)
+	Create(ctx context.Context, ts int64, request IssueFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error)
+	UpdateDraft(ctx context.Context, ts int64, request UpdateFileBasedEBLDraftRequest) (FileBasedBillOfLadingRecord, error)
+	Return(ctx context.Context, ts int64, request ReturnFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error)
 	List(ctx context.Context, request ListFileBasedEBLRequest) (ListFileBasedEBLRecord, error)
-	Transfer(ctx context.Context, ts int64, request TransferEBLRequest) (bill_of_lading.BillOfLadingPack, error)
-	AmendmentRequest(ctx context.Context, ts int64, request AmendmentRequestEBLRequest) (bill_of_lading.BillOfLadingPack, error)
-	Amend(ctx context.Context, ts int64, request AmendFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error)
-	Surrender(ctx context.Context, ts int64, request SurrenderEBLRequest) (bill_of_lading.BillOfLadingPack, error)
-	PrintToPaper(ctx context.Context, ts int64, request PrintFileBasedEBLToPaperRequest) (bill_of_lading.BillOfLadingPack, error)
-	Accomplish(ctx context.Context, ts int64, request AccomplishEBLRequest) (bill_of_lading.BillOfLadingPack, error)
-	Get(ctx context.Context, request GetFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error)
-	Delete(ctx context.Context, ts int64, request DeleteEBLRequest) (bill_of_lading.BillOfLadingPack, error)
+	Transfer(ctx context.Context, ts int64, request TransferEBLRequest) (FileBasedBillOfLadingRecord, error)
+	AmendmentRequest(ctx context.Context, ts int64, request AmendmentRequestEBLRequest) (FileBasedBillOfLadingRecord, error)
+	Amend(ctx context.Context, ts int64, request AmendFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error)
+	Surrender(ctx context.Context, ts int64, request SurrenderEBLRequest) (FileBasedBillOfLadingRecord, error)
+	PrintToPaper(ctx context.Context, ts int64, request PrintFileBasedEBLToPaperRequest) (FileBasedBillOfLadingRecord, error)
+	Accomplish(ctx context.Context, ts int64, request AccomplishEBLRequest) (FileBasedBillOfLadingRecord, error)
+	Get(ctx context.Context, request GetFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error)
+	Delete(ctx context.Context, ts int64, request DeleteEBLRequest) (FileBasedBillOfLadingRecord, error)
 	GetDocument(ctx context.Context, request GetFileBasedEBLRequest) (*model.File, error)
 }
 
@@ -200,14 +205,14 @@ func NewFileBaseEBLController(storage storage.TradeDocumentStorage, buCtrl busin
 	}
 }
 
-func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request IssueFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request IssueFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
 	if err := ValidateIssueFileBasedEBLRequest(request); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	if err := c.checkBUExistence(ctx, request.Application, []string{request.Issuer, request.Shipper, request.Consignee, request.ReleaseAgent}); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	var currentOwner string
@@ -243,48 +248,52 @@ func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request I
 
 	td, err := c.signBillOfLadingPack(ctx, ts, blPack, request.Application, request.Issuer, request.AuthenticationID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	defer tx.Rollback(ctx)
 
 	if err := c.storage.AddTradeDocument(ctx, tx, td); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	blPack.Events[0].BillOfLading.File.Content = nil
-	return blPack, nil
+	result := FileBasedBillOfLadingRecord{
+		AllowActions: GetFileBasedEBLAllowActions(&blPack, request.Issuer),
+		BL:           &blPack,
+	}
+	return result, nil
 }
 
-func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, request UpdateFileBasedEBLDraftRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, request UpdateFileBasedEBLDraftRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
 	if err := ValidateUpdateFileBasedEBLRequest(request); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	if err := c.checkBUExistence(ctx, request.Application, []string{request.Issuer, request.Shipper, request.Consignee, request.ReleaseAgent}); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	defer tx.Rollback(ctx)
 
 	oldPack, oldHash, err := c.getEBL(ctx, tx, request.ID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err := IsFileEBLUpdatable(&oldPack, request.Issuer, true); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	var currentOwner string
@@ -322,43 +331,47 @@ func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, requ
 
 	td, err := c.signBillOfLadingPack(ctx, ts, blPack, request.Application, request.Issuer, request.AuthenticationID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	if err := c.storage.AddTradeDocument(ctx, tx, td); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	blPack.Events[0].BillOfLading.File.Content = nil
-	return blPack, nil
+	result := FileBasedBillOfLadingRecord{
+		AllowActions: GetFileBasedEBLAllowActions(&blPack, request.Issuer),
+		BL:           &blPack,
+	}
+	return result, nil
 }
 
-func (c *_FileBaseEBLController) Return(ctx context.Context, ts int64, req ReturnFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (c *_FileBaseEBLController) Return(ctx context.Context, ts int64, req ReturnFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
 	if err := ValidateReturnFileBasedEBLRequest(req); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	defer tx.Rollback(ctx)
 
 	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err := IsFileEBLReturnable(&oldPack, req.BusinessUnit, true); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	nextOwner := GetNextOwnerByAction(FILE_EBL_RETURN, req.BusinessUnit, &oldPack)
 	if nextOwner == "" {
-		return bill_of_lading.BillOfLadingPack{}, errors.New("cannot determine next owner due to invalid role or action")
+		return FileBasedBillOfLadingRecord{}, errors.New("cannot determine next owner due to invalid role or action")
 	}
 
 	blPack := bill_of_lading.BillOfLadingPack{
@@ -381,18 +394,22 @@ func (c *_FileBaseEBLController) Return(ctx context.Context, ts int64, req Retur
 
 	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.BusinessUnit, req.AuthenticationID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	if err := c.storage.AddTradeDocument(ctx, tx, td); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	blPack.Events[0].BillOfLading.File.Content = nil
-	return blPack, nil
+	result := FileBasedBillOfLadingRecord{
+		AllowActions: GetFileBasedEBLAllowActions(&blPack, req.BusinessUnit),
+		BL:           &blPack,
+	}
+	return result, nil
 }
 
 func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, currentTime model.DateTime) *bill_of_lading.BillOfLading {
@@ -489,7 +506,7 @@ func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLR
 
 	res := ListFileBasedEBLRecord{
 		Total: listResp.Total,
-		Records: lo.Map(listResp.Docs, func(td storage.TradeDocument, _ int) bill_of_lading.BillOfLadingPack {
+		Records: lo.Map(listResp.Docs, func(td storage.TradeDocument, _ int) FileBasedBillOfLadingRecord {
 			blPack, _ := ExtractBLPackFromTradeDocument(td)
 			for _, e := range blPack.Events {
 				if e.BillOfLading != nil {
@@ -497,40 +514,43 @@ func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLR
 				}
 			}
 
-			return blPack
+			return FileBasedBillOfLadingRecord{
+				AllowActions: GetFileBasedEBLAllowActions(&blPack, req.Lister),
+				BL:           &blPack,
+			}
 		}),
 	}
 
 	return res, nil
 }
 
-func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req TransferEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req TransferEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
 	if err := ValidateTransferEBLRequest(req); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	if err := c.checkBUExistence(ctx, req.Application, []string{req.TransferBy}); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = IsFileEBLTransferable(&oldPack, req.TransferBy, true); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	nextOwner := GetNextOwnerByAction(FILE_EBL_TRANSFER, req.TransferBy, &oldPack)
 	if nextOwner == "" {
-		return bill_of_lading.BillOfLadingPack{}, errors.New("cannot determine next owner due to invalid role or action")
+		return FileBasedBillOfLadingRecord{}, errors.New("cannot determine next owner due to invalid role or action")
 	}
 
 	blPack := bill_of_lading.BillOfLadingPack{
@@ -553,13 +573,13 @@ func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req Tra
 
 	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.TransferBy, req.AuthenticationID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	lo.ForEach(blPack.Events, func(e bill_of_lading.BillOfLadingEvent, _ int) {
@@ -567,36 +587,40 @@ func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req Tra
 			e.BillOfLading.File.Content = nil
 		}
 	})
-	return blPack, nil
+	result := FileBasedBillOfLadingRecord{
+		AllowActions: GetFileBasedEBLAllowActions(&blPack, req.TransferBy),
+		BL:           &blPack,
+	}
+	return result, nil
 }
 
-func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64, req AmendmentRequestEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64, req AmendmentRequestEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
 	if err := ValidateAmendmentRequestEBLRequest(req); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	if err := c.checkBUExistence(ctx, req.Application, []string{req.RequestBy}); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = IsFileEBLRequestAmendable(&oldPack, req.RequestBy, true); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	nextOwner := GetNextOwnerByAction(FILE_EBL_REQUEST_AMEND, req.RequestBy, &oldPack)
 	if nextOwner == "" {
-		return bill_of_lading.BillOfLadingPack{}, errors.New("cannot determine next owner due to invalid role or action")
+		return FileBasedBillOfLadingRecord{}, errors.New("cannot determine next owner due to invalid role or action")
 	}
 
 	blPack := bill_of_lading.BillOfLadingPack{
@@ -619,13 +643,13 @@ func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64,
 
 	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	lo.ForEach(blPack.Events, func(e bill_of_lading.BillOfLadingEvent, _ int) {
@@ -633,36 +657,40 @@ func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64,
 			e.BillOfLading.File.Content = nil
 		}
 	})
-	return blPack, nil
+	result := FileBasedBillOfLadingRecord{
+		AllowActions: GetFileBasedEBLAllowActions(&blPack, req.RequestBy),
+		BL:           &blPack,
+	}
+	return result, nil
 }
 
-func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
 	if err := ValidateAmendFileBasedEBLRequest(req); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	if err := c.checkBUExistence(ctx, req.Application, []string{req.Issuer}); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err := IsFileEBLAmendable(&oldPack, req.Issuer, true); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	nextOwner := GetNextOwnerByAction(FILE_EBL_AMEND, req.Issuer, &oldPack)
 	if nextOwner == "" {
-		return bill_of_lading.BillOfLadingPack{}, errors.New("cannot determine next owner due to invalid role or action")
+		return FileBasedBillOfLadingRecord{}, errors.New("cannot determine next owner due to invalid role or action")
 	}
 	blPack := bill_of_lading.BillOfLadingPack{
 		ID:           oldPack.ID,
@@ -684,13 +712,13 @@ func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendF
 
 	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.Issuer, req.AuthenticationID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	lo.ForEach(blPack.Events, func(e bill_of_lading.BillOfLadingEvent, _ int) {
@@ -698,31 +726,35 @@ func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendF
 			e.BillOfLading.File.Content = nil
 		}
 	})
-	return blPack, nil
+	result := FileBasedBillOfLadingRecord{
+		AllowActions: GetFileBasedEBLAllowActions(&blPack, req.Issuer),
+		BL:           &blPack,
+	}
+	return result, nil
 }
 
-func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req SurrenderEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req SurrenderEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
 	if err := ValidateSurrenderEBLRequest(req); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = IsFileEBLSurrenderable(&oldPack, req.RequestBy, true); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	nextOwner := GetNextOwnerByAction(FILE_EBL_SURRENDER, req.RequestBy, &oldPack)
 	if nextOwner == "" {
-		return bill_of_lading.BillOfLadingPack{}, errors.New("cannot determine next owner due to invalid role or action")
+		return FileBasedBillOfLadingRecord{}, errors.New("cannot determine next owner due to invalid role or action")
 	}
 
 	blPack := bill_of_lading.BillOfLadingPack{
@@ -745,13 +777,13 @@ func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req Su
 
 	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	lo.ForEach(blPack.Events, func(e bill_of_lading.BillOfLadingEvent, _ int) {
@@ -759,27 +791,31 @@ func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req Su
 			e.BillOfLading.File.Content = nil
 		}
 	})
-	return blPack, nil
+	result := FileBasedBillOfLadingRecord{
+		AllowActions: GetFileBasedEBLAllowActions(&blPack, req.RequestBy),
+		BL:           &blPack,
+	}
+	return result, nil
 }
 
-func (c *_FileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, req PrintFileBasedEBLToPaperRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (c *_FileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, req PrintFileBasedEBLToPaperRequest) (FileBasedBillOfLadingRecord, error) {
 	if err := ValidatePrintFileBasedEBLRequest(req); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	currentTime := model.NewDateTimeFromUnix(ts)
 	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = IsFileEBLPrintable(&oldPack, req.RequestBy, true); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	blPack := bill_of_lading.BillOfLadingPack{
@@ -801,14 +837,14 @@ func (c *_FileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, req
 
 	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	if err = tx.Commit(ctx); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	lo.ForEach(blPack.Events, func(e bill_of_lading.BillOfLadingEvent, _ int) {
@@ -816,26 +852,30 @@ func (c *_FileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, req
 			e.BillOfLading.File.Content = nil
 		}
 	})
-	return blPack, nil
+	result := FileBasedBillOfLadingRecord{
+		AllowActions: GetFileBasedEBLAllowActions(&blPack, req.RequestBy),
+		BL:           &blPack,
+	}
+	return result, nil
 }
 
-func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req AccomplishEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req AccomplishEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
 	if err := ValidateAccomplishEBLRequest(req); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = IsFileEBLAccomplishable(&oldPack, req.RequestBy, true); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	blPack := bill_of_lading.BillOfLadingPack{
@@ -857,13 +897,13 @@ func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req A
 
 	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	lo.ForEach(blPack.Events, func(e bill_of_lading.BillOfLadingEvent, _ int) {
@@ -871,26 +911,30 @@ func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req A
 			e.BillOfLading.File.Content = nil
 		}
 	})
-	return blPack, nil
+	result := FileBasedBillOfLadingRecord{
+		AllowActions: GetFileBasedEBLAllowActions(&blPack, req.RequestBy),
+		BL:           &blPack,
+	}
+	return result, nil
 }
 
-func (c *_FileBaseEBLController) Delete(ctx context.Context, ts int64, req DeleteEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (c *_FileBaseEBLController) Delete(ctx context.Context, ts int64, req DeleteEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
 	if err := ValidateDeleteEBLRequest(req); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = IsFileEBLDeletable(&oldPack, req.RequestBy, true); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	blPack := bill_of_lading.BillOfLadingPack{
@@ -911,27 +955,31 @@ func (c *_FileBaseEBLController) Delete(ctx context.Context, ts int64, req Delet
 
 	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	blPack.Events[0].BillOfLading.File.Content = nil
-	return blPack, nil
+	result := FileBasedBillOfLadingRecord{
+		AllowActions: GetFileBasedEBLAllowActions(&blPack, req.RequestBy),
+		BL:           &blPack,
+	}
+	return result, nil
 }
 
-func (c *_FileBaseEBLController) Get(ctx context.Context, request GetFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (c *_FileBaseEBLController) Get(ctx context.Context, request GetFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	if err := c.checkBUExistence(ctx, request.Application, []string{request.Requester}); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	tx, err := c.storage.CreateTx(ctx)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
@@ -943,16 +991,16 @@ func (c *_FileBaseEBLController) Get(ctx context.Context, request GetFileBasedEB
 
 	resp, err := c.storage.ListTradeDocument(ctx, tx, req)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	if len(resp.Docs) == 0 {
-		return bill_of_lading.BillOfLadingPack{}, model.ErrEBLNotFound
+		return FileBasedBillOfLadingRecord{}, model.ErrEBLNotFound
 	}
 
 	blPack, err := ExtractBLPackFromTradeDocument(resp.Docs[0])
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	lo.ForEach(blPack.Events, func(e bill_of_lading.BillOfLadingEvent, _ int) {
@@ -960,7 +1008,11 @@ func (c *_FileBaseEBLController) Get(ctx context.Context, request GetFileBasedEB
 			e.BillOfLading.File.Content = nil
 		}
 	})
-	return blPack, nil
+	result := FileBasedBillOfLadingRecord{
+		AllowActions: GetFileBasedEBLAllowActions(&blPack, request.Requester),
+		BL:           &blPack,
+	}
+	return result, nil
 }
 
 func (c *_FileBaseEBLController) GetDocument(ctx context.Context, request GetFileBasedEBLRequest) (*model.File, error) {

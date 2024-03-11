@@ -172,20 +172,34 @@ func IsFileEBLPrintable(bl *bill_of_lading.BillOfLadingPack, bu string, withDeta
 }
 
 func IsFileEBLTransferable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {
-	if bu != GetCurrentOwner(bl) {
+	if draft := GetDraft(bl); draft == nil || *draft {
 		if withDetail {
-			return fmt.Errorf("not the current owner. %w", model.ErrEBLActionNotAllowed)
+			return fmt.Errorf("draft eB/L%w", model.ErrEBLActionNotAllowed)
 		}
 		return model.ErrEBLActionNotAllowed
 	}
 
-	parties := GetFileBaseEBLParticipatorsFromBLPack(bl)
-	if bu != parties.Shipper {
+	lastEvent := GetLastEvent(bl)
+	_, to := GetOwnerShipTransferringByEvent(lastEvent)
+	if bu != to {
 		if withDetail {
-			return fmt.Errorf("not the shipper. %w", model.ErrEBLActionNotAllowed)
+			return fmt.Errorf("not the owner%w", model.ErrEBLActionNotAllowed)
 		}
 		return model.ErrEBLActionNotAllowed
+	}
 
+	participants := GetFileBaseEBLParticipatorsFromBLPack(bl)
+	if bu != participants.Issuer && bu != participants.Shipper {
+		if withDetail {
+			return fmt.Errorf("not the [issuer, shipper]. %w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+	if bu == participants.Issuer && lastEvent.Return == nil {
+		if withDetail {
+			return fmt.Errorf("not transferable for the issuer%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
 	}
 
 	return nil

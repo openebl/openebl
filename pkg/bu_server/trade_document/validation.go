@@ -30,7 +30,6 @@ func ValidateIssueFileBasedEBLRequest(req IssueFileBasedEBLRequest) error {
 		validation.Field(&req.BLDocType, validation.Required),
 		validation.Field(&req.POL, validation.Required, &LocationRule{}),
 		validation.Field(&req.POD, validation.Required, &LocationRule{}),
-		validation.Field(&req.ETA, validation.Required),
 		validation.Field(&req.Issuer, validation.Required),
 		validation.Field(&req.Shipper, validation.Required),
 		validation.Field(&req.Consignee, validation.Required),
@@ -53,7 +52,6 @@ func ValidateUpdateFileBasedEBLRequest(req UpdateFileBasedEBLDraftRequest) error
 		validation.Field(&req.BLDocType, validation.Required),
 		validation.Field(&req.POL, validation.Required, &LocationRule{}),
 		validation.Field(&req.POD, validation.Required, &LocationRule{}),
-		validation.Field(&req.ETA, validation.Required),
 		validation.Field(&req.Issuer, validation.Required),
 		validation.Field(&req.Shipper, validation.Required),
 		validation.Field(&req.Consignee, validation.Required),
@@ -129,7 +127,6 @@ func ValidateAmendFileBasedEBLRequest(req AmendFileBasedEBLRequest) error {
 		validation.Field(&req.BLDocType, validation.Required),
 		validation.Field(&req.POL, validation.Required, &LocationRule{}),
 		validation.Field(&req.POD, validation.Required, &LocationRule{}),
-		validation.Field(&req.ETA, validation.Required),
 	); err != nil {
 		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}

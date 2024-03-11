@@ -661,6 +661,9 @@ func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendF
 	}
 
 	nextOwner := GetNextOwnerByAction(FILE_EBL_AMEND, req.Issuer, &oldPack)
+	if nextOwner == "" {
+		return bill_of_lading.BillOfLadingPack{}, errors.New("cannot determine next owner due to invalid role or action")
+	}
 	blPack := bill_of_lading.BillOfLadingPack{
 		ID:           oldPack.ID,
 		Version:      oldPack.Version + 1,
@@ -1331,6 +1334,9 @@ func GetNextOwnerByAction(action FileBasedEBLAction, bu string, blPack *bill_of_
 			lastEvent := GetLastEvent(blPack)
 			if lastEvent.AmendmentRequest != nil {
 				return lastEvent.AmendmentRequest.RequestBy
+			}
+			if lastEvent.Return != nil && lastEvent.Return.ReturnBy == parties.Shipper {
+				return lastEvent.Return.ReturnBy
 			}
 		}
 	}

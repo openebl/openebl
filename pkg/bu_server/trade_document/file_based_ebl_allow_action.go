@@ -91,9 +91,9 @@ func IsFileEBLAmendable(bl *bill_of_lading.BillOfLadingPack, bu string, withDeta
 		}
 		return model.ErrEBLActionNotAllowed
 	}
-	if lastEvent.AmendmentRequest == nil {
+	if lastEvent.AmendmentRequest == nil && lastEvent.Return == nil {
 		if withDetail {
-			return fmt.Errorf("no previous amendment request%w", model.ErrEBLActionNotAllowed)
+			return fmt.Errorf("no previous amendment request or return%w", model.ErrEBLActionNotAllowed)
 		}
 		return model.ErrEBLActionNotAllowed
 	}

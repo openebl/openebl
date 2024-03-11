@@ -556,8 +556,9 @@ func (m *_BusinessUnitManager) createPrivateKey(ctx context.Context, opt Private
 func (m *_BusinessUnitManager) createCertificateRequest(ctx context.Context, privateKey interface{}, bu model.BusinessUnit) (x509.CertificateRequest, error) {
 	certRequestTemplate := x509.CertificateRequest{
 		Subject: pkix.Name{
-			Country:    []string{bu.Country},
-			CommonName: bu.Name,
+			Country:      []string{bu.Country},
+			Organization: []string{bu.Name},
+			CommonName:   bu.ID.String(),
 		},
 	}
 

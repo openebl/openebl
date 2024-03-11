@@ -1398,7 +1398,6 @@ components:
             - bl_type
             - pol
             - pod
-            - eta
             - shipper
             - consignee
             - release_agent
@@ -1517,7 +1516,6 @@ components:
             - bl_type
             - pol
             - pod
-            - eta
     DeleteBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'

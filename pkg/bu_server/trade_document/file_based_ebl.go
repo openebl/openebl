@@ -44,7 +44,7 @@ type IssueFileBasedEBLRequest struct {
 	ToOrder      bool                                    `json:"to_order"`
 	POL          Location                                `json:"pol"`
 	POD          Location                                `json:"pod"`
-	ETA          model.DateTime                          `json:"eta"`
+	ETA          model.DateTime                          `json:"eta,omitempty"`
 	Shipper      string                                  `json:"shipper"`
 	Consignee    string                                  `json:"consignee"`
 	ReleaseAgent string                                  `json:"release_agent"`
@@ -114,7 +114,7 @@ type AmendFileBasedEBLRequest struct {
 	ToOrder   bool                                    `json:"to_order"`
 	POL       Location                                `json:"pol"`
 	POD       Location                                `json:"pod"`
-	ETA       model.DateTime                          `json:"eta"`
+	ETA       model.DateTime                          `json:"eta,omitempty"`
 	Note      string                                  `json:"note"`
 }
 

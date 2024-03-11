@@ -1256,9 +1256,6 @@ func (s *FileBasedEBLTestSuite) TestDeleteDraftEBL() {
 	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
-
-	os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/deleted_ebl_jws.json", receivedTD.Doc, 0644)
-	os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/deleted_ebl.json", []byte(util.StructToJSON(expectedBlPack)), 0644)
 }
 
 func (s *FileBasedEBLTestSuite) TestGetEBLDocument() {

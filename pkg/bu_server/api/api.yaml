@@ -423,7 +423,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BillOfLadingPack'
+                $ref: '#/components/schemas/BillOfLadingRecord'
         '400':
           description: Invalid request
         '500':
@@ -448,7 +448,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetBillOfLadingRecord'
+                $ref: '#/components/schemas/BillOfLadingRecord'
         '400':
           description: Invalid request
         '404':
@@ -525,7 +525,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BillOfLadingPack'
+                $ref: '#/components/schemas/BillOfLadingRecord'
         '400':
           description: Invalid request
         '404':
@@ -558,7 +558,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BillOfLadingPack'
+                $ref: '#/components/schemas/BillOfLadingRecord'
         '400':
           description: Invalid request
         '404':
@@ -591,7 +591,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BillOfLadingPack'
+                $ref: '#/components/schemas/BillOfLadingRecord'
         '400':
           description: Invalid request
         '404':
@@ -624,7 +624,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BillOfLadingPack'
+                $ref: '#/components/schemas/BillOfLadingRecord'
         '400':
           description: Invalid request
         '404':
@@ -657,7 +657,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BillOfLadingPack'
+                $ref: '#/components/schemas/BillOfLadingRecord'
         '400':
           description: Invalid request
         '404':
@@ -690,7 +690,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BillOfLadingPack'
+                $ref: '#/components/schemas/BillOfLadingRecord'
         '400':
           description: Invalid request
         '404':
@@ -723,7 +723,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BillOfLadingPack'
+                $ref: '#/components/schemas/BillOfLadingRecord'
         '400':
           description: Invalid request
         '404':
@@ -756,7 +756,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BillOfLadingPack'
+                $ref: '#/components/schemas/BillOfLadingRecord'
         '400':
           description: Invalid request
         '404':
@@ -789,7 +789,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BillOfLadingPack'
+                $ref: '#/components/schemas/BillOfLadingRecord'
         '400':
           description: Invalid request
         '404':
@@ -998,14 +998,15 @@ components:
       type: string
       description: action to perform on the eB/L
       enum:
-        - UPDATE
+        - UPDATE_DRAFT
+        - AMEND
+        - REQUEST_AMEND
+        - PRINT
         - TRANSFER
         - RETURN
         - SURRENDER
         - ACCOMPLISH
-        - PRINT_TO_PAPER
-        - AMENDMENT_REQUEST
-        - AMEND
+        - DELETE
     DocumentStatus:
       type: string
       description: Document status
@@ -1313,14 +1314,14 @@ components:
           description: eB/L history event list
           items:
             $ref: '#/components/schemas/BillOfLadingEvent'
-    GetBillOfLadingRecord:
+    BillOfLadingRecord:
       type: object
       properties:
         allowed_actions:
           type: array
           items:
             $ref: '#/components/schemas/BillOfLadingAction'
-        record:
+        bl:
           $ref: '#/components/schemas/BillOfLadingPack'
     ListBillOfLadingRecord:
       type: object
@@ -1332,7 +1333,7 @@ components:
         records:
           type: array
           items:
-            $ref: '#/components/schemas/BillOfLadingPack'
+            $ref: '#/components/schemas/BillOfLadingRecord'
     # eB/L API request
     BaseRequest:
       type: object

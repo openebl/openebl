@@ -86,7 +86,7 @@ LEFT JOIN LATERAL(
       'archive', COUNT(*) FILTER(WHERE meta @> jsonb_build_object('archive', ARRAY[$6]))
     ) AS report
   FROM latest_visible
-) ON $7
+) AS status_report ON $7
 `
 
 	rows, err := tx.Query(

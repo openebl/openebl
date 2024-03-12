@@ -13,7 +13,7 @@
 
   let user = {} as User
   const schema = yup.object({
-    username: yup.string().required('username is required').lowercase(),
+    username: yup.string().required('username is required').min(4).lowercase(),
     name: yup.string(),
     emails: yup.array().of(yup.string().email()),
     note: yup.string(),

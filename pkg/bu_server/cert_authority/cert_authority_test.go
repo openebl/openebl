@@ -144,7 +144,7 @@ func (s *CertAuthorityTestSuite) TestAddCertificate() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().AddCertificate(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, cert model.Cert) error {
 				expectedCert.ID = cert.ID
@@ -168,7 +168,7 @@ func (s *CertAuthorityTestSuite) TestAddCertificate() {
 	req.Cert = s.caECDSACert.Certificate
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().AddCertificate(gomock.Any(), s.tx, gomock.Any()).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
@@ -210,7 +210,7 @@ func (s *CertAuthorityTestSuite) TestRevokeCertificate() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListCertificates(gomock.Any(), s.tx, expectedListRequest).Return(listResponse, nil),
 		s.storage.EXPECT().AddCertificate(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, cert model.Cert) error {
@@ -244,7 +244,7 @@ func (s *CertAuthorityTestSuite) TestListCertificate() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListCertificates(gomock.Any(), s.tx, req).Return(resp, nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -293,7 +293,7 @@ func (s *CertAuthorityTestSuite) TestIssueCertificate() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Any()).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Any()).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListCertificates(gomock.Any(), s.tx, expectedListCertRequest).Return(listCertResponse, nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -307,7 +307,7 @@ func (s *CertAuthorityTestSuite) TestIssueCertificate() {
 
 	// Test certificate request with expired CA certificate.
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Any()).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Any()).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListCertificates(gomock.Any(), s.tx, expectedListCertRequest).Return(listCertResponse, nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)

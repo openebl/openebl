@@ -39,9 +39,9 @@ func (s *TradeDocumentStorageTestSuite) TearDownTest() {
 }
 
 func (s *TradeDocumentStorageTestSuite) TestAddTradeDocument() {
-	tx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	s.Require().NoError(err)
-	defer tx.Rollback(s.ctx)
+	defer tx.Rollback(ctx)
 
 	tradeDocument := storage.TradeDocument{
 		RawID:      "test-raw-id",
@@ -55,25 +55,25 @@ func (s *TradeDocumentStorageTestSuite) TestAddTradeDocument() {
 		},
 	}
 
-	err = s.storage.AddTradeDocument(s.ctx, tx, tradeDocument)
+	err = s.storage.AddTradeDocument(ctx, tx, tradeDocument)
 	s.Require().NoError(err)
 	tradeDocument.DocVersion += 1
 	tradeDocument.RawID = "test-raw-id-2"
 	tradeDocument.Doc = []byte("test-doc version 2")
-	err = s.storage.AddTradeDocument(s.ctx, tx, tradeDocument)
+	err = s.storage.AddTradeDocument(ctx, tx, tradeDocument)
 	s.Require().NoError(err)
 
 	var dataOnDB []string
-	err = tx.QueryRow(s.ctx, `SELECT jsonb_agg(convert_from(doc, 'utf8') ORDER BY doc_version asc) FROM trade_document td WHERE doc_id = 'test-doc-id'`).Scan(&dataOnDB)
+	err = tx.QueryRow(ctx, `SELECT jsonb_agg(convert_from(doc, 'utf8') ORDER BY doc_version asc) FROM trade_document td WHERE doc_id = 'test-doc-id'`).Scan(&dataOnDB)
 	s.Require().NoError(err)
 	s.Require().Len(dataOnDB, 2)
 	s.Assert().ElementsMatch([]string{"test-doc", "test-doc version 2"}, dataOnDB)
 
-	s.Require().NoError(tx.Commit(s.ctx))
+	s.Require().NoError(tx.Commit(ctx))
 }
 
 func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
-	tx, err := s.storage.CreateTx(s.ctx)
+	tx, ctx, err := s.storage.CreateTx(s.ctx)
 	s.Require().NoError(err)
 	defer tx.Rollback(s.ctx)
 
@@ -112,7 +112,7 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 
 	// Basic List function
 	func() {
-		resp, err := s.storage.ListTradeDocument(s.ctx, tx, req)
+		resp, err := s.storage.ListTradeDocument(ctx, tx, req)
 		s.Require().NoError(err)
 		s.Assert().Equal(2, resp.Total)
 		s.Assert().ElementsMatch(docsOnDB, resp.Docs)
@@ -122,7 +122,7 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 	func() {
 		newReq := req
 		newReq.DocIDs = []string{"non-exist-doc-id"}
-		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
+		resp, err := s.storage.ListTradeDocument(ctx, tx, newReq)
 		s.Require().NoError(err)
 		s.Assert().Equal(0, resp.Total)
 		s.Assert().Empty(resp.Docs)
@@ -132,7 +132,7 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 	func() {
 		newReq := req
 		newReq.Offset = 1
-		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
+		resp, err := s.storage.ListTradeDocument(ctx, tx, newReq)
 		s.Require().NoError(err)
 		s.Assert().Equal(2, resp.Total)
 		s.Assert().ElementsMatch(docsOnDB[1:], resp.Docs)
@@ -142,7 +142,7 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 	func() {
 		newReq := req
 		newReq.Kind = 1000
-		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
+		resp, err := s.storage.ListTradeDocument(ctx, tx, newReq)
 		s.Require().NoError(err)
 		s.Assert().Equal(1, resp.Total)
 		s.Assert().ElementsMatch(docsOnDB[1:], resp.Docs)
@@ -152,7 +152,7 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 	func() {
 		newReq := req
 		newReq.DocIDs = []string{"doc_2"}
-		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
+		resp, err := s.storage.ListTradeDocument(ctx, tx, newReq)
 		s.Require().NoError(err)
 		s.Assert().Equal(1, resp.Total)
 		s.Assert().ElementsMatch(docsOnDB[:1], resp.Docs)
@@ -181,7 +181,7 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 		newReq.Meta = map[string]any{
 			"action_needed": []any{"did:openebl:consignee"},
 		}
-		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
+		resp, err := s.storage.ListTradeDocument(ctx, tx, newReq)
 		s.Require().NoError(err)
 		s.Assert().Equal(1, resp.Total)
 		s.Assert().Equal(1, resp.Report.ActionNeeded)
@@ -197,7 +197,7 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 		newReq.Meta = map[string]any{
 			"upcoming": []string{"did:openebl:release_agent"},
 		}
-		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
+		resp, err := s.storage.ListTradeDocument(ctx, tx, newReq)
 		s.Require().NoError(err)
 		s.Assert().Equal(1, resp.Total)
 		s.Assert().Equal(1, resp.Report.Upcoming)
@@ -213,7 +213,7 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 		newReq.Meta = map[string]any{
 			"sent": []string{"did:openebl:issuer"},
 		}
-		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
+		resp, err := s.storage.ListTradeDocument(ctx, tx, newReq)
 		s.Require().NoError(err)
 		s.Assert().Equal(1, resp.Total)
 		s.Assert().Equal(1, resp.Report.Sent)
@@ -229,7 +229,7 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 		newReq.Meta = map[string]any{
 			"archive": []string{"did:openebl:issuer"},
 		}
-		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
+		resp, err := s.storage.ListTradeDocument(ctx, tx, newReq)
 		s.Require().NoError(err)
 		s.Assert().Equal(1, resp.Total)
 		s.Assert().Equal(1, resp.Report.Sent)

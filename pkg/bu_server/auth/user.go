@@ -106,7 +106,7 @@ type ListUserResult struct {
 }
 
 type UserStorage interface {
-	CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, error)
+	CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error)
 	StoreUser(ctx context.Context, tx storage.Tx, user User) error
 	ListUsers(ctx context.Context, tx storage.Tx, req ListUserRequest) (ListUserResult, error)
 	StoreUserToken(ctx context.Context, tx storage.Tx, token UserToken) error
@@ -151,7 +151,7 @@ func (m *_UserManager) CreateUser(ctx context.Context, ts int64, req CreateUserR
 		UpdatedBy: req.RequestUser,
 	}
 
-	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return User{}, err
 	}
@@ -189,7 +189,7 @@ func (m *_UserManager) ChangePassword(ctx context.Context, ts int64, req ChangeP
 		return User{}, err
 	}
 
-	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return User{}, err
 	}
@@ -229,7 +229,7 @@ func (m *_UserManager) ResetPassword(ctx context.Context, ts int64, req ResetPas
 		return User{}, err
 	}
 
-	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return User{}, err
 	}
@@ -265,7 +265,7 @@ func (m *_UserManager) UpdateUser(ctx context.Context, ts int64, req UpdateUserR
 		return User{}, err
 	}
 
-	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return User{}, err
 	}
@@ -299,7 +299,7 @@ func (m *_UserManager) ActivateUser(ctx context.Context, ts int64, req ActivateU
 		return User{}, err
 	}
 
-	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return User{}, err
 	}
@@ -330,7 +330,7 @@ func (m *_UserManager) DeactivateUser(ctx context.Context, ts int64, req Activat
 		return User{}, err
 	}
 
-	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return User{}, err
 	}
@@ -362,7 +362,7 @@ func (m *_UserManager) Authenticate(ctx context.Context, ts int64, req Authentic
 		return UserToken{}, err
 	}
 
-	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return UserToken{}, err
 	}
@@ -399,7 +399,7 @@ func (m *_UserManager) Authenticate(ctx context.Context, ts int64, req Authentic
 }
 
 func (m *_UserManager) TokenAuthorization(ctx context.Context, ts int64, token string) (UserToken, error) {
-	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(false))
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(false))
 	if err != nil {
 		return UserToken{}, err
 	}
@@ -425,7 +425,7 @@ func (m *_UserManager) ListUsers(ctx context.Context, req ListUserRequest) (List
 		return ListUserResult{}, err
 	}
 
-	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(false))
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(false))
 	if err != nil {
 		return ListUserResult{}, err
 	}

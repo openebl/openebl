@@ -31,7 +31,7 @@ type CertAuthority interface {
 }
 
 type CertStorage interface {
-	CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, error)
+	CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error)
 	AddCertificate(ctx context.Context, tx storage.Tx, cert model.Cert) error
 	ListCertificates(ctx context.Context, tx storage.Tx, req ListCertificatesRequest) (ListCertificatesResponse, error)
 }
@@ -134,7 +134,7 @@ func (ca *_CertAuthority) AddCertificate(ctx context.Context, ts int64, req AddC
 		CertFingerPrint: fmt.Sprintf("%s:%x", "sha1", hex.EncodeToString(hashValue[:])),
 	}
 
-	tx, err := ca.certStorage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := ca.certStorage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return model.Cert{}, err
 	}
@@ -156,7 +156,7 @@ func (ca *_CertAuthority) RevokeCertificate(ctx context.Context, ts int64, req R
 		return model.Cert{}, err
 	}
 
-	tx, err := ca.certStorage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := ca.certStorage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return model.Cert{}, err
 	}
@@ -191,7 +191,7 @@ func (ca *_CertAuthority) ListCertificates(ctx context.Context, req ListCertific
 		return ListCertificatesResponse{}, err
 	}
 
-	tx, err := ca.certStorage.CreateTx(ctx)
+	tx, ctx, err := ca.certStorage.CreateTx(ctx)
 	if err != nil {
 		return ListCertificatesResponse{}, err
 	}
@@ -259,7 +259,7 @@ func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req Is
 
 func (ca *_CertAuthority) getCert(ctx context.Context, certID string, tx storage.Tx) (model.Cert, error) {
 	if tx == nil {
-		newTx, err := ca.certStorage.CreateTx(ctx)
+		newTx, ctx, err := ca.certStorage.CreateTx(ctx)
 		if err != nil {
 			return model.Cert{}, err
 		}
@@ -284,7 +284,7 @@ func (ca *_CertAuthority) getCert(ctx context.Context, certID string, tx storage
 
 func (ca *_CertAuthority) getCertByValidTime(ctx context.Context, validFrom, validUntil int64, tx storage.Tx) (model.Cert, error) {
 	if tx == nil {
-		newTx, err := ca.certStorage.CreateTx(ctx)
+		newTx, ctx, err := ca.certStorage.CreateTx(ctx)
 		if err != nil {
 			return model.Cert{}, err
 		}

@@ -5,6 +5,12 @@ import (
 	"database/sql"
 )
 
+type StorageContextKey string
+
+const (
+	TRANSACTION StorageContextKey = "transaction"
+)
+
 type TxWrapperOption struct {
 	write bool
 	level sql.IsolationLevel
@@ -39,7 +45,7 @@ type Result interface {
 type CreateTxOption func(*TxWrapperOption)
 
 type TransactionInterface interface {
-	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, error)
+	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
 }
 
 func TxOptionWithWrite(write bool) CreateTxOption {
@@ -92,7 +98,7 @@ type ListTradeDocumentResponse struct {
 }
 
 type TradeDocumentStorage interface {
-	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, error)
+	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
 	AddTradeDocument(ctx context.Context, tx Tx, tradeDoc TradeDocument) error
 	ListTradeDocument(ctx context.Context, tx Tx, req ListTradeDocumentRequest) (ListTradeDocumentResponse, error)
 }

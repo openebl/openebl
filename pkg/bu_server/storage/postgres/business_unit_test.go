@@ -54,11 +54,11 @@ func (s *BusinessUnitStorageTestSuite) TestStoreBusinessUnit() {
 		UpdatedAt:     ts,
 	}
 
-	tx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	s.Require().NoError(err)
-	defer tx.Rollback(s.ctx)
+	defer tx.Rollback(ctx)
 
-	err = s.storage.StoreBusinessUnit(s.ctx, tx, bu)
+	err = s.storage.StoreBusinessUnit(ctx, tx, bu)
 	s.Require().NoError(err)
 
 	ts += 10
@@ -66,28 +66,28 @@ func (s *BusinessUnitStorageTestSuite) TestStoreBusinessUnit() {
 	newBu.Version = 2
 	newBu.Status = model.BusinessUnitStatusInactive
 	newBu.UpdatedAt = ts
-	err = s.storage.StoreBusinessUnit(s.ctx, tx, newBu)
+	err = s.storage.StoreBusinessUnit(ctx, tx, newBu)
 	s.Require().NoError(err)
 
 	var dbData []model.BusinessUnit
 	// Verify business_unit table.
-	s.Require().NoError(tx.QueryRow(s.ctx, `SELECT JSONB_AGG(business_unit ORDER BY rec_id ASC) FROM business_unit WHERE id = $1`, bu.ID.String()).Scan(&dbData))
+	s.Require().NoError(tx.QueryRow(ctx, `SELECT JSONB_AGG(business_unit ORDER BY rec_id ASC) FROM business_unit WHERE id = $1`, bu.ID.String()).Scan(&dbData))
 	s.Require().Equal(1, len(dbData))
 	s.Assert().Equal(newBu, dbData[0])
 
 	// Verify business_unit_history table.
-	s.Require().NoError(tx.QueryRow(s.ctx, `SELECT JSONB_AGG(business_unit ORDER BY rec_id ASC) FROM business_unit_history WHERE id = $1`, bu.ID.String()).Scan(&dbData))
+	s.Require().NoError(tx.QueryRow(ctx, `SELECT JSONB_AGG(business_unit ORDER BY rec_id ASC) FROM business_unit_history WHERE id = $1`, bu.ID.String()).Scan(&dbData))
 	s.Require().Equal(2, len(dbData))
 	s.Assert().Equal(bu, dbData[0])
 	s.Assert().Equal(newBu, dbData[1])
 
-	s.Require().NoError(tx.Commit(s.ctx))
+	s.Require().NoError(tx.Commit(ctx))
 }
 
 func (s *BusinessUnitStorageTestSuite) TestListBusinessUnit() {
-	tx, err := s.storage.CreateTx(s.ctx)
+	tx, ctx, err := s.storage.CreateTx(s.ctx)
 	s.Require().NoError(err)
-	defer tx.Rollback(s.ctx)
+	defer tx.Rollback(ctx)
 
 	req := business_unit.ListBusinessUnitsRequest{
 		Limit:         10,
@@ -95,7 +95,7 @@ func (s *BusinessUnitStorageTestSuite) TestListBusinessUnit() {
 	}
 
 	// Test Basic Function (filter by ApplicationID)
-	result, err := s.storage.ListBusinessUnits(s.ctx, tx, req)
+	result, err := s.storage.ListBusinessUnits(ctx, tx, req)
 	s.Require().NoError(err)
 	s.Assert().Equal(2, result.Total)
 	s.Require().Equal(2, len(result.Records))
@@ -111,7 +111,7 @@ func (s *BusinessUnitStorageTestSuite) TestListBusinessUnit() {
 	// Test Limit and Offset
 	req.Limit = 1
 	req.Offset = 1
-	result, err = s.storage.ListBusinessUnits(s.ctx, tx, req)
+	result, err = s.storage.ListBusinessUnits(ctx, tx, req)
 	s.Require().NoError(err)
 	s.Assert().Equal(2, result.Total)
 	s.Require().Equal(1, len(result.Records))
@@ -122,7 +122,7 @@ func (s *BusinessUnitStorageTestSuite) TestListBusinessUnit() {
 	req.Limit = 10
 	req.Offset = 0
 	req.BusinessUnitIDs = []string{"did:openebl:bu1"}
-	result, err = s.storage.ListBusinessUnits(s.ctx, tx, req)
+	result, err = s.storage.ListBusinessUnits(ctx, tx, req)
 	s.Require().NoError(err)
 	s.Assert().Equal(1, result.Total)
 	s.Require().Equal(1, len(result.Records))
@@ -144,32 +144,32 @@ func (s *BusinessUnitStorageTestSuite) TestStoreAuthentication() {
 	newAuth.Status = model.BusinessUnitAuthenticationStatusRevoked
 	newAuth.RevokedAt = ts + 10
 
-	tx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	s.Require().NoError(err)
-	defer tx.Rollback(s.ctx)
+	defer tx.Rollback(ctx)
 
-	err = s.storage.StoreAuthentication(s.ctx, tx, auth)
+	err = s.storage.StoreAuthentication(ctx, tx, auth)
 	s.Require().NoError(err)
-	err = s.storage.StoreAuthentication(s.ctx, tx, newAuth)
+	err = s.storage.StoreAuthentication(ctx, tx, newAuth)
 	s.Require().NoError(err)
 
 	// Verify business_unit_authentication table.
 	var dbData []model.BusinessUnitAuthentication
-	s.Require().NoError(tx.QueryRow(s.ctx, `SELECT JSONB_AGG(authentication ORDER BY rec_id ASC) FROM business_unit_authentication WHERE id = $1`, auth.ID).Scan(&dbData))
+	s.Require().NoError(tx.QueryRow(ctx, `SELECT JSONB_AGG(authentication ORDER BY rec_id ASC) FROM business_unit_authentication WHERE id = $1`, auth.ID).Scan(&dbData))
 	s.Require().Equal(1, len(dbData))
 	s.Assert().Equal(newAuth, dbData[0])
 
 	// Verify business_unit_authentication_history table.
-	s.Require().NoError(tx.QueryRow(s.ctx, `SELECT JSONB_AGG(authentication ORDER BY rec_id ASC) FROM business_unit_authentication_history WHERE id = $1`, auth.ID).Scan(&dbData))
+	s.Require().NoError(tx.QueryRow(ctx, `SELECT JSONB_AGG(authentication ORDER BY rec_id ASC) FROM business_unit_authentication_history WHERE id = $1`, auth.ID).Scan(&dbData))
 	s.Require().Equal(2, len(dbData))
 	s.Assert().Equal(auth, dbData[0])
 	s.Assert().Equal(newAuth, dbData[1])
 
-	s.Require().NoError(tx.Commit(s.ctx))
+	s.Require().NoError(tx.Commit(ctx))
 }
 
 func (s *BusinessUnitStorageTestSuite) TestListAuthentication() {
-	tx, err := s.storage.CreateTx(s.ctx)
+	tx, ctx, err := s.storage.CreateTx(s.ctx)
 	s.Require().NoError(err)
 	defer tx.Rollback(s.ctx)
 
@@ -178,7 +178,7 @@ func (s *BusinessUnitStorageTestSuite) TestListAuthentication() {
 		Limit:         10,
 		ApplicationID: "app1",
 	}
-	result, err := s.storage.ListAuthentication(s.ctx, tx, req)
+	result, err := s.storage.ListAuthentication(ctx, tx, req)
 	s.Require().NoError(err)
 	s.Assert().Equal(3, result.Total)
 	s.Require().Equal(3, len(result.Records))
@@ -190,7 +190,7 @@ func (s *BusinessUnitStorageTestSuite) TestListAuthentication() {
 	// Test Limit and Offset
 	req.Limit = 1
 	req.Offset = 1
-	result, err = s.storage.ListAuthentication(s.ctx, tx, req)
+	result, err = s.storage.ListAuthentication(ctx, tx, req)
 	s.Require().NoError(err)
 	s.Assert().Equal(3, result.Total)
 	s.Require().Equal(1, len(result.Records))
@@ -201,7 +201,7 @@ func (s *BusinessUnitStorageTestSuite) TestListAuthentication() {
 	req.Limit = 10
 	req.Offset = 0
 	req.BusinessUnitID = "did:openebl:bu1"
-	result, err = s.storage.ListAuthentication(s.ctx, tx, req)
+	result, err = s.storage.ListAuthentication(ctx, tx, req)
 	s.Require().NoError(err)
 	s.Assert().Equal(2, result.Total)
 	s.Require().Equal(2, len(result.Records))
@@ -215,7 +215,7 @@ func (s *BusinessUnitStorageTestSuite) TestListAuthentication() {
 		ApplicationID:     "app1",
 		AuthenticationIDs: []string{"bu1_auth2"},
 	}
-	result, err = s.storage.ListAuthentication(s.ctx, tx, req)
+	result, err = s.storage.ListAuthentication(ctx, tx, req)
 	s.Require().NoError(err)
 	s.Assert().Equal(1, result.Total)
 	s.Require().Equal(1, len(result.Records))

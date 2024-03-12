@@ -82,7 +82,7 @@ type RevokeAPIKeyRequest struct {
 
 // APIKeyStorage is the interface that APIKeyAuthenticator relies on to persist the API key data.
 type APIKeyStorage interface {
-	CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, error)
+	CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error)
 	StoreAPIKey(ctx context.Context, tx storage.Tx, key APIKey) error
 	GetAPIKey(ctx context.Context, tx storage.Tx, id string) (ListAPIKeyRecord, error)
 	ListAPIKeys(ctx context.Context, tx storage.Tx, req ListAPIKeysRequest) (ListAPIKeysResult, error)
@@ -197,7 +197,7 @@ func (a *_APIKeyAuthenticator) CreateAPIKey(
 		UpdatedBy:     request.User,
 	}
 
-	tx, err := a.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := a.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return APIKey{}, "", err
 	}
@@ -222,7 +222,7 @@ func (a *_APIKeyAuthenticator) RevokeAPIKey(
 		return err
 	}
 
-	tx, err := a.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := a.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return err
 	}
@@ -264,7 +264,7 @@ func (a *_APIKeyAuthenticator) Authenticate(ctx context.Context, key APIKeyStrin
 		return APIKey{}, err
 	}
 
-	tx, err := a.storage.CreateTx(ctx, storage.TxOptionWithWrite(false))
+	tx, ctx, err := a.storage.CreateTx(ctx, storage.TxOptionWithWrite(false))
 	if err != nil {
 		return APIKey{}, err
 	}
@@ -294,7 +294,7 @@ func (a *_APIKeyAuthenticator) Authenticate(ctx context.Context, key APIKeyStrin
 }
 
 func (a *_APIKeyAuthenticator) ListAPIKeys(ctx context.Context, req ListAPIKeysRequest) (ListAPIKeysResult, error) {
-	tx, err := a.storage.CreateTx(ctx, storage.TxOptionWithWrite(false))
+	tx, ctx, err := a.storage.CreateTx(ctx, storage.TxOptionWithWrite(false))
 	if err != nil {
 		return ListAPIKeysResult{}, err
 	}

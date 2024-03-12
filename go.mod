@@ -1,6 +1,6 @@
 module github.com/openebl/openebl
 
-go 1.21.1
+go 1.22.1
 
 require (
 	github.com/alecthomas/kong v0.8.1
@@ -8,6 +8,7 @@ require (
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
 	github.com/go-testfixtures/testfixtures/v3 v3.9.0
 	github.com/gobuffalo/pop v4.13.1+incompatible
+	github.com/goccy/go-json v0.10.2
 	github.com/golang/mock v1.5.0
 	github.com/google/uuid v1.4.0
 	github.com/gorilla/mux v1.8.1
@@ -54,7 +55,6 @@ require (
 	github.com/gobuffalo/tags/v3 v3.1.4 // indirect
 	github.com/gobuffalo/validate v2.0.4+incompatible // indirect
 	github.com/gobuffalo/validate/v3 v3.3.3 // indirect
-	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/gorilla/css v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect

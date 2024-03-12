@@ -1,18 +1,18 @@
-FROM golang:1.21.1-alpine3.18 as builder
+FROM node:20-slim AS node-build
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+COPY ./frontend /app
 
-ENV GO111MODULE=on \
-    CGO_ENABLED=0 \
-    GOOS=linux \
-    GOARCH=amd64 \
-    GOPROXY=https://proxy.golang.org,direct
+WORKDIR /app
 
-RUN apk add --no-cache \
-    bash \
-    binutils \
-    ca-certificates \
-    curl \
-    git \
-    tzdata
+RUN pnpm install --frozen-lockfile
+RUN pnpm run build
+
+FROM golang:1.22.1-alpine3.19 as builder
+ENV GO111MODULE=on CGO_ENABLED=0 GOPROXY=https://proxy.golang.org,direct
+
+RUN apk add --no-cache bash binutils ca-certificates curl git tzdata
 
 # setup the working directory
 WORKDIR /app/src
@@ -25,11 +25,14 @@ RUN go mod download
 # add source code
 COPY . /app/src/
 
+# add frontend code
+COPY --from=node-build /app/dist /app/src/frontend/dist
+
 # build the binary
 RUN go build -ldflags='-w -s -extldflags "-static"' -a -o /go/bin/bu_server ./app/bu_server
 
 # FROM scratch
-FROM alpine:3.18
+FROM alpine:3.19
 
 ARG APPHOME=/app
 ENV PATH=$APPHOME:$PATH

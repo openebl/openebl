@@ -3,7 +3,7 @@ info:
   title: BU Server Management API
   version: '0.1'
 servers:
-  - url: http://localhost:9100
+  - url: http://localhost:9100/api
     description: Local server
 tags:
   - name: user

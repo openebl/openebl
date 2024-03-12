@@ -500,7 +500,6 @@ func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLR
 		RequestBy: req.RequestBy,
 		Kind:      int(relay.FileBasedBillOfLading),
 		Report:    req.Report,
-		Meta:      map[string]any{strings.ToLower(req.Status): []string{req.RequestBy}},
 	}
 	if req.Status != "" {
 		listReq.Meta = map[string]any{strings.ToLower(req.Status): []string{req.RequestBy}}
@@ -1121,7 +1120,7 @@ func (c *_FileBaseEBLController) signBillOfLadingPack(ctx context.Context, ts in
 	}
 
 	rawDoc := util.StructToJSON(doc)
-	meta, err := GetBillOfLadingPackMeta(ctx, ts, &blPack)
+	meta, err := GetBillOfLadingPackMeta(&blPack)
 	if err != nil {
 		return storage.TradeDocument{}, err
 	}
@@ -1258,6 +1257,9 @@ func SetDraft(td *bill_of_lading.TransportDocument, draft bool) {
 func GetDraft(blPack *bill_of_lading.BillOfLadingPack) *bool {
 	if blPack == nil || len(blPack.Events) == 0 {
 		return nil
+	}
+	if len(blPack.Events) > 1 {
+		return util.Ptr(false)
 	}
 	firstEvent := blPack.Events[0]
 	if firstEvent.BillOfLading == nil ||
@@ -1497,35 +1499,37 @@ func PrepareDocumentParty(party string, partyFunction bill_of_lading.PartyFuncti
 	}
 }
 
-func GetBillOfLadingPackMeta(ctx context.Context, ts int64, blPack *bill_of_lading.BillOfLadingPack) (map[string]any, error) {
-	length := len(blPack.Events)
-
-	// Get last BillOfLading from the pack
-	var bl *bill_of_lading.BillOfLading
-	var amendmentRequest *bill_of_lading.AmendmentRequest
-	for i := 0; i < length; i++ {
-		if blPack.Events[i].AmendmentRequest != nil {
-			amendmentRequest = blPack.Events[i].AmendmentRequest
-		}
-		if blPack.Events[i].BillOfLading != nil {
-			bl = blPack.Events[i].BillOfLading
-			amendmentRequest = nil
-		}
-	}
-
-	if bl == nil {
-		return nil, errors.New("no bill of lading found in the pack")
+func GetBillOfLadingPackMeta(blPack *bill_of_lading.BillOfLadingPack) (map[string]any, error) {
+	res := make(map[string]any)
+	if draft := GetDraft(blPack); draft != nil && *draft {
+		res["visible_to_bu"] = []string{blPack.CurrentOwner}
+		res["action_needed"] = []string{blPack.CurrentOwner}
+		return res, nil
 	}
 
 	parties := GetFileBaseEBLParticipatorsFromBLPack(blPack)
 	partiesByOrder := []string{parties.Issuer, parties.Shipper, parties.Consignee, parties.ReleaseAgent}
 
-	res := make(map[string]any)
-	if blPack.Events[length-1].Delete != nil {
-	} else if blPack.Events[length-1].Accomplish != nil || blPack.Events[length-1].PrintToPaper != nil {
+	lastEvent := GetLastEvent(blPack)
+	if lastEvent.Delete != nil {
+		res["visible_to_bu"] = []string{blPack.CurrentOwner}
+		res["deleted"] = true
+	} else if lastEvent.Accomplish != nil || lastEvent.PrintToPaper != nil {
 		res["visible_to_bu"] = partiesByOrder
 		res["archive"] = partiesByOrder
-	} else if amendmentRequest == nil {
+	} else if lastEvent.AmendmentRequest != nil {
+		_, amendmentRequesterIdx, _ := lo.FindIndexOf(partiesByOrder, func(p string) bool {
+			return p == lastEvent.AmendmentRequest.RequestBy
+		})
+		if amendmentRequesterIdx < 1 {
+			return nil, errors.New("amendment requested by invalid party")
+		}
+
+		res["action_needed"] = []string{blPack.CurrentOwner}
+		res["visible_to_bu"] = partiesByOrder
+		res["sent"] = partiesByOrder[1:amendmentRequesterIdx]    // amendment requested eB/L is 'action_needed' for issuer
+		res["upcoming"] = partiesByOrder[amendmentRequesterIdx:] // amendment requested eB/L is 'upcoming' for requester
+	} else {
 		_, currentOwnerIdx, _ := lo.FindIndexOf(partiesByOrder, func(p string) bool {
 			return p == blPack.CurrentOwner
 		})
@@ -1534,15 +1538,6 @@ func GetBillOfLadingPackMeta(ctx context.Context, ts int64, blPack *bill_of_ladi
 		res["visible_to_bu"] = partiesByOrder
 		res["sent"] = partiesByOrder[:currentOwnerIdx]
 		res["upcoming"] = partiesByOrder[currentOwnerIdx+1:]
-	} else {
-		_, amendmentRequesterIdx, _ := lo.FindIndexOf(partiesByOrder, func(p string) bool {
-			return p == amendmentRequest.RequestBy
-		})
-
-		res["action_needed"] = []string{blPack.CurrentOwner}
-		res["visible_to_bu"] = partiesByOrder
-		res["sent"] = partiesByOrder[:amendmentRequesterIdx]
-		res["upcoming"] = partiesByOrder[amendmentRequesterIdx:]
 	}
 
 	return res, nil

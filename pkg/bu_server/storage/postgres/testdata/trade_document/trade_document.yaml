@@ -66,11 +66,26 @@
       - "did:openebl:shipper"
       - "did:openebl:consignee"
       - "did:openebl:release_agent"
-- rec_id: 4 # deleted
+- rec_id: 4 # draft
   id: "raw_doc_4"
+  kind: 1001
+  doc_id: "doc_3"
+  doc_version: 1
+  doc: "doc 3"
+  created_at: 1634567890
+  meta:
+    "visible_to_bu":
+      - "did:openebl:issuer"
+    "action_needed":
+      - "did:openebl:issuer"
+- rec_id: 5 # deleted
+  id: "raw_doc_5"
   kind: 1001
   doc_id: "doc_3"
   doc_version: 2
   doc: "doc 3"
   created_at: 1634567890
-  meta: {}
+  meta:
+    "visible_to_bu":
+      - "did:openebl:issuer"
+    "deleted": true

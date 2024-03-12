@@ -1302,6 +1302,12 @@ func GetNextOwnerByAction(action FileBasedEBLAction, bu string, blPack *bill_of_
 	parties := GetFileBaseEBLParticipatorsFromBLPack(blPack)
 	switch action {
 	case FILE_EBL_TRANSFER:
+		if bu == parties.Issuer {
+			lastEvent := GetLastEvent(blPack)
+			if lastEvent.Return != nil && lastEvent.Return.ReturnBy == parties.Shipper {
+				return lastEvent.Return.ReturnBy
+			}
+		}
 		if bu == parties.Shipper {
 			return parties.Consignee
 		}

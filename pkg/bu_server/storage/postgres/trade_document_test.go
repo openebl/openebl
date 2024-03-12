@@ -158,51 +158,82 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 		s.Assert().ElementsMatch(docsOnDB[:1], resp.Docs)
 	}()
 
+	// List with status report
+	func() {
+		newReq := req
+		newReq.Report = true
+		newReq.RequestBy = "did:openebl:issuer"
+		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
+		s.Require().NoError(err)
+		s.Assert().Equal(2, resp.Total)
+		s.Assert().Equal(0, resp.Report.ActionNeeded)
+		s.Assert().Equal(0, resp.Report.Upcoming)
+		s.Assert().Equal(1, resp.Report.Sent)
+		s.Assert().Equal(1, resp.Report.Archive)
+		s.Assert().ElementsMatch(docsOnDB, resp.Docs)
+	}()
+
 	// List with meta filter: action_needed
 	func() {
 		newReq := req
+		newReq.Report = true
+		newReq.RequestBy = "did:openebl:consignee"
 		newReq.Meta = map[string]any{
 			"action_needed": []any{"did:openebl:consignee"},
 		}
 		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
 		s.Require().NoError(err)
 		s.Assert().Equal(1, resp.Total)
+		s.Assert().Equal(1, resp.Report.ActionNeeded)
+		s.Assert().Equal(1, resp.Report.Archive)
 		s.Assert().ElementsMatch(docsOnDB[1:], resp.Docs)
 	}()
 
 	// List with meta filter: upcoming
 	func() {
 		newReq := req
+		newReq.Report = true
+		newReq.RequestBy = "did:openebl:release_agent"
 		newReq.Meta = map[string]any{
 			"upcoming": []string{"did:openebl:release_agent"},
 		}
 		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
 		s.Require().NoError(err)
 		s.Assert().Equal(1, resp.Total)
+		s.Assert().Equal(1, resp.Report.Upcoming)
+		s.Assert().Equal(1, resp.Report.Archive)
 		s.Assert().ElementsMatch(docsOnDB[1:], resp.Docs)
 	}()
 
 	// List with meta filter: sent
 	func() {
 		newReq := req
+		newReq.Report = true
+		newReq.RequestBy = "did:openebl:issuer"
 		newReq.Meta = map[string]any{
 			"sent": []string{"did:openebl:issuer"},
 		}
 		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
 		s.Require().NoError(err)
 		s.Assert().Equal(1, resp.Total)
+		s.Assert().Equal(1, resp.Report.Sent)
+		s.Assert().Equal(1, resp.Report.Archive)
 		s.Assert().ElementsMatch(docsOnDB[1:], resp.Docs)
 	}()
 
 	// List with meta filter: archive
 	func() {
 		newReq := req
+		newReq.Report = true
+		newReq.RequestBy = "did:openebl:issuer"
 		newReq.Meta = map[string]any{
 			"archive": []string{"did:openebl:issuer"},
 		}
 		resp, err := s.storage.ListTradeDocument(s.ctx, tx, newReq)
 		s.Require().NoError(err)
 		s.Assert().Equal(1, resp.Total)
+		s.Assert().Equal(1, resp.Report.Sent)
+		s.Assert().Equal(1, resp.Report.Archive)
 		s.Assert().ElementsMatch(docsOnDB[:1], resp.Docs)
 	}()
 }

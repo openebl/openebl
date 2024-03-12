@@ -79,9 +79,10 @@ func ValidateReturnFileBasedEBLRequest(req ReturnFileBasedEBLRequest) error {
 func ValidateListFileBasedEBLRequest(req ListFileBasedEBLRequest) error {
 	if err := validation.ValidateStruct(&req,
 		validation.Field(&req.Application, validation.Required),
-		validation.Field(&req.Lister, validation.Required),
+		validation.Field(&req.RequestBy, validation.Required),
 		validation.Field(&req.Offset, validation.Min(0)),
 		validation.Field(&req.Limit, validation.Min(1)),
+		validation.Field(&req.Status, validation.When(req.Status != "", validation.In("action_needed", "upcoming", "sent", "archive"))),
 	); err != nil {
 		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}

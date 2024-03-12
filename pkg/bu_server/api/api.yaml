@@ -393,6 +393,12 @@ paths:
               - upcoming
               - sent
               - archive
+        - name: report
+          in: query
+          description: whether to include the report
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: eB/L retrieved successfully
@@ -1323,6 +1329,25 @@ components:
             $ref: '#/components/schemas/BillOfLadingAction'
         bl:
           $ref: '#/components/schemas/BillOfLadingPack'
+    ListBillOfLadingReport:
+      type: object
+      properties:
+        action_needed:
+          type: integer
+          format: int32
+          description: Number of eB/Ls that need action
+        upcoming:
+          type: integer
+          format: int32
+          description: Number of upcoming eB/Ls
+        sent:
+          type: integer
+          format: int32
+          description: Number of sent eB/Ls
+        archive:
+          type: integer
+          format: int32
+          description: Number of archived eB/Ls
     ListBillOfLadingRecord:
       type: object
       properties:
@@ -1334,6 +1359,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/BillOfLadingRecord'
+        report:
+          $ref: '#/components/schemas/ListBillOfLadingReport'
     # eB/L API request
     BaseRequest:
       type: object

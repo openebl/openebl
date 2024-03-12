@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -76,8 +77,9 @@ func (a *API) listFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
 
 	var req trade_document.ListFileBasedEBLRequest
-	req.Lister = buID
+	req.RequestBy = buID
 	req.Application = appID
+	req.Limit = 20
 	req.Status = r.URL.Query().Get("status")
 	offsetStr := r.URL.Query().Get("offset")
 	if offsetStr != "" {
@@ -96,6 +98,15 @@ func (a *API) listFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.Limit = int(limit)
+	}
+	reportStr := r.URL.Query().Get("report")
+	if reportStr != "" {
+		report, err := strconv.ParseBool(strings.ToLower(reportStr))
+		if err != nil {
+			http.Error(w, "report is invalid", http.StatusBadRequest)
+			return
+		}
+		req.Report = report
 	}
 
 	result, err := a.fileEBLCtrl.List(ctx, req)

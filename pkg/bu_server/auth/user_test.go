@@ -92,7 +92,7 @@ func (s *UserManagerTestSuite) TestCreateUser() {
 
 	var storedUser auth.User
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{}, nil),
 		s.storage.EXPECT().StoreUser(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, user auth.User) error {
@@ -134,7 +134,7 @@ func (s *UserManagerTestSuite) TestCreateUserWithDuplicateUserID() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{Total: 1, Users: []auth.User{s.oldUser}}, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
@@ -167,7 +167,7 @@ func (s *UserManagerTestSuite) TestChangePassword() {
 
 	// Test with correct old password.
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{Total: 1, Users: []auth.User{s.oldUser}}, nil),
 		s.storage.EXPECT().StoreUser(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, user auth.User) error {
@@ -191,7 +191,7 @@ func (s *UserManagerTestSuite) TestChangePassword() {
 	// Test with incorrect old password.
 	req.OldPassword = "incorrectOldPassword"
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{Total: 1, Users: []auth.User{s.oldUser}}, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
@@ -219,7 +219,7 @@ func (s *UserManagerTestSuite) TestChangePasswordWithNonExistingUser() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{}, model.ErrUserNotFound),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
@@ -254,7 +254,7 @@ func (s *UserManagerTestSuite) TestResetPassword() {
 	expectedUser.UpdatedBy = "other_user"
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{Total: 1, Users: []auth.User{s.oldUser}}, nil),
 		s.storage.EXPECT().StoreUser(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, user auth.User) error {
@@ -292,7 +292,7 @@ func (s *UserManagerTestSuite) TestResetPasswordWithNonExistingUser() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{Total: 0, Users: []auth.User{}}, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
@@ -329,7 +329,7 @@ func (s *UserManagerTestSuite) TestUpdateUser() {
 	expectedUser.UpdatedBy = "other_user"
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{Total: 1, Users: []auth.User{s.oldUser}}, nil),
 		s.storage.EXPECT().StoreUser(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedUser)).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Eq(s.ctx)).Return(nil),
@@ -362,7 +362,7 @@ func (s *UserManagerTestSuite) TestUpdateUserWithNonExistingUser() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{Total: 0, Users: []auth.User{}}, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
@@ -395,7 +395,7 @@ func (s *UserManagerTestSuite) TestActivateUser() {
 	expectedUser.UpdatedBy = "admin"
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{Total: 1, Users: []auth.User{s.oldUser}}, nil),
 		s.storage.EXPECT().StoreUser(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedUser)).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Eq(s.ctx)).Return(nil),
@@ -423,7 +423,7 @@ func (s *UserManagerTestSuite) TestActivateUserWithNonExistingUser() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{Total: 0, Users: []auth.User{}}, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
@@ -456,7 +456,7 @@ func (s *UserManagerTestSuite) TestDeactivateUser() {
 	expectedUser.UpdatedBy = "admin"
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{Total: 1, Users: []auth.User{s.oldUser}}, nil),
 		s.storage.EXPECT().StoreUser(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedUser)).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Eq(s.ctx)).Return(nil),
@@ -484,7 +484,7 @@ func (s *UserManagerTestSuite) TestDeactivateUserWithNonExistingUser() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{Total: 0, Users: []auth.User{}}, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
@@ -510,7 +510,7 @@ func (s *UserManagerTestSuite) TestAuthenticate() {
 	// Test with correct password.
 	storedUserToken := auth.UserToken{}
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{Total: 1, Users: []auth.User{s.oldUser}}, nil),
 		s.storage.EXPECT().StoreUserToken(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, userToken auth.UserToken) error {
@@ -531,7 +531,7 @@ func (s *UserManagerTestSuite) TestAuthenticate() {
 	// Test with incorrect password.
 	req.Password = "incorrect_password"
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{Total: 1, Users: []auth.User{s.oldUser}}, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
@@ -554,7 +554,7 @@ func (s *UserManagerTestSuite) TestAuthenticateWithNonExistingUser() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(auth.ListUserResult{}, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
@@ -576,7 +576,7 @@ func (s *UserManagerTestSuite) TestTokenAuthorization() {
 
 	// Test with valid token.
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().GetUserToken(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(token)).Return(userToken, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
@@ -588,7 +588,7 @@ func (s *UserManagerTestSuite) TestTokenAuthorization() {
 	// Test with expired token.
 	userToken.ExpiredAt = ts - 1000
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().GetUserToken(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(token)).Return(userToken, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
@@ -602,7 +602,7 @@ func (s *UserManagerTestSuite) TestTokenAuthorizationWithNonExistingToken() {
 	token := "token1"
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().GetUserToken(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(token)).Return(auth.UserToken{}, sql.ErrNoRows),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
@@ -628,7 +628,7 @@ func (s *UserManagerTestSuite) TestListUsers() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Len(1)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListUsers(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedListUserRequest)).Return(listResult, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)

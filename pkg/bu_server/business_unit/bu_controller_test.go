@@ -77,7 +77,7 @@ func (s *BusinessUnitManagerTestSuite) TestCreateBusinessUnit() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().StoreBusinessUnit(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, bu model.BusinessUnit) error {
 				expectedBusinessUnit.ID = bu.ID
@@ -138,7 +138,7 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListBusinessUnits(
 			gomock.Any(),
 			s.tx,
@@ -198,7 +198,7 @@ func (s *BusinessUnitManagerTestSuite) TestListBusinessUnits() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListBusinessUnits(
 			gomock.Any(),
 			s.tx,
@@ -253,7 +253,7 @@ func (s *BusinessUnitManagerTestSuite) TestSetBusinessUnitStatus() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListBusinessUnits(
 			gomock.Any(),
 			s.tx,
@@ -332,7 +332,7 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 	receivedCertRequest := x509.CertificateRequest{}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListBusinessUnits(gomock.Any(), s.tx, expectedListBuRequest).Return(listBuResult, nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 		s.ca.EXPECT().IssueCertificate(gomock.Any(), ts, gomock.Any()).DoAndReturn(
@@ -347,7 +347,7 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 				return make([]x509.Certificate, 2), nil
 			},
 		),
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().StoreAuthentication(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, auth model.BusinessUnitAuthentication) error {
 				receivedAuthentication.ID = auth.ID
@@ -414,7 +414,7 @@ func (s *BusinessUnitManagerTestSuite) TestRevokeAuthentication() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListAuthentication(
 			gomock.Any(),
 			s.tx,
@@ -467,7 +467,7 @@ func (s *BusinessUnitManagerTestSuite) TestListAuthentication() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListAuthentication(
 			gomock.Any(),
 			s.tx,
@@ -511,7 +511,7 @@ func (s *BusinessUnitManagerTestSuite) TestGetJWSSigner() {
 	}
 
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListAuthentication(gomock.Any(), s.tx, listAuthRequest).Return(listAuthResult, nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 		s.jwsSignerFactory.EXPECT().NewJWSSigner(buAuth).Return(nil, nil),

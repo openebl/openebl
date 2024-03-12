@@ -306,7 +306,7 @@ func (m *MockTransactionInterface) EXPECT() *MockTransactionInterfaceMockRecorde
 }
 
 // CreateTx mocks base method.
-func (m *MockTransactionInterface) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, error) {
+func (m *MockTransactionInterface) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx}
 	for _, a := range options {
@@ -314,8 +314,9 @@ func (m *MockTransactionInterface) CreateTx(ctx context.Context, options ...stor
 	}
 	ret := m.ctrl.Call(m, "CreateTx", varargs...)
 	ret0, _ := ret[0].(storage.Tx)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(context.Context)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // CreateTx indicates an expected call of CreateTx.
@@ -363,7 +364,7 @@ func (mr *MockTradeDocumentStorageMockRecorder) AddTradeDocument(ctx, tx, tradeD
 }
 
 // CreateTx mocks base method.
-func (m *MockTradeDocumentStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, error) {
+func (m *MockTradeDocumentStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx}
 	for _, a := range options {
@@ -371,8 +372,9 @@ func (m *MockTradeDocumentStorage) CreateTx(ctx context.Context, options ...stor
 	}
 	ret := m.ctrl.Call(m, "CreateTx", varargs...)
 	ret0, _ := ret[0].(storage.Tx)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(context.Context)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // CreateTx indicates an expected call of CreateTx.

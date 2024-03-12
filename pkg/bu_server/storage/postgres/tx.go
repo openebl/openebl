@@ -9,6 +9,31 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// _InnerTxWrapper wraps storage.Tx, it prevents the application to create another storage.Tx if it is already in a transaction.
+type _InnerTxWrapper struct {
+	tx storage.Tx
+}
+
+func (tx *_InnerTxWrapper) Commit(ctx context.Context) error {
+	return nil
+}
+
+func (tx *_InnerTxWrapper) Rollback(ctx context.Context) error {
+	return nil
+}
+
+func (tx *_InnerTxWrapper) Exec(ctx context.Context, sql string, args ...any) (storage.Result, error) {
+	return tx.tx.Exec(ctx, sql, args...)
+}
+
+func (tx *_InnerTxWrapper) Query(ctx context.Context, sql string, args ...any) (storage.Rows, error) {
+	return tx.tx.Query(ctx, sql, args...)
+}
+
+func (tx *_InnerTxWrapper) QueryRow(ctx context.Context, sql string, args ...any) storage.Row {
+	return tx.tx.QueryRow(ctx, sql, args...)
+}
+
 func (tx *_TxWrapper) Commit(ctx context.Context) error {
 	return tx.tx.Commit(ctx)
 }
@@ -64,7 +89,11 @@ func (r *_RowWrapper) Scan(dest ...any) error {
 	return r.row.Scan(dest...)
 }
 
-func (p *_Storage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, error) {
+func (p *_Storage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
+	if tx, _ := ctx.Value(storage.TRANSACTION).(storage.Tx); tx != nil {
+		return &_InnerTxWrapper{tx}, ctx, nil
+	}
+
 	option := storage.TxWrapperOption{}
 	for _, opt := range options {
 		opt(&option)
@@ -102,7 +131,10 @@ func (p *_Storage) CreateTx(ctx context.Context, options ...storage.CreateTxOpti
 	tx, err := connPool.BeginTx(ctx, txOption)
 	if err != nil {
 		logrus.Errorf("Fail to create transaction. %v", err)
-		return nil, err
+		return nil, ctx, err
 	}
-	return &_TxWrapper{tx}, nil
+
+	txWrapper := &_TxWrapper{tx}
+	ctx = context.WithValue(ctx, storage.TRANSACTION, txWrapper)
+	return txWrapper, ctx, nil
 }

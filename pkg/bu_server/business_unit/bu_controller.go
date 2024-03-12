@@ -210,7 +210,7 @@ func (m *_BusinessUnitManager) CreateBusinessUnit(ctx context.Context, ts int64,
 		UpdatedBy:     req.Requester,
 	}
 
-	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return model.BusinessUnit{}, err
 	}
@@ -231,7 +231,7 @@ func (m *_BusinessUnitManager) UpdateBusinessUnit(ctx context.Context, ts int64,
 		return model.BusinessUnit{}, err
 	}
 
-	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return model.BusinessUnit{}, err
 	}
@@ -265,7 +265,7 @@ func (m *_BusinessUnitManager) ListBusinessUnits(ctx context.Context, req ListBu
 		return ListBusinessUnitsResult{}, err
 	}
 
-	tx, err := m.storage.CreateTx(ctx)
+	tx, ctx, err := m.storage.CreateTx(ctx)
 	if err != nil {
 		return ListBusinessUnitsResult{}, err
 	}
@@ -288,7 +288,7 @@ func (m *_BusinessUnitManager) SetStatus(ctx context.Context, ts int64, req SetB
 		return model.BusinessUnit{}, err
 	}
 
-	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return model.BusinessUnit{}, err
 	}
@@ -375,7 +375,7 @@ func (m *_BusinessUnitManager) AddAuthentication(ctx context.Context, ts int64, 
 		return model.BusinessUnitAuthentication{}, err
 	}
 
-	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
@@ -398,7 +398,7 @@ func (m *_BusinessUnitManager) RevokeAuthentication(ctx context.Context, ts int6
 		return model.BusinessUnitAuthentication{}, err
 	}
 
-	tx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
@@ -448,7 +448,7 @@ func (m *_BusinessUnitManager) ListAuthentication(ctx context.Context, req ListA
 		return ListAuthenticationResult{}, err
 	}
 
-	tx, err := m.storage.CreateTx(ctx)
+	tx, ctx, err := m.storage.CreateTx(ctx)
 	if err != nil {
 		return ListAuthenticationResult{}, err
 	}
@@ -467,7 +467,7 @@ func (m *_BusinessUnitManager) ListAuthentication(ctx context.Context, req ListA
 
 func (m _BusinessUnitManager) GetJWSSigner(ctx context.Context, req GetJWSSignerRequest) (JWSSigner, error) {
 	auth, err := func() (model.BusinessUnitAuthentication, error) {
-		tx, err := m.storage.CreateTx(ctx)
+		tx, ctx, err := m.storage.CreateTx(ctx)
 		if err != nil {
 			return model.BusinessUnitAuthentication{}, err
 		}
@@ -508,7 +508,7 @@ func (m _BusinessUnitManager) GetJWSSigner(ctx context.Context, req GetJWSSigner
 
 func (m *_BusinessUnitManager) getBusinessUnit(ctx context.Context, tx storage.Tx, appID string, id did.DID) (model.BusinessUnit, error) {
 	if tx == nil {
-		newTx, err := m.storage.CreateTx(ctx)
+		newTx, ctx, err := m.storage.CreateTx(ctx)
 		if err != nil {
 			return model.BusinessUnit{}, err
 		}

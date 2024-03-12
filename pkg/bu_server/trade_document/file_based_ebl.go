@@ -253,7 +253,7 @@ func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request I
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
-	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -284,7 +284,7 @@ func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, requ
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
-	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -357,7 +357,7 @@ func (c *_FileBaseEBLController) Return(ctx context.Context, ts int64, req Retur
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
-	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -488,7 +488,7 @@ func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLR
 		return ListFileBasedEBLRecord{}, err
 	}
 
-	tx, err := c.storage.CreateTx(ctx)
+	tx, ctx, err := c.storage.CreateTx(ctx)
 	if err != nil {
 		return ListFileBasedEBLRecord{}, err
 	}
@@ -542,7 +542,7 @@ func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req Tra
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
-	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -612,7 +612,7 @@ func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64,
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
-	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -682,7 +682,7 @@ func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendF
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
-	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -747,7 +747,7 @@ func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req Su
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
-	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -812,7 +812,7 @@ func (c *_FileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, req
 	}
 
 	currentTime := model.NewDateTimeFromUnix(ts)
-	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -873,7 +873,7 @@ func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req A
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
-	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -932,7 +932,7 @@ func (c *_FileBaseEBLController) Delete(ctx context.Context, ts int64, req Delet
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
-	tx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -985,7 +985,7 @@ func (c *_FileBaseEBLController) Get(ctx context.Context, request GetFileBasedEB
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
-	tx, err := c.storage.CreateTx(ctx)
+	tx, ctx, err := c.storage.CreateTx(ctx)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -1028,7 +1028,7 @@ func (c *_FileBaseEBLController) GetDocument(ctx context.Context, request GetFil
 		return nil, err
 	}
 
-	tx, err := c.storage.CreateTx(ctx)
+	tx, ctx, err := c.storage.CreateTx(ctx)
 	if err != nil {
 		return nil, err
 	}

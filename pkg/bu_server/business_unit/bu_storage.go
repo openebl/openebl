@@ -8,7 +8,7 @@ import (
 )
 
 type BusinessUnitStorage interface {
-	CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, error)
+	CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error)
 	StoreBusinessUnit(ctx context.Context, tx storage.Tx, bu model.BusinessUnit) error
 	ListBusinessUnits(ctx context.Context, tx storage.Tx, req ListBusinessUnitsRequest) (ListBusinessUnitsResult, error)
 	StoreAuthentication(ctx context.Context, tx storage.Tx, auth model.BusinessUnitAuthentication) error

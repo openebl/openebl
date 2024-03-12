@@ -64,39 +64,39 @@ func (s *CertificateTestSuite) TestAddCertificate() {
 	newCert.RevokedAt = ts + 10
 	newCert.RevokedBy = "user_2"
 
-	tx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	s.Require().NoError(err)
-	defer tx.Rollback(s.ctx)
+	defer tx.Rollback(ctx)
 
-	err = s.storage.AddCertificate(s.ctx, tx, cert)
+	err = s.storage.AddCertificate(ctx, tx, cert)
 	s.Require().NoError(err)
-	err = s.storage.AddCertificate(s.ctx, tx, newCert)
+	err = s.storage.AddCertificate(ctx, tx, newCert)
 	s.Require().NoError(err)
 
 	var certsOnDB []model.Cert
-	err = tx.QueryRow(s.ctx, "SELECT array_agg(cert) FROM certificate WHERE id = $1", cert.ID).Scan(&certsOnDB)
+	err = tx.QueryRow(ctx, "SELECT array_agg(cert) FROM certificate WHERE id = $1", cert.ID).Scan(&certsOnDB)
 	s.Require().NoError(err)
 	s.Require().Len(certsOnDB, 1)
 	s.Assert().Equal(newCert, certsOnDB[0])
 
-	err = tx.QueryRow(s.ctx, "SELECT array_agg(cert ORDER BY rec_id ASC) FROM certificate_history WHERE id = $1", cert.ID).Scan(&certsOnDB)
+	err = tx.QueryRow(ctx, "SELECT array_agg(cert ORDER BY rec_id ASC) FROM certificate_history WHERE id = $1", cert.ID).Scan(&certsOnDB)
 	s.Require().NoError(err)
 	s.Require().Len(certsOnDB, 2)
 	s.Assert().Equal([]model.Cert{cert, newCert}, certsOnDB)
 
-	s.Require().NoError(tx.Commit(s.ctx))
+	s.Require().NoError(tx.Commit(ctx))
 }
 
 func (s *CertificateTestSuite) TestListCertificates() {
-	tx, err := s.storage.CreateTx(s.ctx)
+	tx, ctx, err := s.storage.CreateTx(s.ctx)
 	s.Require().NoError(err)
-	defer tx.Rollback(s.ctx)
+	defer tx.Rollback(ctx)
 
 	req := cert_authority.ListCertificatesRequest{
 		Limit: 10,
 	}
 
-	result, err := s.storage.ListCertificates(s.ctx, tx, req)
+	result, err := s.storage.ListCertificates(ctx, tx, req)
 	s.Require().NoError(err)
 	s.Assert().Equal(int64(2), result.Total)
 	s.Require().Len(result.Certs, 2)
@@ -108,7 +108,7 @@ func (s *CertificateTestSuite) TestListCertificates() {
 		defer func() {
 			req.IDs = nil
 		}()
-		result, err = s.storage.ListCertificates(s.ctx, tx, req)
+		result, err = s.storage.ListCertificates(ctx, tx, req)
 		s.Require().NoError(err)
 		s.Assert().Equal(int64(1), result.Total)
 		s.Require().Len(result.Certs, 1)
@@ -120,7 +120,7 @@ func (s *CertificateTestSuite) TestListCertificates() {
 		defer func() {
 			req.Statuses = nil
 		}()
-		result, err = s.storage.ListCertificates(s.ctx, tx, req)
+		result, err = s.storage.ListCertificates(ctx, tx, req)
 		s.Require().NoError(err)
 		s.Assert().Equal(int64(1), result.Total)
 		s.Require().Len(result.Certs, 1)
@@ -135,7 +135,7 @@ func (s *CertificateTestSuite) TestListCertificates() {
 			req.ValidTo = 0
 		}()
 
-		result, err = s.storage.ListCertificates(s.ctx, tx, req)
+		result, err = s.storage.ListCertificates(ctx, tx, req)
 		s.Require().NoError(err)
 		s.Assert().Equal(int64(1), result.Total)
 		s.Require().Len(result.Certs, 1)

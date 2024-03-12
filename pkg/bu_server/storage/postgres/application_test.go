@@ -46,12 +46,12 @@ func (s *ApplicationStorageTestSuite) TestStoreApplication() {
 		PhoneNumbers: []string{"1234567890"},
 	}
 
-	tx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	s.Require().NoError(err)
 	defer tx.Rollback(s.ctx)
 
 	// Store application for the first time.
-	err = s.storage.StoreApplication(s.ctx, tx, app)
+	err = s.storage.StoreApplication(ctx, tx, app)
 	s.Require().NoError(err)
 
 	// Store application for the second time.
@@ -59,10 +59,10 @@ func (s *ApplicationStorageTestSuite) TestStoreApplication() {
 	appV2.Version = 2
 	appV2.Status = auth.ApplicationStatusInactive
 	appV2.UpdatedBy = "test-user-2"
-	err = s.storage.StoreApplication(s.ctx, tx, appV2)
+	err = s.storage.StoreApplication(ctx, tx, appV2)
 	s.Require().NoError(err)
 
-	s.Require().NoError(tx.Commit(s.ctx))
+	s.Require().NoError(tx.Commit(ctx))
 }
 
 func (s *ApplicationStorageTestSuite) TestListApplication() {
@@ -75,9 +75,9 @@ func (s *ApplicationStorageTestSuite) TestListApplication() {
 	s.Require().NoError(err)
 	s.Require().NoError(fixtures.Load())
 
-	tx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(false))
+	tx, ctx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(false))
 	s.Require().NoError(err)
-	defer tx.Rollback(s.ctx)
+	defer tx.Rollback(ctx)
 
 	appsOnDB := make([]auth.Application, 0)
 	s.Require().NoError(tx.QueryRow(s.ctx, `SELECT jsonb_agg(application ORDER BY rec_id) FROM application`).Scan(&appsOnDB))
@@ -88,7 +88,7 @@ func (s *ApplicationStorageTestSuite) TestListApplication() {
 		Offset: 1,
 		Limit:  10,
 	}
-	listResult, err := s.storage.ListApplication(s.ctx, tx, listRequest)
+	listResult, err := s.storage.ListApplication(ctx, tx, listRequest)
 	s.Require().NoError(err)
 	s.Assert().Equal(3, listResult.Total)
 	s.Assert().Equal(2, len(listResult.Applications))
@@ -99,7 +99,7 @@ func (s *ApplicationStorageTestSuite) TestListApplication() {
 		Offset: 0,
 		Limit:  2,
 	}
-	listResult, err = s.storage.ListApplication(s.ctx, tx, listRequest)
+	listResult, err = s.storage.ListApplication(ctx, tx, listRequest)
 	s.Require().NoError(err)
 	s.Assert().Equal(3, listResult.Total)
 	s.Assert().Equal(2, len(listResult.Applications))
@@ -111,7 +111,7 @@ func (s *ApplicationStorageTestSuite) TestListApplication() {
 		Limit:  10,
 		IDs:    []string{"app_1", "app_3"},
 	}
-	listResult, err = s.storage.ListApplication(s.ctx, tx, listRequest)
+	listResult, err = s.storage.ListApplication(ctx, tx, listRequest)
 	s.Require().NoError(err)
 	s.Assert().Equal(2, listResult.Total)
 	s.Assert().Equal(2, len(listResult.Applications))
@@ -124,7 +124,7 @@ func (s *ApplicationStorageTestSuite) TestListApplication() {
 		Limit:    10,
 		Statuses: []auth.ApplicationStatus{auth.ApplicationStatusActive},
 	}
-	listResult, err = s.storage.ListApplication(s.ctx, tx, listRequest)
+	listResult, err = s.storage.ListApplication(ctx, tx, listRequest)
 	s.Require().NoError(err)
 	s.Assert().Equal(2, listResult.Total)
 	s.Assert().Equal(2, len(listResult.Applications))

@@ -54,7 +54,7 @@ func (s *ApplicationManagerTestSuite) TestCreateApplication() {
 
 	// Set expectations
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Any()).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Any()).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().StoreApplication(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, app auth.Application) error {
 				storedApp = app
@@ -113,7 +113,7 @@ func (s *ApplicationManagerTestSuite) TestListApplications() {
 
 	// Set expectations
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Any()).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Any()).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListApplication(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(req)).Return(expectedResult, nil),
 		s.tx.EXPECT().Rollback(gomock.Eq(s.ctx)).Return(nil),
 	)
@@ -170,7 +170,7 @@ func (s *ApplicationManagerTestSuite) TestUpdateApplication() {
 		Applications: []auth.Application{oldApp},
 	}
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Any()).Return(s.tx, nil),
+		s.storage.EXPECT().CreateTx(gomock.Eq(s.ctx), gomock.Any()).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListApplication(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Eq(expectedReq)).Return(listAppResult, nil),
 		s.storage.EXPECT().StoreApplication(gomock.Eq(s.ctx), gomock.Eq(s.tx), gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, app auth.Application) error {

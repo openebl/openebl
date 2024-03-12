@@ -57,12 +57,12 @@ func (s *APIKeyStorageTestSuite) TestCreateAPIKey() {
 	newVersionAPIKey.UpdatedAt = 789
 	newVersionAPIKey.UpdatedBy = "test-updated-by-2"
 
-	tx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	s.Require().NoError(err)
 	defer tx.Rollback(s.ctx)
 
 	// StoreAPIKey with un-existing application ID.
-	s.Require().ErrorIs(s.storage.StoreAPIKey(s.ctx, tx, apiKey), model.ErrApplicationNotFound)
+	s.Require().ErrorIs(s.storage.StoreAPIKey(ctx, tx, apiKey), model.ErrApplicationNotFound)
 
 	// Insert the associated application before inserting the APIKey
 	app := auth.Application{
@@ -71,29 +71,29 @@ func (s *APIKeyStorageTestSuite) TestCreateAPIKey() {
 		Version:     1,
 		CompanyName: "test-company-name",
 	}
-	s.Require().NoError(s.appStorage.StoreApplication(s.ctx, tx, app))
+	s.Require().NoError(s.appStorage.StoreApplication(ctx, tx, app))
 
 	// First version of APIKey
-	s.Require().NoError(s.storage.StoreAPIKey(s.ctx, tx, apiKey))
-	err = tx.QueryRow(s.ctx, query, apiKey.ID, apiKey.Version, apiKey.ApplicationID, apiKey.Status).Scan(&apiKeyFromDB)
+	s.Require().NoError(s.storage.StoreAPIKey(ctx, tx, apiKey))
+	err = tx.QueryRow(ctx, query, apiKey.ID, apiKey.Version, apiKey.ApplicationID, apiKey.Status).Scan(&apiKeyFromDB)
 	s.Require().NoError(err)
 	s.Assert().Equal(apiKey, apiKeyFromDB)
-	err = tx.QueryRow(s.ctx, historyQuery, apiKey.ID, apiKey.Version).Scan(&apiKeyFromDB)
+	err = tx.QueryRow(ctx, historyQuery, apiKey.ID, apiKey.Version).Scan(&apiKeyFromDB)
 	s.Require().NoError(err)
 	s.Assert().Equal(apiKey, apiKeyFromDB)
 	// End of first version of APIKey
 
 	// Second version of APIKey
 	s.Require().NoError(s.storage.StoreAPIKey(s.ctx, tx, newVersionAPIKey))
-	err = tx.QueryRow(s.ctx, query, newVersionAPIKey.ID, newVersionAPIKey.Version, newVersionAPIKey.ApplicationID, newVersionAPIKey.Status).Scan(&apiKeyFromDB)
+	err = tx.QueryRow(ctx, query, newVersionAPIKey.ID, newVersionAPIKey.Version, newVersionAPIKey.ApplicationID, newVersionAPIKey.Status).Scan(&apiKeyFromDB)
 	s.Require().NoError(err)
 	s.Assert().Equal(newVersionAPIKey, apiKeyFromDB)
-	err = tx.QueryRow(s.ctx, historyQuery, newVersionAPIKey.ID, newVersionAPIKey.Version).Scan(&apiKeyFromDB)
+	err = tx.QueryRow(ctx, historyQuery, newVersionAPIKey.ID, newVersionAPIKey.Version).Scan(&apiKeyFromDB)
 	s.Require().NoError(err)
 	s.Assert().Equal(newVersionAPIKey, apiKeyFromDB)
 	// End of second version of APIKey
 
-	s.Require().NoError(tx.Commit(s.ctx))
+	s.Require().NoError(tx.Commit(ctx))
 }
 
 func (s *APIKeyStorageTestSuite) TestGetAPIKey() {
@@ -106,11 +106,11 @@ func (s *APIKeyStorageTestSuite) TestGetAPIKey() {
 	s.Require().NoError(err)
 	s.Require().NoError(fixtures.Load())
 
-	tx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(false))
+	tx, ctx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(false))
 	s.Require().NoError(err)
 	defer tx.Rollback(s.ctx)
 
-	apiKey, err := s.storage.GetAPIKey(s.ctx, tx, "key_1")
+	apiKey, err := s.storage.GetAPIKey(ctx, tx, "key_1")
 	s.Require().NoError(err)
 	s.Assert().Equal("key_1", apiKey.APIKey.ID)
 	s.Assert().Equal(auth.APIKeyHashedString("hashed_key1"), apiKey.APIKey.HashString)
@@ -120,7 +120,7 @@ func (s *APIKeyStorageTestSuite) TestGetAPIKey() {
 	s.Assert().Equal(auth.APIKeyStatusActive, apiKey.APIKey.Status)
 	s.Assert().Equal("BBBBBB", apiKey.Application.CompanyName)
 
-	apiKey, err = s.storage.GetAPIKey(s.ctx, tx, "key_2")
+	apiKey, err = s.storage.GetAPIKey(ctx, tx, "key_2")
 	s.Require().NoError(err)
 	s.Assert().Equal("key_2", apiKey.APIKey.ID)
 	s.Assert().Equal(auth.APIKeyHashedString("hashed_key2"), apiKey.APIKey.HashString)
@@ -141,12 +141,12 @@ func (s *APIKeyStorageTestSuite) TestListAPIKey() {
 	s.Require().NoError(err)
 	s.Require().NoError(fixtures.Load())
 
-	tx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(false))
+	tx, ctx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(false))
 	s.Require().NoError(err)
-	defer tx.Rollback(s.ctx)
+	defer tx.Rollback(ctx)
 
 	apiKeysOnDB := []auth.ListAPIKeyRecord{}
-	rows, err := tx.Query(s.ctx, `SELECT api_key, application FROM api_key JOIN application ON application.id = api_key.application_id ORDER by api_key.rec_id`)
+	rows, err := tx.Query(ctx, `SELECT api_key, application FROM api_key JOIN application ON application.id = api_key.application_id ORDER by api_key.rec_id`)
 	s.Require().NoError(err)
 	defer rows.Close()
 	for rows.Next() {
@@ -165,7 +165,7 @@ func (s *APIKeyStorageTestSuite) TestListAPIKey() {
 		Offset: 1,
 		Limit:  1,
 	}
-	result, err := s.storage.ListAPIKeys(s.ctx, tx, req)
+	result, err := s.storage.ListAPIKeys(ctx, tx, req)
 	s.Require().NoError(err)
 	s.Assert().Equal(3, result.Total)
 	s.Assert().Equal(apiKeysOnDB[1:2], result.Keys)
@@ -176,7 +176,7 @@ func (s *APIKeyStorageTestSuite) TestListAPIKey() {
 		Limit:          10,
 		ApplicationIDs: []string{"app_1"},
 	}
-	result, err = s.storage.ListAPIKeys(s.ctx, tx, req)
+	result, err = s.storage.ListAPIKeys(ctx, tx, req)
 	s.Require().NoError(err)
 	s.Assert().Equal(1, result.Total)
 	s.Assert().Equal(apiKeysOnDB[0:1], result.Keys)
@@ -187,7 +187,7 @@ func (s *APIKeyStorageTestSuite) TestListAPIKey() {
 		Limit:    10,
 		Statuses: []auth.APIKeyStatus{auth.APIKeyStatusActive},
 	}
-	result, err = s.storage.ListAPIKeys(s.ctx, tx, req)
+	result, err = s.storage.ListAPIKeys(ctx, tx, req)
 	s.Require().NoError(err)
 	s.Assert().Equal(2, result.Total)
 	s.Assert().Equal(apiKeysOnDB[0:2], result.Keys)

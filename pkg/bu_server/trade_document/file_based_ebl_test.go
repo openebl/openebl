@@ -323,7 +323,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 				AuthenticationID: "bu_auth_id",
 			},
 		).Return(s.issuerSigner, nil),
-		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().AddTradeDocument(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, tdoc storage.TradeDocument) error {
 				tdOnDB = tdoc
@@ -433,7 +433,7 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBL() {
 			},
 			nil,
 		),
-		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
 			gomock.Any(),
 			s.tx,
@@ -520,7 +520,7 @@ func (s *FileBasedEBLTestSuite) TestListEBL() {
 			},
 			nil,
 		),
-		s.tdStorage.EXPECT().CreateTx(gomock.Any()).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any()).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(gomock.Any(), s.tx, gomock.Any()).Return(listResp, nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -569,7 +569,7 @@ func (s *FileBasedEBLTestSuite) TestShipperTransferEBL() {
 				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.shipper}},
 			}, nil,
 		),
-		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
 			gomock.Any(),
 			s.tx,
@@ -647,7 +647,7 @@ func (s *FileBasedEBLTestSuite) TestIssuerTransferEBL() {
 				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
 			}, nil,
 		),
-		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
 			gomock.Any(),
 			s.tx,
@@ -728,7 +728,7 @@ func (s *FileBasedEBLTestSuite) TestTransferEBL_ActionNotAllowed() {
 				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.shipper}},
 			}, nil,
 		),
-		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
 			gomock.Any(),
 			s.tx,
@@ -779,7 +779,7 @@ func (s *FileBasedEBLTestSuite) TestAmendmentRequestEBL() {
 				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.consignee}},
 			}, nil,
 		),
-		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
 			gomock.Any(),
 			s.tx,
@@ -855,7 +855,7 @@ func (s *FileBasedEBLTestSuite) TestAmendmentRequestEBL_ActionNotAllowed() {
 				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
 			}, nil,
 		),
-		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
 			gomock.Any(),
 			s.tx,
@@ -892,7 +892,7 @@ func (s *FileBasedEBLTestSuite) TestReturn() {
 
 	var receivedTD storage.TradeDocument
 	gomock.InOrder(
-		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
 			gomock.Any(),
 			s.tx,
@@ -956,7 +956,7 @@ func (s *FileBasedEBLTestSuite) TestReturnAmendmentRequest() {
 
 	var receivedTD storage.TradeDocument
 	gomock.InOrder(
-		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
 			gomock.Any(),
 			s.tx,
@@ -1053,7 +1053,7 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL() {
 				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
 			}, nil,
 		),
-		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
 			gomock.Any(),
 			s.tx,
@@ -1155,7 +1155,7 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL_ReturnedByShipper() {
 				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
 			}, nil,
 		),
-		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
 			gomock.Any(),
 			s.tx,
@@ -1224,7 +1224,7 @@ func (s *FileBasedEBLTestSuite) TestSurrender() {
 
 	var receivedTD storage.TradeDocument
 	gomock.InOrder(
-		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
 			gomock.Any(),
 			s.tx,
@@ -1288,7 +1288,7 @@ func (s *FileBasedEBLTestSuite) TestPrintToPaper() {
 
 	var receivedTD storage.TradeDocument
 	gomock.InOrder(
-		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
 			gomock.Any(),
 			s.tx,
@@ -1352,7 +1352,7 @@ func (s *FileBasedEBLTestSuite) TestAccomplishEBL() {
 
 	var receivedTD storage.TradeDocument
 	gomock.InOrder(
-		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
 			gomock.Any(),
 			s.tx,
@@ -1443,7 +1443,7 @@ func (s *FileBasedEBLTestSuite) TestGetEBL() {
 			},
 			nil,
 		),
-		s.tdStorage.EXPECT().CreateTx(gomock.Any()).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any()).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(gomock.Any(), s.tx, gomock.Eq(listReq)).Return(listResp, nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1474,7 +1474,7 @@ func (s *FileBasedEBLTestSuite) TestDeleteDraftEBL() {
 
 	var receivedTD storage.TradeDocument
 	gomock.InOrder(
-		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
 			gomock.Any(),
 			s.tx,
@@ -1565,7 +1565,7 @@ func (s *FileBasedEBLTestSuite) TestGetEBLDocument() {
 			},
 			nil,
 		),
-		s.tdStorage.EXPECT().CreateTx(gomock.Any()).Return(s.tx, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any()).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(gomock.Any(), s.tx, gomock.Eq(listReq)).Return(listResp, nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)

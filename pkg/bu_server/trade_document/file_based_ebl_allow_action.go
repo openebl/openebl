@@ -19,6 +19,7 @@ const (
 	FILE_EBL_RETURN        FileBasedEBLAction = "RETURN"
 	FILE_EBL_SURRENDER     FileBasedEBLAction = "SURRENDER"
 	FILE_EBL_ACCOMPLISH    FileBasedEBLAction = "ACCOMPLISH"
+	FILE_EBL_DELETE        FileBasedEBLAction = "DELETE"
 )
 
 type _AllowActionChecker func(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error
@@ -32,6 +33,37 @@ var _allowActionChecker = map[FileBasedEBLAction]_AllowActionChecker{
 	FILE_EBL_RETURN:        IsFileEBLReturnable,
 	FILE_EBL_SURRENDER:     IsFileEBLSurrenderable,
 	FILE_EBL_ACCOMPLISH:    IsFileEBLAccomplishable,
+	FILE_EBL_DELETE:        IsFileEBLDeletable,
+}
+
+func GetFileBasedEBLAllowActions(bl *bill_of_lading.BillOfLadingPack, bu string) []FileBasedEBLAction {
+	if bl == nil || bu == "" {
+		return nil
+	}
+
+	actionList := []FileBasedEBLAction{
+		FILE_EBL_UPDATE_DRAFT,
+		FILE_EBL_AMEND,
+		FILE_EBL_REQUEST_AMEND,
+		FILE_EBL_PRINT,
+		FILE_EBL_TRANSFER,
+		FILE_EBL_RETURN,
+		FILE_EBL_SURRENDER,
+		FILE_EBL_ACCOMPLISH,
+		FILE_EBL_DELETE,
+	}
+
+	var actions []FileBasedEBLAction
+	for _, action := range actionList {
+		if err := CheckFileBasedEBLAllowAction(action, bl, bu, false); err == nil {
+			actions = append(actions, action)
+		}
+	}
+
+	if len(actions) == 0 {
+		return nil
+	}
+	return actions
 }
 
 func CheckFileBasedEBLAllowAction(action FileBasedEBLAction, bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {

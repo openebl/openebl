@@ -10,7 +10,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	model "github.com/openebl/openebl/pkg/bu_server/model"
-	bill_of_lading "github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
 	trade_document "github.com/openebl/openebl/pkg/bu_server/trade_document"
 )
 
@@ -38,10 +37,10 @@ func (m *MockFileBaseEBLController) EXPECT() *MockFileBaseEBLControllerMockRecor
 }
 
 // Accomplish mocks base method.
-func (m *MockFileBaseEBLController) Accomplish(ctx context.Context, ts int64, request trade_document.AccomplishEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (m *MockFileBaseEBLController) Accomplish(ctx context.Context, ts int64, request trade_document.AccomplishEBLRequest) (trade_document.FileBasedBillOfLadingRecord, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Accomplish", ctx, ts, request)
-	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret0, _ := ret[0].(trade_document.FileBasedBillOfLadingRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -53,10 +52,10 @@ func (mr *MockFileBaseEBLControllerMockRecorder) Accomplish(ctx, ts, request int
 }
 
 // Amend mocks base method.
-func (m *MockFileBaseEBLController) Amend(ctx context.Context, ts int64, request trade_document.AmendFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (m *MockFileBaseEBLController) Amend(ctx context.Context, ts int64, request trade_document.AmendFileBasedEBLRequest) (trade_document.FileBasedBillOfLadingRecord, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Amend", ctx, ts, request)
-	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret0, _ := ret[0].(trade_document.FileBasedBillOfLadingRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -68,10 +67,10 @@ func (mr *MockFileBaseEBLControllerMockRecorder) Amend(ctx, ts, request interfac
 }
 
 // AmendmentRequest mocks base method.
-func (m *MockFileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64, request trade_document.AmendmentRequestEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (m *MockFileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64, request trade_document.AmendmentRequestEBLRequest) (trade_document.FileBasedBillOfLadingRecord, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AmendmentRequest", ctx, ts, request)
-	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret0, _ := ret[0].(trade_document.FileBasedBillOfLadingRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -83,10 +82,10 @@ func (mr *MockFileBaseEBLControllerMockRecorder) AmendmentRequest(ctx, ts, reque
 }
 
 // Create mocks base method.
-func (m *MockFileBaseEBLController) Create(ctx context.Context, ts int64, request trade_document.IssueFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (m *MockFileBaseEBLController) Create(ctx context.Context, ts int64, request trade_document.IssueFileBasedEBLRequest) (trade_document.FileBasedBillOfLadingRecord, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, ts, request)
-	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret0, _ := ret[0].(trade_document.FileBasedBillOfLadingRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -98,10 +97,10 @@ func (mr *MockFileBaseEBLControllerMockRecorder) Create(ctx, ts, request interfa
 }
 
 // Delete mocks base method.
-func (m *MockFileBaseEBLController) Delete(ctx context.Context, ts int64, request trade_document.DeleteEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (m *MockFileBaseEBLController) Delete(ctx context.Context, ts int64, request trade_document.DeleteEBLRequest) (trade_document.FileBasedBillOfLadingRecord, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", ctx, ts, request)
-	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret0, _ := ret[0].(trade_document.FileBasedBillOfLadingRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -113,10 +112,10 @@ func (mr *MockFileBaseEBLControllerMockRecorder) Delete(ctx, ts, request interfa
 }
 
 // Get mocks base method.
-func (m *MockFileBaseEBLController) Get(ctx context.Context, request trade_document.GetFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (m *MockFileBaseEBLController) Get(ctx context.Context, request trade_document.GetFileBasedEBLRequest) (trade_document.FileBasedBillOfLadingRecord, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, request)
-	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret0, _ := ret[0].(trade_document.FileBasedBillOfLadingRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -158,10 +157,10 @@ func (mr *MockFileBaseEBLControllerMockRecorder) List(ctx, request interface{}) 
 }
 
 // PrintToPaper mocks base method.
-func (m *MockFileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, request trade_document.PrintFileBasedEBLToPaperRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (m *MockFileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, request trade_document.PrintFileBasedEBLToPaperRequest) (trade_document.FileBasedBillOfLadingRecord, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PrintToPaper", ctx, ts, request)
-	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret0, _ := ret[0].(trade_document.FileBasedBillOfLadingRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -173,10 +172,10 @@ func (mr *MockFileBaseEBLControllerMockRecorder) PrintToPaper(ctx, ts, request i
 }
 
 // Return mocks base method.
-func (m *MockFileBaseEBLController) Return(ctx context.Context, ts int64, request trade_document.ReturnFileBasedEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (m *MockFileBaseEBLController) Return(ctx context.Context, ts int64, request trade_document.ReturnFileBasedEBLRequest) (trade_document.FileBasedBillOfLadingRecord, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Return", ctx, ts, request)
-	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret0, _ := ret[0].(trade_document.FileBasedBillOfLadingRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -188,10 +187,10 @@ func (mr *MockFileBaseEBLControllerMockRecorder) Return(ctx, ts, request interfa
 }
 
 // Surrender mocks base method.
-func (m *MockFileBaseEBLController) Surrender(ctx context.Context, ts int64, request trade_document.SurrenderEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (m *MockFileBaseEBLController) Surrender(ctx context.Context, ts int64, request trade_document.SurrenderEBLRequest) (trade_document.FileBasedBillOfLadingRecord, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Surrender", ctx, ts, request)
-	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret0, _ := ret[0].(trade_document.FileBasedBillOfLadingRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -203,10 +202,10 @@ func (mr *MockFileBaseEBLControllerMockRecorder) Surrender(ctx, ts, request inte
 }
 
 // Transfer mocks base method.
-func (m *MockFileBaseEBLController) Transfer(ctx context.Context, ts int64, request trade_document.TransferEBLRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (m *MockFileBaseEBLController) Transfer(ctx context.Context, ts int64, request trade_document.TransferEBLRequest) (trade_document.FileBasedBillOfLadingRecord, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Transfer", ctx, ts, request)
-	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret0, _ := ret[0].(trade_document.FileBasedBillOfLadingRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -218,10 +217,10 @@ func (mr *MockFileBaseEBLControllerMockRecorder) Transfer(ctx, ts, request inter
 }
 
 // UpdateDraft mocks base method.
-func (m *MockFileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, request trade_document.UpdateFileBasedEBLDraftRequest) (bill_of_lading.BillOfLadingPack, error) {
+func (m *MockFileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, request trade_document.UpdateFileBasedEBLDraftRequest) (trade_document.FileBasedBillOfLadingRecord, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateDraft", ctx, ts, request)
-	ret0, _ := ret[0].(bill_of_lading.BillOfLadingPack)
+	ret0, _ := ret[0].(trade_document.FileBasedBillOfLadingRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

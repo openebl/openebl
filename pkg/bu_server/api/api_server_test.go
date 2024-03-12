@@ -325,9 +325,11 @@ func (s *APITestSuite) TestCreateFileBasedEBL() {
 	expectedRequest.Application = s.appId
 	expectedRequest.Issuer = "issuer"
 
-	newBillOfLadingPack := bill_of_lading.BillOfLadingPack{
-		ID:      "pack_id",
-		Version: 1,
+	newBillOfLadingPack := trade_document.FileBasedBillOfLadingRecord{
+		BL: &bill_of_lading.BillOfLadingPack{
+			ID:      "pack_id",
+			Version: 1,
+		},
 	}
 
 	httpRequest, err := http.NewRequest("POST", endPoint, util.StructToJSONReader(req))
@@ -385,9 +387,11 @@ func (s *APITestSuite) TestUpdateFileBasedEBL() {
 	expectedRequest.Issuer = "issuer"
 	expectedRequest.ID = "doc_id"
 
-	newBillOfLadingPack := bill_of_lading.BillOfLadingPack{
-		ID:      "pack_id",
-		Version: 1,
+	newBillOfLadingPack := trade_document.FileBasedBillOfLadingRecord{
+		BL: &bill_of_lading.BillOfLadingPack{
+			ID:      "pack_id",
+			Version: 1,
+		},
 	}
 
 	httpRequest, err := http.NewRequest("POST", endPoint, util.StructToJSONReader(req))
@@ -421,7 +425,7 @@ func (s *APITestSuite) TestListFileBasedEBL() {
 
 	billOfLadingRecord := trade_document.ListFileBasedEBLRecord{
 		Total:   5,
-		Records: []bill_of_lading.BillOfLadingPack{},
+		Records: []trade_document.FileBasedBillOfLadingRecord{},
 	}
 
 	httpRequest, err := http.NewRequest(http.MethodGet, endPoint, nil)
@@ -456,9 +460,11 @@ func (s *APITestSuite) TestTransferFileBasedEBL() {
 	expectedRequest.TransferBy = "shipper"
 	expectedRequest.ID = "doc_id"
 
-	newBillOfLadingPack := bill_of_lading.BillOfLadingPack{
-		ID:      "pack_id",
-		Version: 2,
+	newBillOfLadingPack := trade_document.FileBasedBillOfLadingRecord{
+		BL: &bill_of_lading.BillOfLadingPack{
+			ID:      "pack_id",
+			Version: 2,
+		},
 	}
 
 	httpRequest, err := http.NewRequest(http.MethodPost, endPoint, util.StructToJSONReader(req))
@@ -493,9 +499,11 @@ func (s *APITestSuite) TestReturnFileBasedEBL() {
 	expectedRequest.BusinessUnit = "consignee"
 	expectedRequest.ID = "doc_id"
 
-	newBillOfLadingPack := bill_of_lading.BillOfLadingPack{
-		ID:      "pack_id",
-		Version: 2,
+	newBillOfLadingPack := trade_document.FileBasedBillOfLadingRecord{
+		BL: &bill_of_lading.BillOfLadingPack{
+			ID:      "pack_id",
+			Version: 2,
+		},
 	}
 
 	httpRequest, err := http.NewRequest(http.MethodPost, endPoint, util.StructToJSONReader(req))
@@ -530,9 +538,11 @@ func (s *APITestSuite) TestAmendmentRequestFileBasedEBL() {
 	expectedRequest.RequestBy = "consignee"
 	expectedRequest.ID = "doc_id"
 
-	newBillOfLadingPack := bill_of_lading.BillOfLadingPack{
-		ID:      "pack_id",
-		Version: 3,
+	newBillOfLadingPack := trade_document.FileBasedBillOfLadingRecord{
+		BL: &bill_of_lading.BillOfLadingPack{
+			ID:      "pack_id",
+			Version: 3,
+		},
 	}
 
 	httpRequest, err := http.NewRequest(http.MethodPost, endPoint, util.StructToJSONReader(req))
@@ -585,9 +595,11 @@ func (s *APITestSuite) TestAmendFileBasedEBL() {
 	expectedRequest.Issuer = "issuer"
 	expectedRequest.ID = "doc_id"
 
-	newBillOfLadingPack := bill_of_lading.BillOfLadingPack{
-		ID:      "pack_id",
-		Version: 4,
+	newBillOfLadingPack := trade_document.FileBasedBillOfLadingRecord{
+		BL: &bill_of_lading.BillOfLadingPack{
+			ID:      "pack_id",
+			Version: 4,
+		},
 	}
 
 	httpRequest, err := http.NewRequest(http.MethodPost, endPoint, util.StructToJSONReader(req))
@@ -621,9 +633,11 @@ func (s *APITestSuite) TestSurrenderFileBasedEBL() {
 	expectedRequest.RequestBy = "consignee"
 	expectedRequest.ID = "doc_id"
 
-	newBillOfLadingPack := bill_of_lading.BillOfLadingPack{
-		ID:      "pack_id",
-		Version: 3,
+	newBillOfLadingPack := trade_document.FileBasedBillOfLadingRecord{
+		BL: &bill_of_lading.BillOfLadingPack{
+			ID:      "pack_id",
+			Version: 3,
+		},
 	}
 
 	httpRequest, err := http.NewRequest(http.MethodPost, endPoint, util.StructToJSONReader(req))
@@ -657,9 +671,11 @@ func (s *APITestSuite) TestPrintFileBasedEBL() {
 	expectedRequest.RequestBy = "consignee"
 	expectedRequest.ID = "doc_id"
 
-	newBillOfLadingPack := bill_of_lading.BillOfLadingPack{
-		ID:      "pack_id",
-		Version: 3,
+	newBillOfLadingPack := trade_document.FileBasedBillOfLadingRecord{
+		BL: &bill_of_lading.BillOfLadingPack{
+			ID:      "pack_id",
+			Version: 3,
+		},
 	}
 
 	httpRequest, err := http.NewRequest(http.MethodPost, endPoint, util.StructToJSONReader(req))
@@ -693,9 +709,11 @@ func (s *APITestSuite) TestAccomplishFileBasedEBL() {
 	expectedRequest.RequestBy = "release_agent"
 	expectedRequest.ID = "doc_id"
 
-	newBillOfLadingPack := bill_of_lading.BillOfLadingPack{
-		ID:      "pack_id",
-		Version: 3,
+	newBillOfLadingPack := trade_document.FileBasedBillOfLadingRecord{
+		BL: &bill_of_lading.BillOfLadingPack{
+			ID:      "pack_id",
+			Version: 3,
+		},
 	}
 
 	httpRequest, err := http.NewRequest(http.MethodPost, endPoint, util.StructToJSONReader(req))
@@ -725,9 +743,11 @@ func (s *APITestSuite) TestGetFileBasedEBL() {
 		ID:          "doc_id",
 	}
 
-	billOfLadingPack := bill_of_lading.BillOfLadingPack{
-		ID:      "pack_id",
-		Version: 1,
+	billOfLadingPack := trade_document.FileBasedBillOfLadingRecord{
+		BL: &bill_of_lading.BillOfLadingPack{
+			ID:      "pack_id",
+			Version: 1,
+		},
 	}
 
 	httpRequest, err := http.NewRequest(http.MethodGet, endPoint, nil)
@@ -761,9 +781,11 @@ func (s *APITestSuite) TestDeleteFileBasedEBL() {
 	expectedRequest.RequestBy = "issuer"
 	expectedRequest.ID = "doc_id"
 
-	newBillOfLadingPack := bill_of_lading.BillOfLadingPack{
-		ID:      "pack_id",
-		Version: 2,
+	newBillOfLadingPack := trade_document.FileBasedBillOfLadingRecord{
+		BL: &bill_of_lading.BillOfLadingPack{
+			ID:      "pack_id",
+			Version: 2,
+		},
 	}
 
 	httpRequest, err := http.NewRequest(http.MethodPost, endPoint, util.StructToJSONReader(req))

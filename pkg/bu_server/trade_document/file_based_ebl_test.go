@@ -154,6 +154,84 @@ func (s *FileBasedEBLTestSuite) loadTradeDocument(fileName string) storage.Trade
 	return result
 }
 
+func (s *FileBasedEBLTestSuite) TestEBLAllowActions() {
+	type TestCase struct {
+		Name                     string
+		Doc                      storage.TradeDocument
+		IssuerAllowActions       []trade_document.FileBasedEBLAction
+		ShipperAllowActions      []trade_document.FileBasedEBLAction
+		ConsigneeAllowActions    []trade_document.FileBasedEBLAction
+		ReleaseAgentAllowActions []trade_document.FileBasedEBLAction
+	}
+
+	testCases := []TestCase{
+		{
+			Name: "Draft EBL",
+			Doc:  s.draftEbl,
+			IssuerAllowActions: []trade_document.FileBasedEBLAction{
+				trade_document.FILE_EBL_UPDATE_DRAFT,
+				trade_document.FILE_EBL_DELETE,
+			},
+		},
+		{
+			Name: "Shipper EBL",
+			Doc:  s.shipperEbl,
+			ShipperAllowActions: []trade_document.FileBasedEBLAction{
+				trade_document.FILE_EBL_REQUEST_AMEND,
+				trade_document.FILE_EBL_PRINT,
+				trade_document.FILE_EBL_TRANSFER,
+				trade_document.FILE_EBL_RETURN,
+			},
+		},
+		{
+			Name: "Consignee EBL",
+			Doc:  s.consigneeEbl,
+			ConsigneeAllowActions: []trade_document.FileBasedEBLAction{
+				trade_document.FILE_EBL_REQUEST_AMEND,
+				trade_document.FILE_EBL_PRINT,
+				trade_document.FILE_EBL_RETURN,
+				trade_document.FILE_EBL_SURRENDER,
+			},
+		},
+		{
+			Name: "Release Agent EBL",
+			Doc:  s.releaseAgentEbl,
+			ReleaseAgentAllowActions: []trade_document.FileBasedEBLAction{
+				trade_document.FILE_EBL_REQUEST_AMEND,
+				trade_document.FILE_EBL_PRINT,
+				trade_document.FILE_EBL_RETURN,
+				trade_document.FILE_EBL_ACCOMPLISH,
+			},
+		},
+		{
+			Name: "Issuer EBL Amendment Requested",
+			Doc:  s.issuerEblAmendmentRequested,
+			IssuerAllowActions: []trade_document.FileBasedEBLAction{
+				trade_document.FILE_EBL_AMEND,
+				trade_document.FILE_EBL_PRINT,
+				trade_document.FILE_EBL_RETURN,
+			},
+		},
+		{
+			Name: "Issuer Returned EBL by Shipper",
+			Doc:  s.issuerReturnedEbl,
+			IssuerAllowActions: []trade_document.FileBasedEBLAction{
+				trade_document.FILE_EBL_AMEND,
+				trade_document.FILE_EBL_PRINT,
+				trade_document.FILE_EBL_TRANSFER,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		blPack, _ := trade_document.ExtractBLPackFromTradeDocument(tc.Doc)
+		s.Assert().EqualValues(tc.IssuerAllowActions, trade_document.GetFileBasedEBLAllowActions(&blPack, s.issuer.ID.String()), tc.Name)
+		s.Assert().EqualValues(tc.ShipperAllowActions, trade_document.GetFileBasedEBLAllowActions(&blPack, s.shipper.ID.String()), tc.Name)
+		s.Assert().EqualValues(tc.ConsigneeAllowActions, trade_document.GetFileBasedEBLAllowActions(&blPack, s.consignee.ID.String()), tc.Name)
+		s.Assert().EqualValues(tc.ReleaseAgentAllowActions, trade_document.GetFileBasedEBLAllowActions(&blPack, s.releaseAgent.ID.String()), tc.Name)
+	}
+}
+
 func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 	ts := int64(1708676399)
 	eta, err := model.NewDateTimeFromString("2022-01-01T00:00:00Z")
@@ -258,9 +336,9 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 
 	result, err := s.eblCtrl.Create(s.ctx, ts, req)
 	s.Require().NoError(err)
-	s.Assert().Equal(tdOnDB.DocID, result.ID)
+	s.Assert().Equal(tdOnDB.DocID, result.BL.ID)
 	s.Assert().EqualValues(relay.FileBasedBillOfLading, tdOnDB.Kind)
-	s.Assert().EqualValues(tdOnDB.DocVersion, result.Version)
+	s.Assert().EqualValues(tdOnDB.DocVersion, result.BL.Version)
 	s.Assert().EqualValues([]string{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"}, tdOnDB.Meta["visible_to_bu"])
 	s.Assert().EqualValues([]string{"did:openebl:shipper"}, tdOnDB.Meta["action_needed"])
 	s.Assert().EqualValues([]string{"did:openebl:issuer"}, tdOnDB.Meta["sent"])
@@ -275,17 +353,17 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 	blPackOnDB := bill_of_lading.BillOfLadingPack{}
 	s.Require().NoError(json.Unmarshal(payload, &blPackOnDB))
 
-	s.Assert().Empty(result.Events[0].BillOfLading.File.Content)
-	result.Events[0].BillOfLading.File.Content = blPackOnDB.Events[0].BillOfLading.File.Content
-	s.Assert().Equal(util.StructToJSON(result), util.StructToJSON(blPackOnDB))
+	s.Assert().Empty(result.BL.Events[0].BillOfLading.File.Content)
+	result.BL.Events[0].BillOfLading.File.Content = blPackOnDB.Events[0].BillOfLading.File.Content
+	s.Assert().Equal(util.StructToJSON(result.BL), util.StructToJSON(blPackOnDB))
 
 	// Validate the content of result (BillOfLadingPack).
 	expectedBLPackJson := `{"id":"316f5f2d-eb10-4563-a0d2-45858a57ad5e","version":1,"parent_hash":"","events":[{"bill_of_lading":{"bill_of_lading":{"transportDocumentReference":"bl_number","carrierCode":"","carrierCodeListProvider":"","issuingParty":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:issuer"}]},"shipmentLocations":[{"location":{"locationName":"Port of Loading","address":null,"UNLocationCode":"POL","facilityCode":"","facilityCodeListProvider":""},"shipmentLocationTypeCode":"POL"},{"location":{"locationName":"Port of Discharge","address":null,"UNLocationCode":"POD","facilityCode":"","facilityCodeListProvider":""},"shipmentLocationTypeCode":"POD","eventDateTime":"2022-01-01T00:00:00Z"}],"shippingInstruction":{"shippingInstructionReference":"","documentStatus":"ISSU","transportDocumentTypeCode":"","consignmentItems":null,"utilizedTransportEquipments":null,"documentParties":[{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:issuer"}]},"partyFunction":"DDR","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:shipper"}]},"partyFunction":"OS","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:consignee"}]},"partyFunction":"CN","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:release_agent"}]},"partyFunction":"DDS","isToBeNotified":false}]}},"file":{"name":"test.txt","file_type":"text/plain","content":"dGVzdCBjb250ZW50","created_date":"2024-02-23T08:19:59Z"},"doc_type":"HouseBillOfLading","created_by":"did:openebl:issuer","created_at":"2024-02-23T08:19:59Z","note":"note", "meta_data":"requester"}},{"transfer":{"transfer_by":"did:openebl:issuer","transfer_to":"did:openebl:shipper","transfer_at":"2024-02-23T08:19:59Z","meta_data":"requester"}}],"current_owner":"did:openebl:shipper"}`
 	expectedBLPack := bill_of_lading.BillOfLadingPack{}
 	json.Unmarshal([]byte(expectedBLPackJson), &expectedBLPack)
-	expectedBLPack.ID = result.ID
-	s.Assert().NotEmpty(result.ID)
-	s.Assert().Equal(util.StructToJSON(expectedBLPack), util.StructToJSON(result))
+	expectedBLPack.ID = result.BL.ID
+	s.Assert().NotEmpty(result.BL.ID)
+	s.Assert().Equal(util.StructToJSON(expectedBLPack), util.StructToJSON(result.BL))
 }
 
 func (s *FileBasedEBLTestSuite) TestUpdateDraftEBL() {
@@ -398,9 +476,9 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBL() {
 	s.Require().NoError(err)
 	receivedBLPack, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
-	s.Assert().Empty(blPack.Events[0].BillOfLading.File.Content)
-	blPack.Events[0].BillOfLading.File.Content = receivedBLPack.Events[0].BillOfLading.File.Content
-	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack))
+	s.Assert().Empty(blPack.BL.Events[0].BillOfLading.File.Content)
+	blPack.BL.Events[0].BillOfLading.File.Content = receivedBLPack.Events[0].BillOfLading.File.Content
+	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack.BL))
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLPack))
 }
 
@@ -458,8 +536,9 @@ func (s *FileBasedEBLTestSuite) TestListEBL() {
 	result, err := s.eblCtrl.List(s.ctx, req)
 	s.Require().NoError(err)
 	s.Require().Len(result.Records, 1)
-	s.Assert().Empty(result.Records[0].Events[0].BillOfLading.File.Content)
-	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result.Records[0]))
+	s.Assert().Empty(result.Records[0].BL.Events[0].BillOfLading.File.Content)
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result.Records[0].BL))
+	s.Assert().EqualValues([]trade_document.FileBasedEBLAction{trade_document.FILE_EBL_UPDATE_DRAFT, trade_document.FILE_EBL_DELETE}, result.Records[0].AllowActions)
 }
 
 func (s *FileBasedEBLTestSuite) TestShipperTransferEBL() {
@@ -534,9 +613,9 @@ func (s *FileBasedEBLTestSuite) TestShipperTransferEBL() {
 	s.Require().NoError(err)
 	receivedBLPack, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
-	s.Assert().Empty(blPack.Events[0].BillOfLading.File.Content)
-	blPack.Events[0].BillOfLading.File.Content = receivedBLPack.Events[0].BillOfLading.File.Content
-	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack))
+	s.Assert().Empty(blPack.BL.Events[0].BillOfLading.File.Content)
+	blPack.BL.Events[0].BillOfLading.File.Content = receivedBLPack.Events[0].BillOfLading.File.Content
+	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack.BL))
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLPack))
 }
 
@@ -617,9 +696,9 @@ func (s *FileBasedEBLTestSuite) TestIssuerTransferEBL() {
 	s.Require().NoError(err)
 	receivedBLPack, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
-	s.Assert().Empty(blPack.Events[0].BillOfLading.File.Content)
-	blPack.Events[0].BillOfLading.File.Content = receivedBLPack.Events[0].BillOfLading.File.Content
-	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack))
+	s.Assert().Empty(blPack.BL.Events[0].BillOfLading.File.Content)
+	blPack.BL.Events[0].BillOfLading.File.Content = receivedBLPack.Events[0].BillOfLading.File.Content
+	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack.BL))
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLPack))
 }
 
@@ -744,9 +823,9 @@ func (s *FileBasedEBLTestSuite) TestAmendmentRequestEBL() {
 	s.Require().NoError(err)
 	receivedBLPack, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
-	s.Assert().Empty(blPack.Events[0].BillOfLading.File.Content)
-	blPack.Events[0].BillOfLading.File.Content = receivedBLPack.Events[0].BillOfLading.File.Content
-	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack))
+	s.Assert().Empty(blPack.BL.Events[0].BillOfLading.File.Content)
+	blPack.BL.Events[0].BillOfLading.File.Content = receivedBLPack.Events[0].BillOfLading.File.Content
+	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack.BL))
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLPack))
 }
 
@@ -855,9 +934,9 @@ func (s *FileBasedEBLTestSuite) TestReturn() {
 
 	result, err := s.eblCtrl.Return(s.ctx, ts, req)
 	s.Require().NoError(err)
-	s.Assert().Empty(result.Events[0].BillOfLading.File.Content)
-	result.Events[0].BillOfLading.File.Content = expectedBlPack.Events[0].BillOfLading.File.Content
-	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result))
+	s.Assert().Empty(result.BL.Events[0].BillOfLading.File.Content)
+	result.BL.Events[0].BillOfLading.File.Content = expectedBlPack.Events[0].BillOfLading.File.Content
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result.BL))
 	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
@@ -919,9 +998,9 @@ func (s *FileBasedEBLTestSuite) TestReturnAmendmentRequest() {
 
 	result, err := s.eblCtrl.Return(s.ctx, ts, req)
 	s.Require().NoError(err)
-	s.Assert().Empty(result.Events[0].BillOfLading.File.Content)
-	result.Events[0].BillOfLading.File.Content = expectedBlPack.Events[0].BillOfLading.File.Content
-	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result))
+	s.Assert().Empty(result.BL.Events[0].BillOfLading.File.Content)
+	result.BL.Events[0].BillOfLading.File.Content = expectedBlPack.Events[0].BillOfLading.File.Content
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result.BL))
 	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
@@ -1019,13 +1098,13 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL() {
 	receivedBLPack, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 
-	lo.ForEach(blPack.Events, func(event bill_of_lading.BillOfLadingEvent, i int) {
+	lo.ForEach(blPack.BL.Events, func(event bill_of_lading.BillOfLadingEvent, i int) {
 		if event.BillOfLading != nil {
 			s.Assert().Empty(event.BillOfLading.File.Content)
 			event.BillOfLading.File.Content = receivedBLPack.Events[i].BillOfLading.File.Content
 		}
 	})
-	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack))
+	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack.BL))
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLPack))
 }
 
@@ -1121,13 +1200,13 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL_ReturnedByShipper() {
 	receivedBLPack, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 
-	lo.ForEach(blPack.Events, func(event bill_of_lading.BillOfLadingEvent, i int) {
+	lo.ForEach(blPack.BL.Events, func(event bill_of_lading.BillOfLadingEvent, i int) {
 		if event.BillOfLading != nil {
 			s.Assert().Empty(event.BillOfLading.File.Content)
 			event.BillOfLading.File.Content = receivedBLPack.Events[i].BillOfLading.File.Content
 		}
 	})
-	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack))
+	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack.BL))
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLPack))
 }
 
@@ -1187,9 +1266,9 @@ func (s *FileBasedEBLTestSuite) TestSurrender() {
 
 	result, err := s.eblCtrl.Surrender(s.ctx, ts, req)
 	s.Require().NoError(err)
-	s.Assert().Empty(result.Events[0].BillOfLading.File.Content)
-	result.Events[0].BillOfLading.File.Content = expectedBlPack.Events[0].BillOfLading.File.Content
-	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result))
+	s.Assert().Empty(result.BL.Events[0].BillOfLading.File.Content)
+	result.BL.Events[0].BillOfLading.File.Content = expectedBlPack.Events[0].BillOfLading.File.Content
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result.BL))
 	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
@@ -1251,9 +1330,9 @@ func (s *FileBasedEBLTestSuite) TestPrintToPaper() {
 
 	result, err := s.eblCtrl.PrintToPaper(s.ctx, ts, req)
 	s.Require().NoError(err)
-	s.Assert().Empty(result.Events[0].BillOfLading.File.Content)
-	result.Events[0].BillOfLading.File.Content = expectedBlPack.Events[0].BillOfLading.File.Content
-	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result))
+	s.Assert().Empty(result.BL.Events[0].BillOfLading.File.Content)
+	result.BL.Events[0].BillOfLading.File.Content = expectedBlPack.Events[0].BillOfLading.File.Content
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result.BL))
 	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
@@ -1315,9 +1394,9 @@ func (s *FileBasedEBLTestSuite) TestAccomplishEBL() {
 
 	result, err := s.eblCtrl.Accomplish(s.ctx, ts, req)
 	s.Require().NoError(err)
-	s.Assert().Empty(result.Events[0].BillOfLading.File.Content)
-	result.Events[0].BillOfLading.File.Content = expectedBlPack.Events[0].BillOfLading.File.Content
-	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result))
+	s.Assert().Empty(result.BL.Events[0].BillOfLading.File.Content)
+	result.BL.Events[0].BillOfLading.File.Content = expectedBlPack.Events[0].BillOfLading.File.Content
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result.BL))
 	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
@@ -1379,7 +1458,7 @@ func (s *FileBasedEBLTestSuite) TestGetEBL() {
 
 	result, err := s.eblCtrl.Get(s.ctx, req)
 	s.Require().NoError(err)
-	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result))
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result.BL))
 }
 
 func (s *FileBasedEBLTestSuite) TestDeleteDraftEBL() {
@@ -1437,9 +1516,9 @@ func (s *FileBasedEBLTestSuite) TestDeleteDraftEBL() {
 
 	result, err := s.eblCtrl.Delete(s.ctx, ts, req)
 	s.Require().NoError(err)
-	s.Assert().Empty(result.Events[0].BillOfLading.File.Content)
-	result.Events[0].BillOfLading.File.Content = expectedBlPack.Events[0].BillOfLading.File.Content
-	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result))
+	s.Assert().Empty(result.BL.Events[0].BillOfLading.File.Content)
+	result.BL.Events[0].BillOfLading.File.Content = expectedBlPack.Events[0].BillOfLading.File.Content
+	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(result.BL))
 	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))

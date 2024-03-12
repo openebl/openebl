@@ -17,8 +17,8 @@
   const dispatch = createEventDispatcher()
 
   const schema = yup.object({
-    username: yup.string().required('username is required').lowercase(),
-    password: yup.string().required('password is required').length(8),
+    username: yup.string().required('username is required').min(4).lowercase(),
+    password: yup.string().required('password is required').min(8),
     name: yup.string(),
     emails: yup.array().of(yup.string().email()),
     note: yup.string(),

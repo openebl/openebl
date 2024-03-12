@@ -79,6 +79,7 @@ func (a *API) listFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 	var req trade_document.ListFileBasedEBLRequest
 	req.RequestBy = buID
 	req.Application = appID
+	req.Limit = 20
 	req.Status = r.URL.Query().Get("status")
 	offsetStr := r.URL.Query().Get("offset")
 	if offsetStr != "" {

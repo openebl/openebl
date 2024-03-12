@@ -69,16 +69,18 @@ type ReturnFileBasedEBLRequest struct {
 
 type ListFileBasedEBLRequest struct {
 	Application string `json:"application"`
-	Lister      string `json:"lister"`
+	RequestBy   string `json:"lister"`
 
 	Offset int    `json:"offset"`
 	Limit  int    `json:"limit"`
 	Status string `json:"status"`
+	Report bool   `json:"report"`
 }
 
 type ListFileBasedEBLRecord struct {
-	Total   int                           `json:"total"`
-	Records []FileBasedBillOfLadingRecord `json:"records"`
+	Total   int                              `json:"total"`
+	Records []FileBasedBillOfLadingRecord    `json:"records"`
+	Report  *storage.ListTradeDocumentReport `json:"report,omitempty"`
 }
 
 type FileBasedBillOfLadingRecord struct {
@@ -482,7 +484,7 @@ func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLR
 		return ListFileBasedEBLRecord{}, err
 	}
 
-	if err := c.checkBUExistence(ctx, req.Application, []string{req.Lister}); err != nil {
+	if err := c.checkBUExistence(ctx, req.Application, []string{req.RequestBy}); err != nil {
 		return ListFileBasedEBLRecord{}, err
 	}
 
@@ -493,10 +495,15 @@ func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLR
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	listReq := storage.ListTradeDocumentRequest{
-		Offset: req.Offset,
-		Limit:  req.Limit,
-		Kind:   int(relay.FileBasedBillOfLading),
-		Meta:   map[string]any{strings.ToLower(req.Status): []string{req.Lister}},
+		Offset:    req.Offset,
+		Limit:     req.Limit,
+		RequestBy: req.RequestBy,
+		Kind:      int(relay.FileBasedBillOfLading),
+		Report:    req.Report,
+		Meta:      map[string]any{strings.ToLower(req.Status): []string{req.RequestBy}},
+	}
+	if req.Status != "" {
+		listReq.Meta = map[string]any{strings.ToLower(req.Status): []string{req.RequestBy}}
 	}
 
 	listResp, err := c.storage.ListTradeDocument(ctx, tx, listReq)
@@ -505,7 +512,8 @@ func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLR
 	}
 
 	res := ListFileBasedEBLRecord{
-		Total: listResp.Total,
+		Total:  listResp.Total,
+		Report: listResp.Report,
 		Records: lo.Map(listResp.Docs, func(td storage.TradeDocument, _ int) FileBasedBillOfLadingRecord {
 			blPack, _ := ExtractBLPackFromTradeDocument(td)
 			for _, e := range blPack.Events {
@@ -515,7 +523,7 @@ func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLR
 			}
 
 			return FileBasedBillOfLadingRecord{
-				AllowActions: GetFileBasedEBLAllowActions(&blPack, req.Lister),
+				AllowActions: GetFileBasedEBLAllowActions(&blPack, req.RequestBy),
 				BL:           &blPack,
 			}
 		}),

@@ -18,6 +18,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/middleware"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
+	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/trade_document"
 	"github.com/openebl/openebl/pkg/util"
 	mock_auth "github.com/openebl/openebl/test/mock/bu_server/auth"
@@ -413,18 +414,20 @@ func (s *APITestSuite) TestUpdateFileBasedEBL() {
 }
 
 func (s *APITestSuite) TestListFileBasedEBL() {
-	endPoint := fmt.Sprintf("http://%s/ebl?offset=2&limit=5&status=sent", s.localAddress)
+	endPoint := fmt.Sprintf("http://%s/ebl?offset=2&limit=5&status=sent&report=TrUe", s.localAddress)
 
 	expectedReq := trade_document.ListFileBasedEBLRequest{
 		Application: s.appId,
-		Lister:      "issuer",
+		RequestBy:   "issuer",
 		Offset:      2,
 		Limit:       5,
 		Status:      "sent",
+		Report:      true,
 	}
 
 	billOfLadingRecord := trade_document.ListFileBasedEBLRecord{
 		Total:   5,
+		Report:  &storage.ListTradeDocumentReport{},
 		Records: []trade_document.FileBasedBillOfLadingRecord{},
 	}
 

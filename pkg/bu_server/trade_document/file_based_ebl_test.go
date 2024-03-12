@@ -485,7 +485,7 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBL() {
 func (s *FileBasedEBLTestSuite) TestListEBL() {
 	req := trade_document.ListFileBasedEBLRequest{
 		Application: "appid",
-		Lister:      "did:openebl:issuer",
+		RequestBy:   "did:openebl:issuer",
 		Offset:      0,
 		Limit:       20,
 		Status:      "action_needed",

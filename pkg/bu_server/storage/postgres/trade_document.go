@@ -37,17 +37,23 @@ INSERT INTO trade_document (id, kind, doc_id, doc_version, doc, created_at, meta
 
 func (s *_Storage) ListTradeDocument(ctx context.Context, tx storage.Tx, req storage.ListTradeDocumentRequest) (storage.ListTradeDocumentResponse, error) {
 	query := `
-WITH filtered_record AS (
-	SELECT DISTINCT ON (rec_id, doc_id)
-		first_value(rec_id) OVER (PARTITION BY doc_id ORDER BY doc_version DESC) AS rec_id,
-		first_value(id) OVER (PARTITION BY doc_id ORDER BY doc_version DESC) AS id,
-		first_value(kind) OVER (PARTITION BY doc_id ORDER BY doc_version DESC) AS kind,
+WITH latest_visible AS (
+    SELECT DISTINCT ON (rec_id, doc_id)
+		first_value(rec_id) OVER w AS rec_id,
+		first_value(id) OVER w AS id,
+		first_value(kind) OVER w AS kind,
 		doc_id,
-		first_value(doc_version) OVER (PARTITION BY doc_id ORDER BY doc_version DESC) AS doc_version,
-		first_value(doc) OVER (PARTITION BY doc_id ORDER BY doc_version DESC) AS doc,
-		first_value(created_at) OVER (PARTITION BY doc_id ORDER BY doc_version DESC) AS created_at,
-		first_value(meta) OVER (PARTITION BY doc_id ORDER BY doc_version DESC) AS meta
+		first_value(doc_version) OVER w AS doc_version,
+		first_value(doc) OVER w AS doc,
+		first_value(created_at) OVER w AS created_at,
+		first_value(meta) OVER w AS meta
 	FROM trade_document td
+    WHERE ($6 = '' OR meta @> jsonb_build_object('visible_to_bu', ARRAY[$6]))
+    WINDOW w AS (PARTITION BY doc_id ORDER BY doc_version DESC)
+)
+, filtered_record AS (
+	SELECT *
+	FROM latest_visible
 	WHERE
 		($3 = 0 OR $3 = kind) AND
 		(COALESCE(ARRAY_LENGTH($4::TEXT[], 1), 0) = 0 OR doc_id = ANY($4)) AND
@@ -70,6 +76,16 @@ WITH filtered_record AS (
 SELECT *
 FROM paged_record
 FULL JOIN report ON TRUE
+LEFT JOIN LATERAL(
+  SELECT 
+    jsonb_build_object(
+      'action_needed', COUNT(*) FILTER(WHERE meta @> jsonb_build_object('action_needed', ARRAY[$6])),
+      'upcoming', COUNT(*) FILTER(WHERE meta @> jsonb_build_object('upcoming', ARRAY[$6])),
+      'sent', COUNT(*) FILTER(WHERE meta @> jsonb_build_object('sent', ARRAY[$6])),
+      'archive', COUNT(*) FILTER(WHERE meta @> jsonb_build_object('archive', ARRAY[$6]))
+    ) AS report
+  FROM latest_visible
+) ON $7
 `
 
 	rows, err := tx.Query(
@@ -80,6 +96,8 @@ FULL JOIN report ON TRUE
 		req.Kind,
 		req.DocIDs,
 		req.Meta,
+		req.RequestBy,
+		req.Report,
 	)
 	if err != nil {
 		return storage.ListTradeDocumentResponse{}, err
@@ -104,6 +122,7 @@ FULL JOIN report ON TRUE
 			&createdAt,
 			&meta,
 			&result.Total,
+			&result.Report,
 		)
 		if err != nil {
 			return storage.ListTradeDocumentResponse{}, err

@@ -63,6 +63,7 @@ type TradeDocument struct {
 	CreatedAt  int64          // When the trade document is created.
 	Meta       map[string]any // Indexing Data for search or list operations.
 }
+
 type ListTradeDocumentRequest struct {
 	Offset int
 	Limit  int
@@ -71,11 +72,25 @@ type ListTradeDocumentRequest struct {
 	Kind   int
 	DocIDs []string
 	Meta   map[string]any
+
+	// generate the status report by business unit.
+	Report    bool
+	RequestBy string
 }
+
+type ListTradeDocumentReport struct {
+	ActionNeeded int `json:"action_needed"`
+	Upcoming     int `json:"upcoming"`
+	Sent         int `json:"sent"`
+	Archive      int `json:"archive"`
+}
+
 type ListTradeDocumentResponse struct {
-	Total int
-	Docs  []TradeDocument
+	Total  int
+	Docs   []TradeDocument
+	Report *ListTradeDocumentReport
 }
+
 type TradeDocumentStorage interface {
 	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, error)
 	AddTradeDocument(ctx context.Context, tx Tx, tradeDoc TradeDocument) error

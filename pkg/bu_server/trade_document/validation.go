@@ -5,6 +5,7 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/openebl/openebl/pkg/bu_server/model"
+	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
 )
 
 type LocationRule struct{}
@@ -27,7 +28,8 @@ func ValidateIssueFileBasedEBLRequest(req IssueFileBasedEBLRequest) error {
 		validation.Field(&req.Application, validation.Required),
 		validation.Field(&req.File, validation.Required),
 		validation.Field(&req.BLNumber, validation.Required),
-		validation.Field(&req.BLDocType, validation.Required),
+		validation.Field(&req.BLDocType, validation.Required, validation.In(bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading)),
+		validation.Field(&req.ToOrder, validation.In(false)),
 		validation.Field(&req.POL, validation.Required, &LocationRule{}),
 		validation.Field(&req.POD, validation.Required, &LocationRule{}),
 		validation.Field(&req.Issuer, validation.Required),
@@ -49,7 +51,8 @@ func ValidateUpdateFileBasedEBLRequest(req UpdateFileBasedEBLDraftRequest) error
 		validation.Field(&req.Application, validation.Required),
 		validation.Field(&req.File, validation.Required),
 		validation.Field(&req.BLNumber, validation.Required),
-		validation.Field(&req.BLDocType, validation.Required),
+		validation.Field(&req.BLDocType, validation.Required, validation.In(bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading)),
+		validation.Field(&req.ToOrder, validation.In(false)),
 		validation.Field(&req.POL, validation.Required, &LocationRule{}),
 		validation.Field(&req.POD, validation.Required, &LocationRule{}),
 		validation.Field(&req.Issuer, validation.Required),
@@ -125,7 +128,8 @@ func ValidateAmendFileBasedEBLRequest(req AmendFileBasedEBLRequest) error {
 		validation.Field(&req.ID, validation.Required),
 		validation.Field(&req.File, validation.Required),
 		validation.Field(&req.BLNumber, validation.Required),
-		validation.Field(&req.BLDocType, validation.Required),
+		validation.Field(&req.BLDocType, validation.Required, validation.In(bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading)),
+		validation.Field(&req.ToOrder, validation.In(false)),
 		validation.Field(&req.POL, validation.Required, &LocationRule{}),
 		validation.Field(&req.POD, validation.Required, &LocationRule{}),
 	); err != nil {

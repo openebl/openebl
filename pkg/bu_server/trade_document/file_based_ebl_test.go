@@ -51,6 +51,8 @@ type FileBasedEBLTestSuite struct {
 	releaseAgentEbl             storage.TradeDocument
 	issuerEblAmendmentRequested storage.TradeDocument
 	issuerReturnedEbl           storage.TradeDocument
+	accomplishedEbl             storage.TradeDocument
+	consigneePrintedEbl         storage.TradeDocument
 }
 
 const id = "316f5f2d-eb10-4563-a0d2-45858a57ad5e"
@@ -76,6 +78,8 @@ func (s *FileBasedEBLTestSuite) SetupSuite() {
 	s.releaseAgentEbl = s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/release_agent_ebl_jws.json")
 	s.issuerEblAmendmentRequested = s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/issuer_ebl_amendment_request_by_consignee_jws.json")
 	s.issuerReturnedEbl = s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/issuer_ebl_returned_by_shipper_jws.json")
+	s.accomplishedEbl = s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/release_agent_accomplished_ebl_jws.json")
+	s.consigneePrintedEbl = s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/consignee_printed_ebl_jws.json")
 
 	s.issuerSigner, _ = business_unit.DefaultJWSSignerFactory.NewJWSSigner(s.issuerAuth)
 	s.shipperSigner, _ = business_unit.DefaultJWSSignerFactory.NewJWSSigner(s.shipperAuth)
@@ -220,6 +224,14 @@ func (s *FileBasedEBLTestSuite) TestEBLAllowActions() {
 				trade_document.FILE_EBL_PRINT,
 				trade_document.FILE_EBL_TRANSFER,
 			},
+		},
+		{
+			Name: "Accomplished EBL",
+			Doc:  s.accomplishedEbl,
+		},
+		{
+			Name: "Printed EBL",
+			Doc:  s.consigneePrintedEbl,
 		},
 	}
 

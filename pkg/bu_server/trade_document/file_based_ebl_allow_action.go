@@ -80,7 +80,7 @@ func CheckFileBasedEBLAllowAction(action FileBasedEBLAction, bl *bill_of_lading.
 func IsFileEBLUpdatable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {
 	if draft := GetDraft(bl); draft == nil || !*draft {
 		if withDetail {
-			return fmt.Errorf("not a draft%w", model.ErrEBLActionNotAllowed)
+			return fmt.Errorf("not draft eB/L%w", model.ErrEBLActionNotAllowed)
 		}
 		return model.ErrEBLActionNotAllowed
 	}
@@ -96,19 +96,6 @@ func IsFileEBLUpdatable(bl *bill_of_lading.BillOfLadingPack, bu string, withDeta
 }
 
 func IsFileEBLAmendable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {
-	if bu == "" {
-		if withDetail {
-			return fmt.Errorf("empty bu%w", model.ErrEBLActionNotAllowed)
-		}
-		return model.ErrEBLActionNotAllowed
-	}
-	if bl == nil {
-		if withDetail {
-			return fmt.Errorf("empty(nil) eBL%w", model.ErrEBLActionNotAllowed)
-		}
-		return model.ErrEBLActionNotAllowed
-	}
-
 	if draft := GetDraft(bl); draft == nil || *draft {
 		if withDetail {
 			return fmt.Errorf("draft eBL%w", model.ErrEBLActionNotAllowed)
@@ -150,13 +137,34 @@ func IsFileEBLAmendable(bl *bill_of_lading.BillOfLadingPack, bu string, withDeta
 }
 
 func IsFileEBLRequestAmendable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {
-	if bu != GetCurrentOwner(bl) {
+	if draft := GetDraft(bl); draft == nil || *draft {
 		if withDetail {
-			return fmt.Errorf("not the current owner. %w", model.ErrEBLActionNotAllowed)
+			return fmt.Errorf("draft eBL%w", model.ErrEBLActionNotAllowed)
 		}
 		return model.ErrEBLActionNotAllowed
 	}
 
+	lastEvent := GetLastEvent(bl)
+	if lastEvent == nil {
+		if withDetail {
+			return fmt.Errorf("empty eBL%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+	if lastEvent.Accomplish != nil || lastEvent.PrintToPaper != nil {
+		if withDetail {
+			return fmt.Errorf("not amendment requestable due to the bill of lading is printed or accomplished%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
+	_, to := GetOwnerShipTransferringByEvent(lastEvent)
+	if bu != to {
+		if withDetail {
+			return fmt.Errorf("not the owner%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
 	parties := GetFileBaseEBLParticipatorsFromBLPack(bl)
 	if bu != parties.Shipper && bu != parties.Consignee && bu != parties.ReleaseAgent {
 		if withDetail {
@@ -184,18 +192,17 @@ func IsFileEBLPrintable(bl *bill_of_lading.BillOfLadingPack, bu string, withDeta
 		}
 		return model.ErrEBLActionNotAllowed
 	}
+	if lastEvent.Accomplish != nil || lastEvent.PrintToPaper != nil {
+		if withDetail {
+			return fmt.Errorf("not printable due to the bill of lading is printed or accomplished%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
 
 	_, to := GetOwnerShipTransferringByEvent(lastEvent)
 	if bu != to {
 		if withDetail {
 			return fmt.Errorf("not the owner%w", model.ErrEBLActionNotAllowed)
-		}
-		return model.ErrEBLActionNotAllowed
-	}
-
-	if lastEvent.Accomplish != nil || lastEvent.PrintToPaper != nil {
-		if withDetail {
-			return fmt.Errorf("not printable due to the bill of lading is printed or accomplished%w", model.ErrEBLActionNotAllowed)
 		}
 		return model.ErrEBLActionNotAllowed
 	}
@@ -212,6 +219,19 @@ func IsFileEBLTransferable(bl *bill_of_lading.BillOfLadingPack, bu string, withD
 	}
 
 	lastEvent := GetLastEvent(bl)
+	if lastEvent == nil {
+		if withDetail {
+			return fmt.Errorf("empty eBL%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+	if lastEvent.Accomplish != nil || lastEvent.PrintToPaper != nil {
+		if withDetail {
+			return fmt.Errorf("not transferable due to the bill of lading is printed or accomplished%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
 	_, to := GetOwnerShipTransferringByEvent(lastEvent)
 	if bu != to {
 		if withDetail {
@@ -238,19 +258,6 @@ func IsFileEBLTransferable(bl *bill_of_lading.BillOfLadingPack, bu string, withD
 }
 
 func IsFileEBLReturnable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {
-	if bu == "" {
-		if withDetail {
-			return fmt.Errorf("empty bu%w", model.ErrEBLActionNotAllowed)
-		}
-		return model.ErrEBLActionNotAllowed
-	}
-	if bl == nil {
-		if withDetail {
-			return fmt.Errorf("empty(nil) eBL%w", model.ErrEBLActionNotAllowed)
-		}
-		return model.ErrEBLActionNotAllowed
-	}
-
 	if draft := GetDraft(bl); draft == nil || *draft {
 		if withDetail {
 			return fmt.Errorf("draft eBL%w", model.ErrEBLActionNotAllowed)
@@ -298,10 +305,23 @@ func IsFileEBLReturnable(bl *bill_of_lading.BillOfLadingPack, bu string, withDet
 }
 
 func IsFileEBLSurrenderable(bl *bill_of_lading.BillOfLadingPack, bu string, withDetail bool) error {
+	if draft := GetDraft(bl); draft == nil || *draft {
+		if withDetail {
+			return fmt.Errorf("draft eBL%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+
 	lastEvent := GetLastEvent(bl)
 	if lastEvent == nil {
 		if withDetail {
 			return fmt.Errorf("empty eBL%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+	if lastEvent.Accomplish != nil || lastEvent.PrintToPaper != nil {
+		if withDetail {
+			return fmt.Errorf("not surrenderable due to the bill of lading is printed or accomplished%w", model.ErrEBLActionNotAllowed)
 		}
 		return model.ErrEBLActionNotAllowed
 	}
@@ -333,6 +353,12 @@ func IsFileEBLAccomplishable(bl *bill_of_lading.BillOfLadingPack, bu string, wit
 		}
 		return model.ErrEBLActionNotAllowed
 	}
+	if lastEvent.Accomplish != nil || lastEvent.PrintToPaper != nil {
+		if withDetail {
+			return fmt.Errorf("not accomplishable due to the bill of lading is printed or accomplished%w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
 
 	_, to := GetOwnerShipTransferringByEvent(lastEvent)
 	if to != bu {
@@ -350,13 +376,6 @@ func IsFileEBLAccomplishable(bl *bill_of_lading.BillOfLadingPack, bu string, wit
 		return model.ErrEBLActionNotAllowed
 	}
 
-	if lastEvent.Accomplish != nil || lastEvent.PrintToPaper != nil {
-		if withDetail {
-			return fmt.Errorf("not accomplishable due to the bill of lading is printed or accomplished%w", model.ErrEBLActionNotAllowed)
-		}
-		return model.ErrEBLActionNotAllowed
-	}
-
 	return nil
 }
 
@@ -368,10 +387,9 @@ func IsFileEBLDeletable(bl *bill_of_lading.BillOfLadingPack, bu string, withDeta
 		return model.ErrEBLActionNotAllowed
 	}
 
-	participants := GetFileBaseEBLParticipatorsFromBLPack(bl)
-	if bu != participants.Issuer {
+	if issuer := GetIssuer(bl); issuer == nil || *issuer != bu {
 		if withDetail {
-			return fmt.Errorf("not the release_agent%w", model.ErrEBLActionNotAllowed)
+			return fmt.Errorf("not the issuer%w", model.ErrEBLActionNotAllowed)
 		}
 		return model.ErrEBLActionNotAllowed
 	}

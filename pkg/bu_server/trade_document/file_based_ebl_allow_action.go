@@ -37,8 +37,9 @@ var _allowActionChecker = map[FileBasedEBLAction]_AllowActionChecker{
 }
 
 func GetFileBasedEBLAllowActions(bl *bill_of_lading.BillOfLadingPack, bu string) []FileBasedEBLAction {
+	actions := make([]FileBasedEBLAction, 0)
 	if bl == nil || bu == "" {
-		return nil
+		return actions
 	}
 
 	actionList := []FileBasedEBLAction{
@@ -53,16 +54,12 @@ func GetFileBasedEBLAllowActions(bl *bill_of_lading.BillOfLadingPack, bu string)
 		FILE_EBL_DELETE,
 	}
 
-	var actions []FileBasedEBLAction
 	for _, action := range actionList {
 		if err := CheckFileBasedEBLAllowAction(action, bl, bu, false); err == nil {
 			actions = append(actions, action)
 		}
 	}
 
-	if len(actions) == 0 {
-		return nil
-	}
 	return actions
 }
 

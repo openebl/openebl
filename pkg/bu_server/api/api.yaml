@@ -10,6 +10,8 @@ tags:
     description: Business unit management
   - name: eB/L
     description: Electronic Bill of Lading management
+  - name: webhook
+    description: Webhook management
 paths:
   /business_unit:
     post:
@@ -802,6 +804,160 @@ paths:
           description: eB/L not found
         '500':
           description: Internal server error
+
+  /webhook:
+    get:
+      tags: [webhook]
+      summary: List all webhook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: offset
+          in: query
+          description: Number of items to skip before returning the results
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          description: Maximum number of items to return
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            default: 20
+      responses:
+        '200':
+          description: webhook retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListWebhookRecord'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+    post:
+      tags: [webhook]
+      summary: Create a new webhook
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWebhookRequest'
+      responses:
+        '201':
+          description: webhook created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+      callbacks:
+        WebhookEvent:
+          '{$request.body#/url}':
+            post:
+              parameters:
+                - name: X-Payload-Signature
+                  in: header
+                  schema:
+                    type: string
+                  description: HMAC-SHA1 hash signature generated with user-specified secret
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/WebhookEvent'
+              responses:
+                '200':
+                  description: Your server returns this code if it accepts the callback
+  /webhook/{id}:
+    get:
+      tags: [webhook]
+      summary: Get a specific webhook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the webhook to retrieve
+      responses:
+        '200':
+          description: webhook retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '400':
+          description: Invalid request
+        '404':
+          description: webhook not found
+        '500':
+          description: Internal server error
+    post:
+      tags: [webhook]
+      summary: Update a specific webhook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the webhook to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWebhookRequest'
+      responses:
+        '200':
+          description: webhook updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '400':
+          description: Invalid request
+        '404':
+          description: webhook not found
+        '500':
+          description: Internal server error
+    delete:
+      tags: [webhook]
+      summary: Delete a specific webhook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the webhook to delete
+      responses:
+        '200':
+          description: webhook deleted successfully
+        '400':
+          description: Invalid request
+        '404':
+          description: webhook not found
+        '500':
+          description: Internal server error
 components:
   securitySchemes:
     bearerAuth:            # arbitrary name for the security scheme
@@ -1361,6 +1517,80 @@ components:
             $ref: '#/components/schemas/BillOfLadingRecord'
         report:
           $ref: '#/components/schemas/ListBillOfLadingReport'
+    WebhookEventType:
+      type: string
+      description: event to trigger the webhook
+      enum:
+        - bl.issued
+        - bl.transferred
+        - bl.returned
+        - bl.amendment_requested
+        - bl.amended
+        - bl.surrendered
+        - bl.accomplished
+        - bl.printed_to_paper
+        - bu.created
+        - bu.updated
+        - auth.created
+        - auth.revoked
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique ID of a webhook
+        version:
+          type: integer
+          format: int64
+          description: Version of the webhook
+        url:
+          type: string
+          description: The URL that should have the event issued to it
+        created_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the webhook was created
+        created_by:
+          type: string
+          description: User who created the webhook
+        updated_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the webhook was last updated
+        updated_by:
+          type: string
+          description: User who last updated the webhook
+        events:
+          type: array
+          items:
+            - $ref: '#/components/schemas/WebhookEventType'
+        secret:
+          type: string
+          description: secret key used to generate the signature
+    WebhookEvent:
+      type: object
+      description: Webhook event sent to the given URL
+      properties:
+        id:
+          type: string
+          description: Unique ID of the object that is the subject of the event trigger
+        type:
+          $ref: '#/components/schemas/WebhookEventType'
+        created_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the event was created
+    ListWebhookRecord:
+      type: object
+      properties:
+        total:
+          type: integer
+          format: int32
+          description: Total number of the webhook
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/Webhook'
     # eB/L API request
     BaseRequest:
       type: object
@@ -1487,6 +1717,9 @@ components:
         - $ref: '#/components/schemas/BaseRequest'
         - type: object
           properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
             note:
               type: string
               description: Optional note from the requester
@@ -1557,3 +1790,26 @@ components:
               description: Optional note from the requester
           required:
             - authentication_id
+    # webhook API request
+    UpdateWebhookRequest:
+      allOf:
+        - type: object
+          properties:
+            requester:
+              type: string
+              description: User who makes the request
+            url:
+              type: string
+              description: The URL that should have WebhookEvent issued to it
+            events:
+              type: array
+              items:
+                $ref: '#/components/schemas/WebhookEventType'
+            secret:
+              type: string
+              description: Secret key used to create a hash signature that's sent to the url with each payload
+          required:
+            - requester
+            - url
+            - events
+            - secret

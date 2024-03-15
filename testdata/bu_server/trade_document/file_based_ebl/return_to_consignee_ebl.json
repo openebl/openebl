@@ -1,7 +1,7 @@
 {
     "id": "316f5f2d-eb10-4563-a0d2-45858a57ad5e",
     "version": 5,
-    "parent_hash": "435995986c14c9b29147ec299f718d005172f2ca82fd8e35304b9f06f0788feb52eb03176928079a9253e9d0ab085d646d0566d57f4ce58444e1beca80df03e7",
+    "parent_hash": "bb2429c1a4ff41ee0cf4baba80e11ec016c6afa17ee84642f668589f504e37f0239622d3d2ce10a24cbc71b4900785cfd63fe6789a07cf06bb5b42f00fba9a64",
     "events": [
         {
             "bill_of_lading": {
@@ -113,7 +113,9 @@
                 "created_by": "did:openebl:issuer",
                 "created_at": "2024-02-24T08:19:59Z",
                 "note": "note",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         },
         {
@@ -122,7 +124,9 @@
                 "transfer_to": "did:openebl:shipper",
                 "transfer_at": "2024-02-24T08:19:59Z",
                 "note": "note",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         },
         {
@@ -131,7 +135,9 @@
                 "transfer_to": "did:openebl:consignee",
                 "transfer_at": "2024-03-04T05:18:22Z",
                 "note": "note",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         },
         {
@@ -140,7 +146,9 @@
                 "request_to": "did:openebl:issuer",
                 "request_at": "2024-03-04T09:53:21Z",
                 "note": "amendment request note",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         },
         {
@@ -149,7 +157,9 @@
                 "return_to": "did:openebl:consignee",
                 "return_at": "2024-03-05T05:18:22Z",
                 "note": "Return the ownership back to the ament requester (consignee in this case)",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         }
     ],

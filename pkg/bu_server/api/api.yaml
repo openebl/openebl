@@ -1222,6 +1222,9 @@ components:
         UNLocationCode:
           type: string
           description: UN location code
+    ApplicationMetaData:
+      type: object
+      description: Application specific metadata. It must be a valid JSON object.
     ShipmentLocation:
       type: object
       description: Maps the relationship between shipment and location
@@ -1319,9 +1322,8 @@ components:
         note:
           type: string
           description: Optional note from the requester
-        meta_data:
-          type: string
-          description: All fully customized data.
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
     Transfer:
       type: object
       description: Event of transferring the eB/L
@@ -1339,9 +1341,8 @@ components:
         note:
           type: string
           description: Optional note from the requester
-        meta_data:
-          type: string
-          description: All fully customized data.
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
     Return:
       type: object
       description: Event of returning the eB/L
@@ -1359,9 +1360,8 @@ components:
         note:
           type: string
           description: Optional note from the requester
-        meta_data:
-          type: string
-          description: All fully customized data.
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
     Surrender:
       type: object
       description: Event of surrendering the eB/L
@@ -1379,9 +1379,8 @@ components:
         note:
           type: string
           description: Optional note from the requester
-        meta_data:
-          type: string
-          description: All fully customized data.
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
     AmendmentRequest:
       type: object
       description: Event of requesting amendment for the eB/L
@@ -1399,9 +1398,8 @@ components:
         note:
           type: string
           description: Optional note from the requester
-        meta_data:
-          type: string
-          description: All fully customized data.
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
     PrintToPaper:
       type: object
       description: Event of printing the eB/L to paper
@@ -1416,9 +1414,8 @@ components:
         note:
           type: string
           description: Optional note from the requester
-        meta_data:
-          type: string
-          description: All fully customized data.
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
     Accomplish:
       type: object
       description: Event of accomplishing the eB/L
@@ -1433,9 +1430,8 @@ components:
         note:
           type: string
           description: Optional note from the requester
-        meta_data:
-          type: string
-          description: All fully customized data.
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
     BillOfLadingEvent:
       type: object
       description: Event of the eB/L
@@ -1595,9 +1591,8 @@ components:
     BaseRequest:
       type: object
       properties:
-        meta_data:
-          type: string
-          description: All fully customized data.
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
     UpdateBillOfLadingRequest:
       allOf:
         - $ref: '#/components/schemas/BaseRequest'

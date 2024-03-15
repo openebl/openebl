@@ -119,7 +119,9 @@
             "delete": {
                 "delete_by": "did:openebl:issuer",
                 "delete_at": "2024-03-07T01:55:08Z",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         }
     ],

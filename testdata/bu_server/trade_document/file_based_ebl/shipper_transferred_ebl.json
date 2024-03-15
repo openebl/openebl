@@ -112,8 +112,7 @@
                 "doc_type": "HouseBillOfLading",
                 "created_by": "did:openebl:issuer",
                 "created_at": "2024-02-24T08:19:59Z",
-                "note": "note",
-                "meta_data": "requester"
+                "note": "note"
             }
         },
         {
@@ -121,8 +120,7 @@
                 "transfer_by": "did:openebl:issuer",
                 "transfer_to": "did:openebl:shipper",
                 "transfer_at": "2024-02-24T08:19:59Z",
-                "note": "note",
-                "meta_data": "requester"
+                "note": "note"
             }
         },
         {
@@ -130,8 +128,7 @@
                 "return_by": "did:openebl:shipper",
                 "return_to": "did:openebl:issuer",
                 "return_at": "2024-03-11T05:57:27Z",
-                "note": "returned by shipper",
-                "meta_data": "requester"
+                "note": "returned by shipper"
             }
         },
         {
@@ -140,7 +137,9 @@
                 "transfer_to": "did:openebl:shipper",
                 "transfer_at": "2024-03-11T09:41:39Z",
                 "note": "transferred by issuer",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         }
     ],

@@ -1563,7 +1563,7 @@ components:
         events:
           type: array
           items:
-            - $ref: '#/components/schemas/WebhookEventType'
+            $ref: '#/components/schemas/WebhookEventType'
         secret:
           type: string
           description: secret key used to generate the signature
@@ -1623,30 +1623,29 @@ components:
             pol:
               allOf:
               - $ref: '#/components/schemas/Location'
-              description: The port of loading
+              description: The port of loading. It's optional when draft is true.
             pod:
               allOf:
               - $ref: '#/components/schemas/Location'
-              description: The port of discharge
+              description: The port of discharge. It's optional when draft is true.
             eta:
               type: string
               format: date-time
               description: The estimated time of arrival
             shipper:
               type: string
-              description: The shipper of the eB/L. It's a DID of the business unit.
+              description: The shipper of the eB/L. It's a DID of the business unit. It's optional when draft is true.
             consignee:
               type: string
-              description: The consignee of the eB/L. It's a DID of the business unit.
+              description: The consignee of the eB/L. It's a DID of the business unit. It's optional when draft is true.
             release_agent:
               type: string
-              description: The release agent of the eB/L. It's a DID of the business unit.
+              description: The release agent of the eB/L. It's a DID of the business unit. It's optional when draft is true.
             note:
               type: string
               description: Any additional notes
             draft:
               type: boolean
-              nullable: true
               description: Indicates if the eB/L is a draft
           required:
             - authentication_id

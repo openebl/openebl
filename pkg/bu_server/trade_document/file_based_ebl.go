@@ -44,7 +44,7 @@ type IssueFileBasedEBLRequest struct {
 	ToOrder      bool                                    `json:"to_order"`
 	POL          Location                                `json:"pol"`
 	POD          Location                                `json:"pod"`
-	ETA          model.DateTime                          `json:"eta,omitempty"`
+	ETA          *model.DateTime                         `json:"eta,omitempty"`
 	Shipper      string                                  `json:"shipper"`
 	Consignee    string                                  `json:"consignee"`
 	ReleaseAgent string                                  `json:"release_agent"`
@@ -121,7 +121,7 @@ type AmendFileBasedEBLRequest struct {
 	ToOrder   bool                                    `json:"to_order"`
 	POL       Location                                `json:"pol"`
 	POD       Location                                `json:"pod"`
-	ETA       model.DateTime                          `json:"eta,omitempty"`
+	ETA       *model.DateTime                         `json:"eta,omitempty"`
 	Note      string                                  `json:"note"`
 }
 
@@ -213,7 +213,11 @@ func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request I
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
-	if err := c.checkBUExistence(ctx, request.Application, []string{request.Issuer, request.Shipper, request.Consignee, request.ReleaseAgent}); err != nil {
+	requiredBUList := []string{request.Issuer}
+	if !*request.Draft {
+		requiredBUList = append(requiredBUList, request.Shipper, request.Consignee, request.ReleaseAgent)
+	}
+	if err := c.checkBUExistence(ctx, request.Application, requiredBUList); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -280,7 +284,11 @@ func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, requ
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
-	if err := c.checkBUExistence(ctx, request.Application, []string{request.Issuer, request.Shipper, request.Consignee, request.ReleaseAgent}); err != nil {
+	requiredBUList := []string{request.Issuer}
+	if !*request.Draft {
+		requiredBUList = append(requiredBUList, request.Shipper, request.Consignee, request.ReleaseAgent)
+	}
+	if err := c.checkBUExistence(ctx, request.Application, requiredBUList); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -435,7 +443,9 @@ func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, cu
 	td := bl.BillOfLading
 	SetPOL(td, request.POL)
 	SetPOD(td, request.POD)
-	SetETA(td, request.ETA)
+	if request.ETA != nil {
+		SetETA(td, *request.ETA)
+	}
 	SetIssuer(td, request.Issuer)
 	SetShipper(td, request.Shipper)
 	SetConsignee(td, request.Consignee)
@@ -469,7 +479,9 @@ func AmendFileBasedBillOfLadingFromRequest(req AmendFileBasedEBLRequest, oldPack
 	td := bl.BillOfLading
 	SetPOL(td, req.POL)
 	SetPOD(td, req.POD)
-	SetETA(td, req.ETA)
+	if req.ETA != nil {
+		SetETA(td, *req.ETA)
+	}
 	SetIssuer(td, parties.Issuer)
 	SetShipper(td, parties.Shipper)
 	SetConsignee(td, parties.Consignee)

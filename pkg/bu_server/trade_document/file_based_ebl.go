@@ -33,10 +33,10 @@ type Location struct {
 }
 
 type IssueFileBasedEBLRequest struct {
-	Application      string `json:"application"`
-	Issuer           string `json:"issuer"`
-	AuthenticationID string `json:"authentication_id"`
-	MetaData         string `json:"meta_data,omitempty"`
+	Application      string                             `json:"application"`
+	Issuer           string                             `json:"issuer"`
+	AuthenticationID string                             `json:"authentication_id"`
+	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
 	File         File                                    `json:"file"`
 	BLNumber     string                                  `json:"bl_number"`
@@ -58,10 +58,10 @@ type UpdateFileBasedEBLDraftRequest struct {
 }
 
 type ReturnFileBasedEBLRequest struct {
-	Application      string `json:"application"`
-	BusinessUnit     string `json:"business_unit"`
-	AuthenticationID string `json:"authentication_id"`
-	MetaData         string `json:"meta_data,omitempty"`
+	Application      string                             `json:"application"`
+	BusinessUnit     string                             `json:"business_unit"`
+	AuthenticationID string                             `json:"authentication_id"`
+	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
 	ID   string `json:"id"`
 	Note string `json:"note"`
@@ -89,30 +89,30 @@ type FileBasedBillOfLadingRecord struct {
 }
 
 type TransferEBLRequest struct {
-	Application      string `json:"application"`
-	TransferBy       string `json:"transfer_by"`
-	AuthenticationID string `json:"authentication_id"`
-	MetaData         string `json:"meta_data,omitempty"`
+	Application      string                             `json:"application"`
+	TransferBy       string                             `json:"transfer_by"`
+	AuthenticationID string                             `json:"authentication_id"`
+	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
 	ID   string `json:"id"`
 	Note string `json:"note"`
 }
 
 type AmendmentRequestEBLRequest struct {
-	Application      string `json:"application"`
-	RequestBy        string `json:"request_by"`
-	AuthenticationID string `json:"authentication_id"`
-	MetaData         string `json:"meta_data,omitempty"`
+	Application      string                             `json:"application"`
+	RequestBy        string                             `json:"request_by"`
+	AuthenticationID string                             `json:"authentication_id"`
+	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
 	ID   string `json:"id"`
 	Note string `json:"note"`
 }
 
 type AmendFileBasedEBLRequest struct {
-	Application      string `json:"application"`
-	Issuer           string `json:"issuer"`
-	AuthenticationID string `json:"authentication_id"`
-	MetaData         string `json:"meta_data,omitempty"`
+	Application      string                             `json:"application"`
+	Issuer           string                             `json:"issuer"`
+	AuthenticationID string                             `json:"authentication_id"`
+	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
 	ID        string                                  `json:"id"`
 	File      File                                    `json:"file"`
@@ -126,30 +126,30 @@ type AmendFileBasedEBLRequest struct {
 }
 
 type SurrenderEBLRequest struct {
-	Application      string `json:"application"`
-	RequestBy        string `json:"request_by"`
-	AuthenticationID string `json:"authentication_id"`
-	MetaData         string `json:"meta_data,omitempty"`
+	Application      string                             `json:"application"`
+	RequestBy        string                             `json:"request_by"`
+	AuthenticationID string                             `json:"authentication_id"`
+	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
 	ID   string `json:"id"`
 	Note string `json:"note"`
 }
 
 type PrintFileBasedEBLToPaperRequest struct {
-	Application      string `json:"application"`
-	RequestBy        string `json:"request_by"`
-	AuthenticationID string `json:"authentication_id"`
-	MetaData         string `json:"meta_data,omitempty"`
+	Application      string                             `json:"application"`
+	RequestBy        string                             `json:"request_by"`
+	AuthenticationID string                             `json:"authentication_id"`
+	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
 	ID   string `json:"id"`
 	Note string `json:"note"`
 }
 
 type AccomplishEBLRequest struct {
-	Application      string `json:"application"`
-	RequestBy        string `json:"request_by"`
-	AuthenticationID string `json:"authentication_id"`
-	MetaData         string `json:"meta_data,omitempty"`
+	Application      string                             `json:"application"`
+	RequestBy        string                             `json:"request_by"`
+	AuthenticationID string                             `json:"authentication_id"`
+	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
 	ID   string `json:"id"`
 	Note string `json:"note"`
@@ -163,10 +163,10 @@ type GetFileBasedEBLRequest struct {
 }
 
 type DeleteEBLRequest struct {
-	Application      string `json:"application"`
-	RequestBy        string `json:"request_by"`
-	AuthenticationID string `json:"authentication_id"`
-	MetaData         string `json:"meta_data,omitempty"`
+	Application      string                             `json:"application"`
+	RequestBy        string                             `json:"request_by"`
+	AuthenticationID string                             `json:"authentication_id"`
+	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
 	ID   string `json:"id"`
 	Note string `json:"note"`

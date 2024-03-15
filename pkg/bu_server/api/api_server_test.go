@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -295,7 +296,7 @@ func (s *APITestSuite) TestCreateFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl", s.localAddress)
 
 	req := trade_document.IssueFileBasedEBLRequest{
-		MetaData:         "requester",
+		MetaData:         bill_of_lading.ApplicationMetaData{"requester": json.RawMessage(`"application user"`)},
 		AuthenticationID: "bu_auth_id",
 
 		File: trade_document.File{
@@ -314,7 +315,7 @@ func (s *APITestSuite) TestCreateFileBasedEBL() {
 			LocationName: "Port of Discharge",
 			UNLocCode:    "POD",
 		},
-		ETA:          model.NewDateTimeFromUnix(1708905600),
+		ETA:          util.Ptr(model.NewDateTimeFromUnix(1708905600)),
 		Shipper:      "shipper",
 		Consignee:    "consignee",
 		ReleaseAgent: "release agent",
@@ -356,7 +357,7 @@ func (s *APITestSuite) TestUpdateFileBasedEBL() {
 
 	req := trade_document.UpdateFileBasedEBLDraftRequest{
 		IssueFileBasedEBLRequest: trade_document.IssueFileBasedEBLRequest{
-			MetaData:         "requester",
+			MetaData:         bill_of_lading.ApplicationMetaData{"requester": json.RawMessage(`12345`)},
 			AuthenticationID: "bu_auth_id",
 			File: trade_document.File{
 				Name:    "test.txt",
@@ -374,7 +375,7 @@ func (s *APITestSuite) TestUpdateFileBasedEBL() {
 				LocationName: "Port of Discharge",
 				UNLocCode:    "POD",
 			},
-			ETA:          model.NewDateTimeFromUnix(1708905600),
+			ETA:          util.Ptr(model.NewDateTimeFromUnix(1708905600)),
 			Shipper:      "shipper",
 			Consignee:    "consignee",
 			ReleaseAgent: "release agent",
@@ -453,7 +454,7 @@ func (s *APITestSuite) TestTransferFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/transfer", s.localAddress)
 
 	req := trade_document.TransferEBLRequest{
-		MetaData:         "requester",
+		MetaData:         bill_of_lading.ApplicationMetaData{"requester": json.RawMessage(`1234.4566`)},
 		AuthenticationID: "bu_auth_id",
 		Note:             "note",
 	}
@@ -492,7 +493,7 @@ func (s *APITestSuite) TestReturnFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/return", s.localAddress)
 
 	req := trade_document.ReturnFileBasedEBLRequest{
-		MetaData:         "requester",
+		MetaData:         bill_of_lading.ApplicationMetaData{"requester": json.RawMessage(`{}`)},
 		AuthenticationID: "bu_auth_id",
 		Note:             "note",
 	}
@@ -531,7 +532,7 @@ func (s *APITestSuite) TestAmendmentRequestFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/amendment_request", s.localAddress)
 
 	req := trade_document.AmendmentRequestEBLRequest{
-		MetaData:         "requester",
+		MetaData:         bill_of_lading.ApplicationMetaData{"requester": json.RawMessage(`true`)},
 		AuthenticationID: "bu_auth_id",
 		Note:             "note",
 	}
@@ -570,7 +571,7 @@ func (s *APITestSuite) TestAmendFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/amend", s.localAddress)
 
 	req := trade_document.AmendFileBasedEBLRequest{
-		MetaData:         "requester",
+		MetaData:         bill_of_lading.ApplicationMetaData{"requester": json.RawMessage(`false`)},
 		AuthenticationID: "bu_auth_id",
 
 		File: trade_document.File{
@@ -589,7 +590,7 @@ func (s *APITestSuite) TestAmendFileBasedEBL() {
 			LocationName: "New Port of Discharge",
 			UNLocCode:    "POD",
 		},
-		ETA:  model.NewDateTimeFromUnix(1708905600),
+		ETA:  util.Ptr(model.NewDateTimeFromUnix(1708905600)),
 		Note: "amend note",
 	}
 
@@ -627,7 +628,7 @@ func (s *APITestSuite) TestSurrenderFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/surrender", s.localAddress)
 
 	req := trade_document.SurrenderEBLRequest{
-		MetaData:         "requester",
+		MetaData:         bill_of_lading.ApplicationMetaData{"requester": json.RawMessage(`null`)},
 		AuthenticationID: "bu_auth_id",
 	}
 
@@ -665,7 +666,7 @@ func (s *APITestSuite) TestPrintFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/print_to_paper", s.localAddress)
 
 	req := trade_document.PrintFileBasedEBLToPaperRequest{
-		MetaData:         "requester",
+		MetaData:         bill_of_lading.ApplicationMetaData{"requester": json.RawMessage(`"application user"`)},
 		AuthenticationID: "bu_auth_id",
 	}
 
@@ -703,7 +704,7 @@ func (s *APITestSuite) TestAccomplishFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/accomplish", s.localAddress)
 
 	req := trade_document.AccomplishEBLRequest{
-		MetaData:         "requester",
+		MetaData:         bill_of_lading.ApplicationMetaData{"requester": json.RawMessage(`"application user"`)},
 		AuthenticationID: "bu_auth_id",
 	}
 
@@ -775,7 +776,7 @@ func (s *APITestSuite) TestDeleteFileBasedEBL() {
 	endPoint := fmt.Sprintf("http://%s/ebl/doc_id/delete", s.localAddress)
 
 	req := trade_document.DeleteEBLRequest{
-		MetaData:         "requester",
+		MetaData:         bill_of_lading.ApplicationMetaData{"requester": json.RawMessage(`"application user"`)},
 		AuthenticationID: "bu_auth_id",
 	}
 

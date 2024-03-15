@@ -1,7 +1,7 @@
 {
     "id": "316f5f2d-eb10-4563-a0d2-45858a57ad5e",
     "version": 5,
-    "parent_hash": "2bc0477a27724ad3e41d1496516d64d385db06dc6075430999fcaf0a3a1a9536776b0d7cabd18ed54701f283fa5ac895dd3857391b4137b264260f29ffeb52a8",
+    "parent_hash": "f83d7187220bfe342e896040bd5b8661dc9b75b9df131652f3b891dd28e4e18fba6dde26976d5971e3b32810243e668ad67fe6b09bb2b68fef031c0e6b35ff3a",
     "events": [
         {
             "bill_of_lading": {
@@ -113,7 +113,9 @@
                 "created_by": "did:openebl:issuer",
                 "created_at": "2024-02-24T08:19:59Z",
                 "note": "note",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         },
         {
@@ -122,7 +124,9 @@
                 "transfer_to": "did:openebl:shipper",
                 "transfer_at": "2024-02-24T08:19:59Z",
                 "note": "note",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         },
         {
@@ -131,7 +135,9 @@
                 "transfer_to": "did:openebl:consignee",
                 "transfer_at": "2024-03-04T05:18:22Z",
                 "note": "note",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         },
         {
@@ -140,7 +146,9 @@
                 "surrender_to": "did:openebl:release_agent",
                 "surrender_at": "2024-03-05T05:18:22Z",
                 "note": "Surrender the eBL to the release agent",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         },
         {
@@ -148,7 +156,9 @@
                 "accomplish_by": "did:openebl:release_agent",
                 "accomplish_at": "2024-03-06T03:48:43Z",
                 "note": "accomplished by release agent",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         }
     ],

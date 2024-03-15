@@ -1,7 +1,7 @@
 {
     "id": "316f5f2d-eb10-4563-a0d2-45858a57ad5e",
     "version": 4,
-    "parent_hash": "fe55ad06b87a0733e0fdd96ee5545d756039aca149cfe657ff62016ef464ed37ef67599ea6543641aeba25a04f1bb28b751ea083a908fcdbdb1e41e2890cbd80",
+    "parent_hash": "68fd84665271627dbaf6902dc90a16c1d1c3fe371321ab270255e43f2cce5614e2d3001603d043bb65e9661a70545710ed8d296d7e1f26022315be2d20f342d7",
     "events": [
         {
             "bill_of_lading": {
@@ -113,7 +113,9 @@
                 "created_by": "did:openebl:issuer",
                 "created_at": "2024-02-24T08:19:59Z",
                 "note": "note",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         },
         {
@@ -122,7 +124,9 @@
                 "transfer_to": "did:openebl:shipper",
                 "transfer_at": "2024-02-24T08:19:59Z",
                 "note": "note",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         },
         {
@@ -131,7 +135,9 @@
                 "transfer_to": "did:openebl:consignee",
                 "transfer_at": "2024-03-04T05:18:22Z",
                 "note": "note",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         },
         {
@@ -140,7 +146,9 @@
                 "surrender_to": "did:openebl:release_agent",
                 "surrender_at": "2024-03-05T05:18:22Z",
                 "note": "Surrender the eBL to the release agent",
-                "meta_data": "requester"
+                "metadata": {
+                    "requester": "application user"
+                }
             }
         }
     ],

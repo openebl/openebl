@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	model "github.com/openebl/openebl/pkg/bu_server/model"
 	storage "github.com/openebl/openebl/pkg/bu_server/storage"
 )
 
@@ -397,4 +398,125 @@ func (m *MockTradeDocumentStorage) ListTradeDocument(ctx context.Context, tx sto
 func (mr *MockTradeDocumentStorageMockRecorder) ListTradeDocument(ctx, tx, req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTradeDocument", reflect.TypeOf((*MockTradeDocumentStorage)(nil).ListTradeDocument), ctx, tx, req)
+}
+
+// MockWebhookStorage is a mock of WebhookStorage interface.
+type MockWebhookStorage struct {
+	ctrl     *gomock.Controller
+	recorder *MockWebhookStorageMockRecorder
+}
+
+// MockWebhookStorageMockRecorder is the mock recorder for MockWebhookStorage.
+type MockWebhookStorageMockRecorder struct {
+	mock *MockWebhookStorage
+}
+
+// NewMockWebhookStorage creates a new mock instance.
+func NewMockWebhookStorage(ctrl *gomock.Controller) *MockWebhookStorage {
+	mock := &MockWebhookStorage{ctrl: ctrl}
+	mock.recorder = &MockWebhookStorageMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockWebhookStorage) EXPECT() *MockWebhookStorageMockRecorder {
+	return m.recorder
+}
+
+// AddWebhook mocks base method.
+func (m *MockWebhookStorage) AddWebhook(ctx context.Context, tx storage.Tx, webhook model.Webhook) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddWebhook", ctx, tx, webhook)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddWebhook indicates an expected call of AddWebhook.
+func (mr *MockWebhookStorageMockRecorder) AddWebhook(ctx, tx, webhook interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddWebhook", reflect.TypeOf((*MockWebhookStorage)(nil).AddWebhook), ctx, tx, webhook)
+}
+
+// AddWebhookEvent mocks base method.
+func (m *MockWebhookStorage) AddWebhookEvent(ctx context.Context, tx storage.Tx, ts int64, key string, event *model.WebhookEvent) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddWebhookEvent", ctx, tx, ts, key, event)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddWebhookEvent indicates an expected call of AddWebhookEvent.
+func (mr *MockWebhookStorageMockRecorder) AddWebhookEvent(ctx, tx, ts, key, event interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddWebhookEvent", reflect.TypeOf((*MockWebhookStorage)(nil).AddWebhookEvent), ctx, tx, ts, key, event)
+}
+
+// CreateTx mocks base method.
+func (m *MockWebhookStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx}
+	for _, a := range options {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CreateTx", varargs...)
+	ret0, _ := ret[0].(storage.Tx)
+	ret1, _ := ret[1].(context.Context)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// CreateTx indicates an expected call of CreateTx.
+func (mr *MockWebhookStorageMockRecorder) CreateTx(ctx interface{}, options ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx}, options...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTx", reflect.TypeOf((*MockWebhookStorage)(nil).CreateTx), varargs...)
+}
+
+// DeleteWebhookEvent mocks base method.
+func (m *MockWebhookStorage) DeleteWebhookEvent(ctx context.Context, tx storage.Tx, recIDs ...int64) error {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, tx}
+	for _, a := range recIDs {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "DeleteWebhookEvent", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteWebhookEvent indicates an expected call of DeleteWebhookEvent.
+func (mr *MockWebhookStorageMockRecorder) DeleteWebhookEvent(ctx, tx interface{}, recIDs ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, tx}, recIDs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteWebhookEvent", reflect.TypeOf((*MockWebhookStorage)(nil).DeleteWebhookEvent), varargs...)
+}
+
+// GetWebhookEvent mocks base method.
+func (m *MockWebhookStorage) GetWebhookEvent(ctx context.Context, tx storage.Tx, batchSize int) ([]storage.OutboxMsg, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetWebhookEvent", ctx, tx, batchSize)
+	ret0, _ := ret[0].([]storage.OutboxMsg)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetWebhookEvent indicates an expected call of GetWebhookEvent.
+func (mr *MockWebhookStorageMockRecorder) GetWebhookEvent(ctx, tx, batchSize interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWebhookEvent", reflect.TypeOf((*MockWebhookStorage)(nil).GetWebhookEvent), ctx, tx, batchSize)
+}
+
+// ListWebhook mocks base method.
+func (m *MockWebhookStorage) ListWebhook(ctx context.Context, tx storage.Tx, req storage.ListWebhookRequest) (storage.ListWebhookResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListWebhook", ctx, tx, req)
+	ret0, _ := ret[0].(storage.ListWebhookResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListWebhook indicates an expected call of ListWebhook.
+func (mr *MockWebhookStorageMockRecorder) ListWebhook(ctx, tx, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListWebhook", reflect.TypeOf((*MockWebhookStorage)(nil).ListWebhook), ctx, tx, req)
 }

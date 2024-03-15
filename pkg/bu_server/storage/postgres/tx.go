@@ -89,7 +89,7 @@ func (r *_RowWrapper) Scan(dest ...any) error {
 	return r.row.Scan(dest...)
 }
 
-func (p *_Storage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
+func (s *_Storage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
 	if tx, _ := ctx.Value(storage.TRANSACTION).(storage.Tx); tx != nil {
 		return &_InnerTxWrapper{tx}, ctx, nil
 	}
@@ -99,7 +99,7 @@ func (p *_Storage) CreateTx(ctx context.Context, options ...storage.CreateTxOpti
 		opt(&option)
 	}
 
-	connPool := p.dbPool
+	connPool := s.dbPool
 	sqlTxOption := sql.TxOptions{}
 	for _, opt := range options {
 		opt(&option)

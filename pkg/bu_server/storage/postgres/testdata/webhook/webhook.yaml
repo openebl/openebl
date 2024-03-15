@@ -1,0 +1,50 @@
+- rec_id: 1
+  id: "webhook_1"
+  version: 1
+  deleted: false
+  application_id: "app_1"
+  events: RAW='{bl.printed_to_paper,bl.accomplished}'
+  created_at: 12345
+  updated_at: 12345
+  webhook:
+    id: "webhook_1"
+    version: 1
+    application_id: "app_1"
+    url: "https://example1.com/webhook"
+    secret: "secret"
+    created_at: 12345
+    updated_at: 12345
+
+- rec_id: 2
+  id: "webhook_2"
+  version: 1
+  deleted: false
+  application_id: "app_1"
+  events: RAW='{bu.created,bu.updated}'
+  created_at: 23456
+  updated_at: 23456
+  webhook:
+    id: "webhook_2"
+    version: 1
+    application_id: "app_1"
+    url: "https://example2.com/webhook"
+    secret: "secret"
+    created_at: 23456
+    updated_at: 23456
+
+- rec_id: 3
+  id: "webhook_3"
+  version: 2
+  deleted: true
+  application_id: "app_1"
+  events: RAW='{bl.issued}'
+  created_at: 34567
+  updated_at: 34567
+  webhook:
+    id: "webhook_3"
+    version: 1
+    application_id: "app_1"
+    url: "https://example3.com/webhook"
+    secret: "secret"
+    created_at: 34567
+    updated_at: 34567

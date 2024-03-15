@@ -54,6 +54,9 @@ func (s *BaseTestSuite) SetupTest() {
 		"api_key_history",
 		"application",
 		"application_history",
+		"webhook",
+		"webhook_history",
+		"webhook_outbox",
 	}
 	for _, tableName := range tableNames {
 		_, err := pool.Exec(context.Background(), fmt.Sprintf(`DELETE FROM %q`, tableName))

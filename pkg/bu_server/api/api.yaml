@@ -1543,6 +1543,9 @@ components:
           type: integer
           format: int64
           description: Version of the webhook
+        deleted:
+          type: boolean
+          description: Indicates if the webhook is deleted
         url:
           type: string
           description: The URL that should have the event issued to it
@@ -1574,6 +1577,9 @@ components:
         id:
           type: string
           description: Unique ID of the object that is the subject of the event trigger
+        url:
+          type: string
+          description: The URL the WebhookEvent is sent to
         type:
           $ref: '#/components/schemas/WebhookEventType'
         created_at:

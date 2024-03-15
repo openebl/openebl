@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"database/sql"
+
+	"github.com/openebl/openebl/pkg/bu_server/model"
 )
 
 type StorageContextKey string
@@ -101,4 +103,34 @@ type TradeDocumentStorage interface {
 	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
 	AddTradeDocument(ctx context.Context, tx Tx, tradeDoc TradeDocument) error
 	ListTradeDocument(ctx context.Context, tx Tx, req ListTradeDocumentRequest) (ListTradeDocumentResponse, error)
+}
+
+type ListWebhookRequest struct {
+	Offset int `json:"offset"` // Offset of the webhooks to be listed.
+	Limit  int `json:"limit"`  // Limit of the webhooks to be listed.
+
+	// Filters
+	ApplicationID string   `json:"application_id"` // The ID of the application this webhook belongs to.
+	IDs           []string `json:"ids"`            // The IDs of the webhook.
+	Events        []string `json:"events"`         // The Events the webhook is interested in.
+}
+
+type ListWebhookResult struct {
+	Total   int              `json:"total"`   // Total number of webhooks.
+	Records []*model.Webhook `json:"records"` // Records of webhook.
+}
+
+type OutboxMsg struct {
+	RecID int64
+	Key   string
+	Msg   []byte
+}
+
+type WebhookStorage interface {
+	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
+	AddWebhook(ctx context.Context, tx Tx, webhook model.Webhook) error
+	ListWebhook(ctx context.Context, tx Tx, req ListWebhookRequest) (ListWebhookResult, error)
+	AddWebhookEvent(ctx context.Context, tx Tx, ts int64, key string, event *model.WebhookEvent) error
+	GetWebhookEvent(ctx context.Context, tx Tx, batchSize int) ([]OutboxMsg, error)
+	DeleteWebhookEvent(ctx context.Context, tx Tx, recIDs ...int64) error
 }

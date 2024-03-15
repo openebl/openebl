@@ -21,10 +21,12 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/trade_document"
+	"github.com/openebl/openebl/pkg/bu_server/webhook"
 	"github.com/openebl/openebl/pkg/util"
 	mock_auth "github.com/openebl/openebl/test/mock/bu_server/auth"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
 	mock_trade_document "github.com/openebl/openebl/test/mock/bu_server/trade_document"
+	mock_webhook "github.com/openebl/openebl/test/mock/bu_server/webhook"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -36,6 +38,7 @@ type APITestSuite struct {
 	apiKeyMgr   *mock_auth.MockAPIKeyAuthenticator
 	buMgr       *mock_business_unit.MockBusinessUnitManager
 	fileEBLCtrl *mock_trade_document.MockFileBaseEBLController
+	webhookCtrl *mock_webhook.MockWebhookController
 
 	basePortNumber int32
 	localAddress   string
@@ -58,10 +61,11 @@ func (s *APITestSuite) SetupTest() {
 	s.apiKeyMgr = mock_auth.NewMockAPIKeyAuthenticator(s.ctrl)
 	s.buMgr = mock_business_unit.NewMockBusinessUnitManager(s.ctrl)
 	s.fileEBLCtrl = mock_trade_document.NewMockFileBaseEBLController(s.ctrl)
+	s.webhookCtrl = mock_webhook.NewMockWebhookController(s.ctrl)
 
 	portNum := atomic.AddInt32(&s.basePortNumber, 1)
 	s.localAddress = fmt.Sprintf("localhost:%d", portNum)
-	api, err := api.NewAPIWithController(s.apiKeyMgr, s.buMgr, s.fileEBLCtrl, s.localAddress)
+	api, err := api.NewAPIWithController(s.apiKeyMgr, s.buMgr, s.webhookCtrl, s.fileEBLCtrl, s.localAddress)
 	s.Require().NoError(err)
 	s.api = api
 	go func() {
@@ -844,4 +848,52 @@ func (s *APITestSuite) TestDownloadFileBasedEBLDocument() {
 	s.Assert().Equal("attachment; filename=bill_of_lading.pdf", httpResponse.Header.Get("Content-Disposition"))
 	s.Assert().Equal("21", httpResponse.Header.Get("Content-Length"))
 	s.Assert().Equal([]byte("%PDF-1.7 Hello World!"), returnedBody)
+}
+
+func (s *APITestSuite) TestCreateWebhook() {
+	req := webhook.CreateWebhookRequest{
+		Requester: "requester",
+		Events:    []model.WebhookEventType{model.WebhookEventBLAccomplished, model.WebhookEventBLPrintedToPaper},
+		Url:       "https://example.com/notify",
+		Secret:    "secret_key",
+	}
+
+	expectedReq := req
+	expectedReq.ApplicationID = s.appId
+
+	w := model.Webhook{
+		ID:      "webhook_id",
+		Deleted: false,
+	}
+
+	endPoint := fmt.Sprintf("http://%s/webhook", s.localAddress)
+	httpRequest, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, endPoint, util.StructToJSONReader(req))
+	httpRequest.Header.Set("Content-Type", "application/json")
+	httpRequest.Header.Set("Authorization", "Bearer "+string(s.apiKeyString))
+
+	gomock.InOrder(
+		s.apiKeyMgr.EXPECT().Authenticate(gomock.Any(), s.apiKeyString).Return(s.apiKey, nil),
+		s.webhookCtrl.EXPECT().Create(gomock.Any(), gomock.Any(), expectedReq).Return(w, nil),
+	)
+
+	// Test Normal Case.
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	defer func() { _ = resp.Body.Close() }()
+
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+	s.Require().Equal("application/json", resp.Header.Get("Content-Type"))
+	body, _ := io.ReadAll(resp.Body)
+	s.Assert().Equal(util.StructToJSON(w), strings.TrimSpace(string(body)))
+	// End of Test Normal Case.
+
+	// Test with invalid credential.
+	gomock.InOrder(
+		s.apiKeyMgr.EXPECT().Authenticate(gomock.Any(), s.apiKeyString).Return(auth.APIKey{}, model.ErrMismatchAPIKey),
+	)
+	resp, err = http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	defer func() { _ = resp.Body.Close() }()
+
+	s.Require().Equal(http.StatusUnauthorized, resp.StatusCode)
 }

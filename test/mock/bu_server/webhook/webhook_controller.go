@@ -50,3 +50,33 @@ func (mr *MockWebhookControllerMockRecorder) Create(ctx, ts, req interface{}) *g
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockWebhookController)(nil).Create), ctx, ts, req)
 }
+
+// Get mocks base method.
+func (m *MockWebhookController) Get(ctx context.Context, applicationID, id string) (model.Webhook, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Get", ctx, applicationID, id)
+	ret0, _ := ret[0].(model.Webhook)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Get indicates an expected call of Get.
+func (mr *MockWebhookControllerMockRecorder) Get(ctx, applicationID, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockWebhookController)(nil).Get), ctx, applicationID, id)
+}
+
+// List mocks base method.
+func (m *MockWebhookController) List(ctx context.Context, req webhook.ListWebhookRequest) (webhook.ListWebhookResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "List", ctx, req)
+	ret0, _ := ret[0].(webhook.ListWebhookResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// List indicates an expected call of List.
+func (mr *MockWebhookControllerMockRecorder) List(ctx, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockWebhookController)(nil).List), ctx, req)
+}

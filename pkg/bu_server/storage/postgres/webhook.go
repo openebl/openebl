@@ -80,7 +80,7 @@ func (s *_Storage) ListWebhook(ctx context.Context, tx storage.Tx, req storage.L
 			res.Total = *total
 		}
 		if webhook != nil {
-			res.Records = append(res.Records, webhook)
+			res.Records = append(res.Records, *webhook)
 		}
 	}
 	if err := rows.Err(); err != nil {

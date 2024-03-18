@@ -77,6 +77,8 @@ func NewAPIWithController(apiKeyMgr auth.APIKeyAuthenticator, buMgr business_uni
 	r.HandleFunc("/business_unit/{id}/authentication/{authentication_id}", apiServer.getBusinessUnitAuthentication).Methods(http.MethodGet)
 	r.HandleFunc("/business_unit/{id}/authentication/{authentication_id}", apiServer.revokeBusinessUnitAuthentication).Methods(http.MethodDelete)
 	r.HandleFunc("/webhook", apiServer.createWebhook).Methods(http.MethodPost)
+	r.HandleFunc("/webhook", apiServer.listWebhook).Methods(http.MethodGet)
+	r.HandleFunc("/webhook/{id}", apiServer.getWebhook).Methods(http.MethodGet)
 
 	eblRouter := r.NewRoute().Subrouter()
 	eblRouter.Use(middleware.ExtractBusinessUnitID)

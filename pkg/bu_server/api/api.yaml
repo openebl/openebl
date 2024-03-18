@@ -1657,8 +1657,7 @@ components:
             - authentication_id
             - file
             - bl_number
-            - document_type
-            - bl_type
+            - bl_doc_type
             - pol
             - pod
             - shipper
@@ -1754,19 +1753,24 @@ components:
               allOf:
                 - $ref: '#/components/schemas/File'
               description: The file associated with the request
-            number:
+            bl_number:
               type: string
-              description: B/L number
-            document_type:
-              $ref: '#/components/schemas/BillOfLadingDocumentType'
-            bl_type:
-              $ref: '#/components/schemas/BillOfLadingType'
+              description: The bill of lading number
+            bl_doc_type:
+              allOf:
+              - $ref: '#/components/schemas/BillOfLadingDocumentType'
+              description: The type of the bill of lading document
+            to_order:
+              type: boolean
+              description: Indicates if the request is to order
             pol:
-              type: string
-              description: Port of loading
+              allOf:
+                - $ref: '#/components/schemas/Location'
+              description: The port of loading. It's optional when draft is true.
             pod:
-              type: string
-              description: Port of discharge
+              allOf:
+                - $ref: '#/components/schemas/Location'
+              description: The port of discharge. It's optional when draft is true.
             eta:
               type: string
               format: date-time
@@ -1777,9 +1781,8 @@ components:
           required:
             - authentication_id
             - file
-            - number
-            - document_type
-            - bl_type
+            - bl_number
+            - bl_doc_type
             - pol
             - pod
     DeleteBillOfLadingRequest:

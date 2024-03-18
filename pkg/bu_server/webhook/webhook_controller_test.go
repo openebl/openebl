@@ -81,3 +81,92 @@ func (s *WebhookControllerTestSuite) TestCreateWebhook() {
 	res.Secret = expectedWebhook.Secret
 	s.Assert().Equal(expectedWebhook, res)
 }
+
+func (s *WebhookControllerTestSuite) TestListWebhook() {
+	req := webhook.ListWebhookRequest{
+		Offset:        0,
+		Limit:         10,
+		ApplicationID: "app_1",
+	}
+
+	expectedWebhook := model.Webhook{
+		ID:            "webhook_1",
+		Version:       1,
+		ApplicationID: "app_1",
+		Url:           "https://example.com/notify",
+		Events:        []model.WebhookEventType{model.WebhookEventBLAccomplished, model.WebhookEventBLPrintedToPaper},
+		Secret:        "secret_key",
+		CreatedAt:     12345,
+		CreatedBy:     "requester",
+		UpdatedAt:     12346,
+		UpdatedBy:     "requester",
+		Deleted:       false,
+	}
+
+	listReq := storage.ListWebhookRequest{
+		Offset:        0,
+		Limit:         10,
+		ApplicationID: "app_1",
+	}
+	listResult := storage.ListWebhookResult{
+		Total:   1,
+		Records: []model.Webhook{expectedWebhook},
+	}
+
+	expectedListResp := webhook.ListWebhookResponse{
+		Total:   1,
+		Records: []model.Webhook{expectedWebhook},
+	}
+
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any()).Return(s.tx, s.ctx, nil),
+		s.storage.EXPECT().ListWebhook(gomock.Any(), s.tx, listReq).Return(listResult, nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	res, err := s.webhookCtrl.List(s.ctx, req)
+	s.NoError(err)
+	s.Assert().Equal(expectedListResp, res)
+}
+
+func (s *WebhookControllerTestSuite) TestGetWebhook() {
+	const (
+		appID     = "app_1"
+		webhookID = "webhook_1"
+	)
+
+	expectedWebhook := model.Webhook{
+		ID:            "webhook_1",
+		Version:       1,
+		ApplicationID: "app_1",
+		Url:           "https://example.com/notify",
+		Events:        []model.WebhookEventType{model.WebhookEventBLAccomplished, model.WebhookEventBLPrintedToPaper},
+		Secret:        "secret_key",
+		CreatedAt:     12345,
+		CreatedBy:     "requester",
+		UpdatedAt:     12346,
+		UpdatedBy:     "requester",
+		Deleted:       false,
+	}
+
+	listReq := storage.ListWebhookRequest{
+		Offset:        0,
+		Limit:         1,
+		ApplicationID: appID,
+		IDs:           []string{webhookID},
+	}
+	listResult := storage.ListWebhookResult{
+		Total:   1,
+		Records: []model.Webhook{expectedWebhook},
+	}
+
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any()).Return(s.tx, s.ctx, nil),
+		s.storage.EXPECT().ListWebhook(gomock.Any(), s.tx, listReq).Return(listResult, nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	res, err := s.webhookCtrl.Get(s.ctx, appID, webhookID)
+	s.NoError(err)
+	s.Assert().Equal(expectedWebhook, res)
+}

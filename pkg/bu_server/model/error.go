@@ -13,6 +13,7 @@ var ErrUserError = errors.New("")                   // Base error for User
 var ErrBusinessUnitError = errors.New("")           // Base error for Business Unit
 var ErrCertificationAuthorityError = errors.New("") // Base error for Certification Authority
 var ErrFileBasedEBLError = errors.New("")           // Base error for File Based EBL
+var ErrWebhookError = errors.New("")                // Base error for Webhook
 
 // API Key errors
 var ErrInvalidAPIKeyString = fmt.Errorf("invalid API key string%w", ErrAPIKeyError)
@@ -47,6 +48,9 @@ var ErrCACertificationNotAvailable = fmt.Errorf("CA certification not available%
 var ErrEBLNotFound = fmt.Errorf("EBL not found%w", ErrFileBasedEBLError)
 var ErrEBLNoDocument = fmt.Errorf("EBL has no document%w", ErrFileBasedEBLError)
 var ErrEBLActionNotAllowed = fmt.Errorf("%w", ErrFileBasedEBLError)
+
+// Webhook errors
+var ErrWebhookNotFound = fmt.Errorf("webhook not found%w", ErrWebhookError)
 
 func ErrorToHttpStatus(err error) int {
 	if err == nil {

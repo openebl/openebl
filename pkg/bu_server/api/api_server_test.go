@@ -897,3 +897,71 @@ func (s *APITestSuite) TestCreateWebhook() {
 
 	s.Require().Equal(http.StatusUnauthorized, resp.StatusCode)
 }
+
+func (s *APITestSuite) TestListWebhook() {
+	endPoint := fmt.Sprintf("http://%s/webhook?offset=1&limit=2", s.localAddress)
+
+	expectedReq := webhook.ListWebhookRequest{
+		Offset:        1,
+		Limit:         2,
+		ApplicationID: s.appId,
+	}
+
+	result := webhook.ListWebhookResponse{
+		Total:   2,
+		Records: []model.Webhook{},
+	}
+
+	gomock.InOrder(
+		s.apiKeyMgr.EXPECT().Authenticate(gomock.Any(), s.apiKeyString).Return(s.apiKey, nil),
+		s.webhookCtrl.EXPECT().List(gomock.Any(), expectedReq).Return(result, nil),
+	)
+
+	httpRequest, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, endPoint, nil)
+	httpRequest.Header.Set("Authorization", "Bearer "+string(s.apiKeyString))
+
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	defer func() { _ = resp.Body.Close() }()
+
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	s.Require().Equal("application/json", resp.Header.Get("Content-Type"))
+	body, _ := io.ReadAll(resp.Body)
+	s.Assert().Equal(util.StructToJSON(result), strings.TrimSpace(string(body)))
+}
+
+func (s *APITestSuite) TestGetWebhook() {
+	webhookId := "webhook_id"
+	endPoint := fmt.Sprintf("http://%s/webhook/%s", s.localAddress, webhookId)
+
+	expectedWebhook := model.Webhook{
+		ID:            webhookId,
+		Version:       1,
+		ApplicationID: s.appId,
+		Url:           "https://example.com/notify",
+		Events:        []model.WebhookEventType{model.WebhookEventBLAccomplished, model.WebhookEventBLPrintedToPaper},
+		Secret:        "secret_key",
+		CreatedAt:     12345,
+		CreatedBy:     "requester",
+		UpdatedAt:     12345,
+		UpdatedBy:     "requester",
+		Deleted:       false,
+	}
+
+	gomock.InOrder(
+		s.apiKeyMgr.EXPECT().Authenticate(gomock.Any(), s.apiKeyString).Return(s.apiKey, nil),
+		s.webhookCtrl.EXPECT().Get(gomock.Any(), s.appId, webhookId).Return(expectedWebhook, nil),
+	)
+
+	httpRequest, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, endPoint, nil)
+	httpRequest.Header.Set("Authorization", "Bearer "+string(s.apiKeyString))
+
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	defer func() { _ = resp.Body.Close() }()
+
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	s.Require().Equal("application/json", resp.Header.Get("Content-Type"))
+	body, _ := io.ReadAll(resp.Body)
+	s.Assert().Equal(util.StructToJSON(expectedWebhook), strings.TrimSpace(string(body)))
+}

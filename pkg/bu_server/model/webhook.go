@@ -13,8 +13,8 @@ const (
 	WebhookEventBLPrintedToPaper     WebhookEventType = "bl.printed_to_paper"
 	WebhookEventBUCreated            WebhookEventType = "bu.created"
 	WebhookEventBUUpdated            WebhookEventType = "bu.updated"
-	WebhookEventAuthCreated          WebhookEventType = "bu.created"
-	WebhookEventAuthRevoked          WebhookEventType = "bu.revoked"
+	WebhookEventAuthCreated          WebhookEventType = "auth.created"
+	WebhookEventAuthRevoked          WebhookEventType = "auth.revoked"
 )
 
 type Webhook struct {

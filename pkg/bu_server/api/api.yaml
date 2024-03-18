@@ -1282,9 +1282,13 @@ components:
         name:
           type: string
           description: File name of the uploaded document
-        type:
+        file_type:
           type: string
           description: MIME type of the uploaded document
+        created_date:
+          type: string
+          format: date-time
+          description: When the document was created.
     File:
       type: object
       description: Metadata of the uploaded document
@@ -1476,7 +1480,7 @@ components:
     BillOfLadingRecord:
       type: object
       properties:
-        allowed_actions:
+        allow_actions:
           type: array
           items:
             $ref: '#/components/schemas/BillOfLadingAction'

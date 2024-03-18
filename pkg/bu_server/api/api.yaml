@@ -870,7 +870,7 @@ paths:
                   in: header
                   schema:
                     type: string
-                  description: HMAC-SHA1 hash signature generated with user-specified secret
+                  description: base64 encoded HMAC-SHA1 hash signature generated with user-specified secret
               requestBody:
                 required: true
                 content:

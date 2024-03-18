@@ -46,9 +46,9 @@ func NewAPIWithConfig(cfg APIConfig) (*API, error) {
 	}
 
 	apiKeyMgr := auth.NewAPIKeyAuthenticator(storage)
-	buMgr := business_unit.NewBusinessUnitManager(storage, ca, nil)
-	fileEBLCtrl := trade_document.NewFileBaseEBLController(storage, buMgr)
 	webhookCtrl := webhook.NewWebhookController(storage)
+	buMgr := business_unit.NewBusinessUnitManager(storage, ca, webhookCtrl, nil)
+	fileEBLCtrl := trade_document.NewFileBaseEBLController(storage, buMgr, webhookCtrl)
 	api, err := NewAPIWithController(apiKeyMgr, buMgr, webhookCtrl, fileEBLCtrl, cfg.LocalAddress)
 	if err != nil {
 		return nil, err

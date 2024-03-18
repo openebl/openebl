@@ -10,6 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	model "github.com/openebl/openebl/pkg/bu_server/model"
+	storage "github.com/openebl/openebl/pkg/bu_server/storage"
 	webhook "github.com/openebl/openebl/pkg/bu_server/webhook"
 )
 
@@ -94,6 +95,20 @@ func (m *MockWebhookController) List(ctx context.Context, req webhook.ListWebhoo
 func (mr *MockWebhookControllerMockRecorder) List(ctx, req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockWebhookController)(nil).List), ctx, req)
+}
+
+// SendWebhookEvent mocks base method.
+func (m *MockWebhookController) SendWebhookEvent(ctx context.Context, tx storage.Tx, ts int64, applicationID, id string, eventType model.WebhookEventType) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendWebhookEvent", ctx, tx, ts, applicationID, id, eventType)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendWebhookEvent indicates an expected call of SendWebhookEvent.
+func (mr *MockWebhookControllerMockRecorder) SendWebhookEvent(ctx, tx, ts, applicationID, id, eventType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendWebhookEvent", reflect.TypeOf((*MockWebhookController)(nil).SendWebhookEvent), ctx, tx, ts, applicationID, id, eventType)
 }
 
 // Update mocks base method.

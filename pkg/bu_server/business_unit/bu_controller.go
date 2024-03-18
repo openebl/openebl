@@ -19,6 +19,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
+	"github.com/openebl/openebl/pkg/bu_server/webhook"
 	"github.com/openebl/openebl/pkg/envelope"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
 )
@@ -175,13 +176,15 @@ type GetJWSSignerRequest struct {
 type _BusinessUnitManager struct {
 	ca               cert_authority.CertAuthority
 	storage          BusinessUnitStorage
+	webhookCtrl      webhook.WebhookController
 	jwsSignerFactory JWSSignerFactory
 }
 
-func NewBusinessUnitManager(storage BusinessUnitStorage, ca cert_authority.CertAuthority, jwsSignerFactory JWSSignerFactory) *_BusinessUnitManager {
+func NewBusinessUnitManager(storage BusinessUnitStorage, ca cert_authority.CertAuthority, webhookCtrl webhook.WebhookController, jwsSignerFactory JWSSignerFactory) BusinessUnitManager {
 	return &_BusinessUnitManager{
 		ca:               ca,
 		storage:          storage,
+		webhookCtrl:      webhookCtrl,
 		jwsSignerFactory: jwsSignerFactory,
 	}
 }
@@ -220,6 +223,10 @@ func (m *_BusinessUnitManager) CreateBusinessUnit(ctx context.Context, ts int64,
 		return model.BusinessUnit{}, err
 	}
 
+	if err = m.webhookCtrl.SendWebhookEvent(ctx, tx, ts, req.ApplicationID, bu.ID.String(), model.WebhookEventBUCreated); err != nil {
+		return model.BusinessUnit{}, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return model.BusinessUnit{}, err
 	}
@@ -251,6 +258,10 @@ func (m *_BusinessUnitManager) UpdateBusinessUnit(ctx context.Context, ts int64,
 	bu.UpdatedBy = req.Requester
 
 	if err := m.storage.StoreBusinessUnit(ctx, tx, bu); err != nil {
+		return model.BusinessUnit{}, err
+	}
+
+	if err = m.webhookCtrl.SendWebhookEvent(ctx, tx, ts, req.ApplicationID, bu.ID.String(), model.WebhookEventBUUpdated); err != nil {
 		return model.BusinessUnit{}, err
 	}
 
@@ -316,6 +327,10 @@ func (m *_BusinessUnitManager) SetStatus(ctx context.Context, ts int64, req SetB
 	bu.UpdatedBy = req.Requester
 
 	if err := m.storage.StoreBusinessUnit(ctx, tx, bu); err != nil {
+		return model.BusinessUnit{}, err
+	}
+
+	if err = m.webhookCtrl.SendWebhookEvent(ctx, tx, ts, req.ApplicationID, bu.ID.String(), model.WebhookEventBUUpdated); err != nil {
 		return model.BusinessUnit{}, err
 	}
 
@@ -385,6 +400,10 @@ func (m *_BusinessUnitManager) AddAuthentication(ctx context.Context, ts int64, 
 		return model.BusinessUnitAuthentication{}, err
 	}
 
+	if err = m.webhookCtrl.SendWebhookEvent(ctx, tx, ts, req.ApplicationID, auth.ID, model.WebhookEventAuthCreated); err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
@@ -432,6 +451,10 @@ func (m *_BusinessUnitManager) RevokeAuthentication(ctx context.Context, ts int6
 	auth.RevokedBy = req.Requester
 
 	if err := m.storage.StoreAuthentication(ctx, tx, auth); err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+
+	if err = m.webhookCtrl.SendWebhookEvent(ctx, tx, ts, req.ApplicationID, auth.ID, model.WebhookEventAuthRevoked); err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
 

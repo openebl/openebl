@@ -2,7 +2,11 @@ package webhook
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha1"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 
 	"github.com/google/uuid"
@@ -16,6 +20,7 @@ type WebhookController interface {
 	Get(ctx context.Context, applicationID string, id string) (model.Webhook, error)
 	Update(ctx context.Context, ts int64, req UpdateWebhookRequest) (model.Webhook, error)
 	Delete(ctx context.Context, ts int64, req DeleteWebhookRequest) (model.Webhook, error)
+	SendWebhookEvent(ctx context.Context, tx storage.Tx, ts int64, applicationID string, id string, eventType model.WebhookEventType) error
 }
 
 type ListWebhookRequest struct {
@@ -251,4 +256,56 @@ func (c *_WebhookController) Delete(ctx context.Context, ts int64, req DeleteWeb
 
 	updatedWebhook.Secret = ""
 	return updatedWebhook, nil
+}
+
+func (c *_WebhookController) SendWebhookEvent(ctx context.Context, tx storage.Tx, ts int64, applicationID string, id string, eventType model.WebhookEventType) error {
+	req := storage.ListWebhookRequest{
+		Offset:        0,
+		Limit:         1,
+		ApplicationID: applicationID,
+		Events:        []string{string(eventType)},
+	}
+
+	res, err := c.storage.ListWebhook(ctx, tx, req)
+	if err != nil {
+		return err
+	}
+	if len(res.Records) < 1 {
+		return nil
+	}
+
+	webhook := res.Records[0]
+	event := &model.WebhookEvent{
+		ID:        id,
+		Url:       webhook.Url,
+		Type:      eventType,
+		CreatedAt: ts,
+	}
+
+	signature, err := eventHash(event, webhook.Secret)
+	if err != nil {
+		return err
+	}
+
+	err = c.storage.AddWebhookEvent(ctx, tx, ts, signature, event)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func eventHash(event *model.WebhookEvent, key string) (string, error) {
+	if key == "" {
+		return "", errors.New("empty secret key")
+	}
+	eventBytes, err := json.Marshal(event)
+	if err != nil {
+		return "", err
+	}
+
+	h := hmac.New(sha1.New, []byte(key))
+	h.Write(eventBytes)
+
+	return base64.StdEncoding.EncodeToString(h.Sum(nil)), nil
 }

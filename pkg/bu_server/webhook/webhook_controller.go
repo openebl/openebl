@@ -14,6 +14,8 @@ type WebhookController interface {
 	Create(ctx context.Context, ts int64, req CreateWebhookRequest) (model.Webhook, error)
 	List(ctx context.Context, req ListWebhookRequest) (ListWebhookResponse, error)
 	Get(ctx context.Context, applicationID string, id string) (model.Webhook, error)
+	Update(ctx context.Context, ts int64, req UpdateWebhookRequest) (model.Webhook, error)
+	Delete(ctx context.Context, ts int64, req DeleteWebhookRequest) (model.Webhook, error)
 }
 
 type ListWebhookRequest struct {
@@ -33,6 +35,21 @@ type CreateWebhookRequest struct {
 	Events        []model.WebhookEventType `json:"events"`
 	Url           string                   `json:"url"`
 	Secret        string                   `json:"secret"`
+}
+
+type UpdateWebhookRequest struct {
+	ID            string                   `json:"id"`
+	Requester     string                   `json:"requester"`
+	ApplicationID string                   `json:"application_id"`
+	Events        []model.WebhookEventType `json:"events"`
+	Url           string                   `json:"url"`
+	Secret        string                   `json:"secret"`
+}
+
+type DeleteWebhookRequest struct {
+	ID            string `json:"id"`
+	Requester     string `json:"requester"`
+	ApplicationID string `json:"application_id"`
 }
 
 type _WebhookController struct {
@@ -146,4 +163,92 @@ func (c *_WebhookController) Get(ctx context.Context, applicationID string, id s
 	}
 
 	return result.Records[0], nil
+}
+
+func (c *_WebhookController) Update(ctx context.Context, ts int64, req UpdateWebhookRequest) (model.Webhook, error) {
+	err := ValidateUpdateWebhookRequest(req)
+	if err != nil {
+		return model.Webhook{}, err
+	}
+
+	tx, ctx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return model.Webhook{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	listReq := storage.ListWebhookRequest{
+		Offset:        0,
+		Limit:         1,
+		ApplicationID: req.ApplicationID,
+		IDs:           []string{req.ID},
+	}
+	listResp, err := c.storage.ListWebhook(ctx, tx, listReq)
+	if len(listResp.Records) < 1 {
+		return model.Webhook{}, model.ErrWebhookNotFound
+	}
+
+	updatedWebhook := listResp.Records[0]
+	updatedWebhook.Version += 1
+	updatedWebhook.UpdatedAt = ts
+	updatedWebhook.UpdatedBy = req.Requester
+	updatedWebhook.Url = req.Url
+	updatedWebhook.Events = req.Events
+	updatedWebhook.Secret = req.Secret
+
+	err = c.storage.AddWebhook(ctx, tx, updatedWebhook)
+	if err != nil {
+		return model.Webhook{}, err
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return model.Webhook{}, err
+	}
+
+	updatedWebhook.Secret = ""
+	return updatedWebhook, nil
+}
+
+func (c *_WebhookController) Delete(ctx context.Context, ts int64, req DeleteWebhookRequest) (model.Webhook, error) {
+	err := ValidateDeleteWebhookRequest(req)
+	if err != nil {
+		return model.Webhook{}, err
+	}
+
+	tx, ctx, err := c.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return model.Webhook{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	listReq := storage.ListWebhookRequest{
+		Offset:        0,
+		Limit:         1,
+		ApplicationID: req.ApplicationID,
+		IDs:           []string{req.ID},
+	}
+	listResp, err := c.storage.ListWebhook(ctx, tx, listReq)
+	if len(listResp.Records) < 1 {
+		return model.Webhook{}, model.ErrWebhookNotFound
+	}
+
+	updatedWebhook := listResp.Records[0]
+	updatedWebhook.Version += 1
+	updatedWebhook.UpdatedAt = ts
+	updatedWebhook.UpdatedBy = req.Requester
+	updatedWebhook.Deleted = true
+
+	err = c.storage.AddWebhook(ctx, tx, updatedWebhook)
+	if err != nil {
+		return model.Webhook{}, err
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return model.Webhook{}, err
+	}
+
+	updatedWebhook.Secret = ""
+	return updatedWebhook, nil
 }

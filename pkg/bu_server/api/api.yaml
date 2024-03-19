@@ -949,9 +949,19 @@ paths:
           schema:
             type: string
           description: The ID of the webhook to delete
+        - name: requester
+          in: query
+          required: true
+          schema:
+            type: string
+          description: User who makes the request
       responses:
         '200':
           description: webhook deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
         '400':
           description: Invalid request
         '404':

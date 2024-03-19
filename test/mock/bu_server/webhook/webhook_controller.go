@@ -51,6 +51,21 @@ func (mr *MockWebhookControllerMockRecorder) Create(ctx, ts, req interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockWebhookController)(nil).Create), ctx, ts, req)
 }
 
+// Delete mocks base method.
+func (m *MockWebhookController) Delete(ctx context.Context, ts int64, req webhook.DeleteWebhookRequest) (model.Webhook, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", ctx, ts, req)
+	ret0, _ := ret[0].(model.Webhook)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockWebhookControllerMockRecorder) Delete(ctx, ts, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockWebhookController)(nil).Delete), ctx, ts, req)
+}
+
 // Get mocks base method.
 func (m *MockWebhookController) Get(ctx context.Context, applicationID, id string) (model.Webhook, error) {
 	m.ctrl.T.Helper()
@@ -79,4 +94,19 @@ func (m *MockWebhookController) List(ctx context.Context, req webhook.ListWebhoo
 func (mr *MockWebhookControllerMockRecorder) List(ctx, req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockWebhookController)(nil).List), ctx, req)
+}
+
+// Update mocks base method.
+func (m *MockWebhookController) Update(ctx context.Context, ts int64, req webhook.UpdateWebhookRequest) (model.Webhook, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, ts, req)
+	ret0, _ := ret[0].(model.Webhook)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockWebhookControllerMockRecorder) Update(ctx, ts, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockWebhookController)(nil).Update), ctx, ts, req)
 }

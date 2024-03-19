@@ -965,3 +965,78 @@ func (s *APITestSuite) TestGetWebhook() {
 	body, _ := io.ReadAll(resp.Body)
 	s.Assert().Equal(util.StructToJSON(expectedWebhook), strings.TrimSpace(string(body)))
 }
+
+func (s *APITestSuite) TestUpdateWebhook() {
+	webhookId := "webhook_id"
+	endPoint := fmt.Sprintf("http://%s/webhook/%s", s.localAddress, webhookId)
+
+	req := webhook.UpdateWebhookRequest{
+		Requester: "requester",
+		Events:    []model.WebhookEventType{model.WebhookEventBLIssued, model.WebhookEventBLAccomplished, model.WebhookEventBLPrintedToPaper},
+		Url:       "https://example2.com/notify",
+		Secret:    "new_secret_key",
+	}
+
+	expectedReq := req
+	expectedReq.ApplicationID = s.appId
+	expectedReq.ID = webhookId
+
+	updatedWebhook := model.Webhook{
+		ID:      "webhook_id",
+		Version: 2,
+		Deleted: false,
+	}
+
+	httpRequest, _ := http.NewRequestWithContext(s.ctx, http.MethodPost, endPoint, util.StructToJSONReader(req))
+	httpRequest.Header.Set("Content-Type", "application/json")
+	httpRequest.Header.Set("Authorization", "Bearer "+string(s.apiKeyString))
+
+	gomock.InOrder(
+		s.apiKeyMgr.EXPECT().Authenticate(gomock.Any(), s.apiKeyString).Return(s.apiKey, nil),
+		s.webhookCtrl.EXPECT().Update(gomock.Any(), gomock.Any(), expectedReq).Return(updatedWebhook, nil),
+	)
+
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	defer func() { _ = resp.Body.Close() }()
+
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	s.Require().Equal("application/json", resp.Header.Get("Content-Type"))
+	body, _ := io.ReadAll(resp.Body)
+	s.Assert().Equal(util.StructToJSON(updatedWebhook), strings.TrimSpace(string(body)))
+}
+
+func (s *APITestSuite) TestDeleteWebhook() {
+	webhookId := "webhook_id"
+	endPoint := fmt.Sprintf("http://%s/webhook/%s?requester=test", s.localAddress, webhookId)
+
+	expectedReq := webhook.DeleteWebhookRequest{
+		ID:            webhookId,
+		Requester:     "test",
+		ApplicationID: s.appId,
+	}
+
+	updatedWebhook := model.Webhook{
+		ID:      "webhook_id",
+		Version: 2,
+		Deleted: true,
+	}
+
+	httpRequest, _ := http.NewRequestWithContext(s.ctx, http.MethodDelete, endPoint, nil)
+	httpRequest.Header.Set("Content-Type", "application/json")
+	httpRequest.Header.Set("Authorization", "Bearer "+string(s.apiKeyString))
+
+	gomock.InOrder(
+		s.apiKeyMgr.EXPECT().Authenticate(gomock.Any(), s.apiKeyString).Return(s.apiKey, nil),
+		s.webhookCtrl.EXPECT().Delete(gomock.Any(), gomock.Any(), expectedReq).Return(updatedWebhook, nil),
+	)
+
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	defer func() { _ = resp.Body.Close() }()
+
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	s.Require().Equal("application/json", resp.Header.Get("Content-Type"))
+	body, _ := io.ReadAll(resp.Body)
+	s.Assert().Equal(util.StructToJSON(updatedWebhook), strings.TrimSpace(string(body)))
+}

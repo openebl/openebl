@@ -16,6 +16,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
 	"github.com/openebl/openebl/pkg/bu_server/middleware"
 	"github.com/openebl/openebl/pkg/bu_server/model"
+	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
 	"github.com/openebl/openebl/pkg/bu_server/trade_document"
 	"github.com/openebl/openebl/pkg/bu_server/webhook"
@@ -152,7 +153,7 @@ func (a *API) listBusinessUnit(w http.ResponseWriter, r *http.Request) {
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 
 	// TODO: Get parameters from QueryString.
-	req := business_unit.ListBusinessUnitsRequest{}
+	req := storage.ListBusinessUnitsRequest{}
 	req.ApplicationID = appID
 	offsetStr := r.URL.Query().Get("offset")
 	limitStr := r.URL.Query().Get("limit")
@@ -195,7 +196,7 @@ func (a *API) getBusinessUnit(w http.ResponseWriter, r *http.Request) {
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID := mux.Vars(r)["id"]
 
-	listReq := business_unit.ListBusinessUnitsRequest{
+	listReq := storage.ListBusinessUnitsRequest{
 		Limit:           1,
 		ApplicationID:   appID,
 		BusinessUnitIDs: []string{buID},
@@ -345,7 +346,7 @@ func (a *API) listBusinessUnitAuthentication(w http.ResponseWriter, r *http.Requ
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID := mux.Vars(r)["id"]
 
-	req := business_unit.ListAuthenticationRequest{}
+	req := storage.ListAuthenticationRequest{}
 	offsetStr := r.URL.Query().Get("offset")
 	limitStr := r.URL.Query().Get("limit")
 	if offsetStr != "" {
@@ -390,7 +391,7 @@ func (a *API) getBusinessUnitAuthentication(w http.ResponseWriter, r *http.Reque
 	buID := mux.Vars(r)["id"]
 	authenticationID := mux.Vars(r)["authentication_id"]
 
-	req := business_unit.ListAuthenticationRequest{
+	req := storage.ListAuthenticationRequest{
 		Limit:             1,
 		ApplicationID:     appID,
 		BusinessUnitID:    buID,

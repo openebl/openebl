@@ -313,15 +313,15 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           4,
 				ApplicationID:   "appid",
 				BusinessUnitIDs: []string{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total: 4,
-				Records: []business_unit.ListBusinessUnitsRecord{
+				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
 							ID:            did.MustParseDID("did:openebl:issuer"),
@@ -441,15 +441,15 @@ func (s *FileBasedEBLTestSuite) TestCreateDraftEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "appid",
 				BusinessUnitIDs: []string{"did:openebl:issuer"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total: 4,
-				Records: []business_unit.ListBusinessUnitsRecord{
+				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
 							ID:            did.MustParseDID("did:openebl:issuer"),
@@ -556,15 +556,15 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBLToNonDraftEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           4,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total: 4,
-				Records: []business_unit.ListBusinessUnitsRecord{
+				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: s.issuer,
 					},
@@ -671,15 +671,15 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBLToDraftEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:issuer"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total: 4,
-				Records: []business_unit.ListBusinessUnitsRecord{
+				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: s.issuer,
 					},
@@ -751,15 +751,15 @@ func (s *FileBasedEBLTestSuite) TestListEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "appid",
 				BusinessUnitIDs: []string{"did:openebl:issuer"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total: 1,
-				Records: []business_unit.ListBusinessUnitsRecord{
+				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
 							ID:            did.MustParseDID("did:openebl:issuer"),
@@ -811,15 +811,15 @@ func (s *FileBasedEBLTestSuite) TestShipperTransferEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:shipper"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total:   1,
-				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.shipper}},
+				Records: []storage.ListBusinessUnitsRecord{{BusinessUnit: s.shipper}},
 			}, nil,
 		),
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
@@ -900,15 +900,15 @@ func (s *FileBasedEBLTestSuite) TestIssuerTransferEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:issuer"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total:   1,
-				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
+				Records: []storage.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
 			}, nil,
 		),
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
@@ -986,15 +986,15 @@ func (s *FileBasedEBLTestSuite) TestTransferEBL_ActionNotAllowed() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:shipper"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total:   1,
-				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.shipper}},
+				Records: []storage.ListBusinessUnitsRecord{{BusinessUnit: s.shipper}},
 			}, nil,
 		),
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
@@ -1038,15 +1038,15 @@ func (s *FileBasedEBLTestSuite) TestAmendmentRequestEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:consignee"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total:   1,
-				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.consignee}},
+				Records: []storage.ListBusinessUnitsRecord{{BusinessUnit: s.consignee}},
 			}, nil,
 		),
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
@@ -1124,15 +1124,15 @@ func (s *FileBasedEBLTestSuite) TestAmendmentRequestEBL_ActionNotAllowed() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:issuer"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total:   1,
-				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
+				Records: []storage.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
 			}, nil,
 		),
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
@@ -1345,15 +1345,15 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:issuer"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total:   1,
-				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
+				Records: []storage.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
 			}, nil,
 		),
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
@@ -1458,15 +1458,15 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL_ReturnedByShipper() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:issuer"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total:   1,
-				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
+				Records: []storage.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
 			}, nil,
 		),
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
@@ -1779,15 +1779,15 @@ func (s *FileBasedEBLTestSuite) TestGetEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "appid",
 				BusinessUnitIDs: []string{"did:openebl:requester"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total: 1,
-				Records: []business_unit.ListBusinessUnitsRecord{
+				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
 							ID:            did.MustParseDID("did:openebl:requester"),
@@ -1904,15 +1904,15 @@ func (s *FileBasedEBLTestSuite) TestGetEBLDocument() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "appid",
 				BusinessUnitIDs: []string{"did:openebl:requester"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total: 1,
-				Records: []business_unit.ListBusinessUnitsRecord{
+				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
 							ID:            did.MustParseDID("did:openebl:requester"),

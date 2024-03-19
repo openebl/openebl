@@ -25,7 +25,7 @@ type BusinessUnitManagerTestSuite struct {
 	suite.Suite
 	ctx              context.Context
 	ctrl             *gomock.Controller
-	storage          *mock_business_unit.MockBusinessUnitStorage
+	storage          *mock_storage.MockBusinessUnitStorage
 	webhookCtrl      *mock_webhook.MockWebhookController
 	jwsSignerFactory *mock_business_unit.MockJWSSignerFactory
 	ca               *mock_cert_authority.MockCertAuthority
@@ -40,7 +40,7 @@ func TestBusinessUnitManager(t *testing.T) {
 func (s *BusinessUnitManagerTestSuite) SetupTest() {
 	s.ctx = context.Background()
 	s.ctrl = gomock.NewController(s.T())
-	s.storage = mock_business_unit.NewMockBusinessUnitStorage(s.ctrl)
+	s.storage = mock_storage.NewMockBusinessUnitStorage(s.ctrl)
 	s.webhookCtrl = mock_webhook.NewMockWebhookController(s.ctrl)
 	s.jwsSignerFactory = mock_business_unit.NewMockJWSSignerFactory(s.ctrl)
 	s.ca = mock_cert_authority.NewMockCertAuthority(s.ctrl)
@@ -146,14 +146,14 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 		s.storage.EXPECT().ListBusinessUnits(
 			gomock.Any(),
 			s.tx,
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   request.ApplicationID,
 				BusinessUnitIDs: []string{request.ID.String()},
 			},
-		).Return(business_unit.ListBusinessUnitsResult{
+		).Return(storage.ListBusinessUnitsResult{
 			Total: 1,
-			Records: []business_unit.ListBusinessUnitsRecord{
+			Records: []storage.ListBusinessUnitsRecord{
 				{
 					BusinessUnit: oldBusinessUnit,
 				},
@@ -171,7 +171,7 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 }
 
 func (s *BusinessUnitManagerTestSuite) TestListBusinessUnits() {
-	request := business_unit.ListBusinessUnitsRequest{
+	request := storage.ListBusinessUnitsRequest{
 		Offset:          1,
 		Limit:           10,
 		ApplicationID:   "application-id",
@@ -193,9 +193,9 @@ func (s *BusinessUnitManagerTestSuite) TestListBusinessUnits() {
 		UpdatedBy:     "requester",
 	}
 
-	listResult := business_unit.ListBusinessUnitsResult{
+	listResult := storage.ListBusinessUnitsResult{
 		Total: 1,
-		Records: []business_unit.ListBusinessUnitsRecord{
+		Records: []storage.ListBusinessUnitsRecord{
 			{
 				BusinessUnit: expectedBusinessUnit,
 			},
@@ -262,14 +262,14 @@ func (s *BusinessUnitManagerTestSuite) TestSetBusinessUnitStatus() {
 		s.storage.EXPECT().ListBusinessUnits(
 			gomock.Any(),
 			s.tx,
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   request.ApplicationID,
 				BusinessUnitIDs: []string{request.ID.String()},
 			},
-		).Return(business_unit.ListBusinessUnitsResult{
+		).Return(storage.ListBusinessUnitsResult{
 			Total: 1,
-			Records: []business_unit.ListBusinessUnitsRecord{
+			Records: []storage.ListBusinessUnitsRecord{
 				{
 					BusinessUnit: oldBusinessUnit,
 				},
@@ -313,14 +313,14 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 		CreatedBy:     "old-requester",
 	}
 
-	expectedListBuRequest := business_unit.ListBusinessUnitsRequest{
+	expectedListBuRequest := storage.ListBusinessUnitsRequest{
 		Limit:           1,
 		ApplicationID:   request.ApplicationID,
 		BusinessUnitIDs: []string{request.BusinessUnitID.String()},
 	}
-	listBuResult := business_unit.ListBusinessUnitsResult{
+	listBuResult := storage.ListBusinessUnitsResult{
 		Total: 1,
-		Records: []business_unit.ListBusinessUnitsRecord{
+		Records: []storage.ListBusinessUnitsRecord{
 			{
 				BusinessUnit: bu,
 			},
@@ -425,13 +425,13 @@ func (s *BusinessUnitManagerTestSuite) TestRevokeAuthentication() {
 		s.storage.EXPECT().ListAuthentication(
 			gomock.Any(),
 			s.tx,
-			business_unit.ListAuthenticationRequest{
+			storage.ListAuthenticationRequest{
 				Limit:             1,
 				ApplicationID:     request.ApplicationID,
 				BusinessUnitID:    request.BusinessUnitID.String(),
 				AuthenticationIDs: []string{request.AuthenticationID},
 			},
-		).Return(business_unit.ListAuthenticationResult{
+		).Return(storage.ListAuthenticationResult{
 			Total:   1,
 			Records: []model.BusinessUnitAuthentication{oldAuthentication},
 		}, nil),
@@ -449,7 +449,7 @@ func (s *BusinessUnitManagerTestSuite) TestRevokeAuthentication() {
 }
 
 func (s *BusinessUnitManagerTestSuite) TestListAuthentication() {
-	request := business_unit.ListAuthenticationRequest{
+	request := storage.ListAuthenticationRequest{
 		Offset:            1,
 		Limit:             10,
 		ApplicationID:     "application-id",
@@ -469,7 +469,7 @@ func (s *BusinessUnitManagerTestSuite) TestListAuthentication() {
 		RevokedAt:    0,
 	}
 
-	listResult := business_unit.ListAuthenticationResult{
+	listResult := storage.ListAuthenticationResult{
 		Total:   1,
 		Records: []model.BusinessUnitAuthentication{expectedAuthentication},
 	}
@@ -498,7 +498,7 @@ func (s *BusinessUnitManagerTestSuite) TestGetJWSSigner() {
 		AuthenticationID: "authentication-id",
 	}
 
-	listAuthRequest := business_unit.ListAuthenticationRequest{
+	listAuthRequest := storage.ListAuthenticationRequest{
 		Limit:             1,
 		ApplicationID:     request.ApplicationID,
 		BusinessUnitID:    request.BusinessUnitID.String(),
@@ -513,7 +513,7 @@ func (s *BusinessUnitManagerTestSuite) TestGetJWSSigner() {
 		PrivateKey:   "FAKE PEM PRIVATE",
 		Certificate:  "FAKE PEM CERT",
 	}
-	listAuthResult := business_unit.ListAuthenticationResult{
+	listAuthResult := storage.ListAuthenticationResult{
 		Total:   1,
 		Records: []model.BusinessUnitAuthentication{buAuth},
 	}

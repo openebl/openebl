@@ -14,6 +14,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	business_unit "github.com/openebl/openebl/pkg/bu_server/business_unit"
 	model "github.com/openebl/openebl/pkg/bu_server/model"
+	storage "github.com/openebl/openebl/pkg/bu_server/storage"
 	envelope "github.com/openebl/openebl/pkg/envelope"
 )
 
@@ -86,10 +87,10 @@ func (mr *MockBusinessUnitManagerMockRecorder) GetJWSSigner(ctx, req interface{}
 }
 
 // ListAuthentication mocks base method.
-func (m *MockBusinessUnitManager) ListAuthentication(ctx context.Context, req business_unit.ListAuthenticationRequest) (business_unit.ListAuthenticationResult, error) {
+func (m *MockBusinessUnitManager) ListAuthentication(ctx context.Context, req storage.ListAuthenticationRequest) (storage.ListAuthenticationResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListAuthentication", ctx, req)
-	ret0, _ := ret[0].(business_unit.ListAuthenticationResult)
+	ret0, _ := ret[0].(storage.ListAuthenticationResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -101,10 +102,10 @@ func (mr *MockBusinessUnitManagerMockRecorder) ListAuthentication(ctx, req inter
 }
 
 // ListBusinessUnits mocks base method.
-func (m *MockBusinessUnitManager) ListBusinessUnits(ctx context.Context, req business_unit.ListBusinessUnitsRequest) (business_unit.ListBusinessUnitsResult, error) {
+func (m *MockBusinessUnitManager) ListBusinessUnits(ctx context.Context, req storage.ListBusinessUnitsRequest) (storage.ListBusinessUnitsResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListBusinessUnits", ctx, req)
-	ret0, _ := ret[0].(business_unit.ListBusinessUnitsResult)
+	ret0, _ := ret[0].(storage.ListBusinessUnitsResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

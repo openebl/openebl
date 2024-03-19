@@ -140,15 +140,15 @@ func (s *APITestSuite) TestCreateBusinessUnit() {
 func (s *APITestSuite) TestListBusinessUnit() {
 	endPoint := fmt.Sprintf("http://%s/business_unit?offset=1&limit=2", s.localAddress)
 
-	expectedRequest := business_unit.ListBusinessUnitsRequest{
+	expectedRequest := storage.ListBusinessUnitsRequest{
 		ApplicationID: s.appId,
 		Offset:        1,
 		Limit:         2,
 	}
 
-	result := business_unit.ListBusinessUnitsResult{
+	result := storage.ListBusinessUnitsResult{
 		Total: 10,
-		Records: []business_unit.ListBusinessUnitsRecord{
+		Records: []storage.ListBusinessUnitsRecord{
 			{
 				BusinessUnit: model.BusinessUnit{
 					ID: did.MustParseDID("did:openebl:1234567890"),
@@ -184,15 +184,15 @@ func (s *APITestSuite) TestGetBusinessUnit() {
 	buId := "did:openebl:1234567890"
 	endPoint := fmt.Sprintf("http://%s/business_unit/%s", s.localAddress, buId)
 
-	expectedRequest := business_unit.ListBusinessUnitsRequest{
+	expectedRequest := storage.ListBusinessUnitsRequest{
 		ApplicationID:   s.appId,
 		BusinessUnitIDs: []string{buId},
 		Limit:           1,
 	}
 
-	result := business_unit.ListBusinessUnitsResult{
+	result := storage.ListBusinessUnitsResult{
 		Total: 10,
-		Records: []business_unit.ListBusinessUnitsRecord{
+		Records: []storage.ListBusinessUnitsRecord{
 			{
 				BusinessUnit: model.BusinessUnit{
 					ID: did.MustParseDID("did:openebl:1234567890"),

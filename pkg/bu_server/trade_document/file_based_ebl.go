@@ -1118,7 +1118,7 @@ func (c *_FileBaseEBLController) GetDocument(ctx context.Context, request GetFil
 }
 
 func (c *_FileBaseEBLController) checkBUExistence(ctx context.Context, appID string, buIDs []string) error {
-	req := business_unit.ListBusinessUnitsRequest{
+	req := storage.ListBusinessUnitsRequest{
 		Limit:           len(buIDs),
 		ApplicationID:   appID,
 		BusinessUnitIDs: buIDs,

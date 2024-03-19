@@ -28,11 +28,11 @@ import (
 type BusinessUnitManager interface {
 	CreateBusinessUnit(ctx context.Context, ts int64, req CreateBusinessUnitRequest) (model.BusinessUnit, error)
 	UpdateBusinessUnit(ctx context.Context, ts int64, req UpdateBusinessUnitRequest) (model.BusinessUnit, error)
-	ListBusinessUnits(ctx context.Context, req ListBusinessUnitsRequest) (ListBusinessUnitsResult, error)
+	ListBusinessUnits(ctx context.Context, req storage.ListBusinessUnitsRequest) (storage.ListBusinessUnitsResult, error)
 	SetStatus(ctx context.Context, ts int64, req SetBusinessUnitStatusRequest) (model.BusinessUnit, error)
 	AddAuthentication(ctx context.Context, ts int64, req AddAuthenticationRequest) (model.BusinessUnitAuthentication, error)
 	RevokeAuthentication(ctx context.Context, ts int64, req RevokeAuthenticationRequest) (model.BusinessUnitAuthentication, error)
-	ListAuthentication(ctx context.Context, req ListAuthenticationRequest) (ListAuthenticationResult, error)
+	ListAuthentication(ctx context.Context, req storage.ListAuthenticationRequest) (storage.ListAuthenticationResult, error)
 	GetJWSSigner(ctx context.Context, req GetJWSSignerRequest) (JWSSigner, error)
 }
 
@@ -85,28 +85,6 @@ type UpdateBusinessUnitRequest struct {
 	PhoneNumbers  []string `json:"phone_numbers"`  // List of phone numbers associated with the BusinessUnit.
 }
 
-// ListBusinessUnitsRequest is the request to list business units.
-type ListBusinessUnitsRequest struct {
-	Offset int `json:"offset"` // Offset of the business units to be listed.
-	Limit  int `json:"limit"`  // Limit of the business units to be listed.
-
-	// Filters
-	ApplicationID   string   `json:"application_id"`    // The ID of the application this BusinessUnit belongs to.
-	BusinessUnitIDs []string `json:"business_unit_ids"` // The IDs of the business units.
-}
-
-// ListBusinessUnitsRecord is the record of a business unit.
-type ListBusinessUnitsRecord struct {
-	BusinessUnit    model.BusinessUnit                 `json:"business_unit"`   // The business unit.
-	Authentications []model.BusinessUnitAuthentication `json:"authentications"` // The authentications of the business unit.
-}
-
-// ListBusinessUnitsResult is the result of listing business units.
-type ListBusinessUnitsResult struct {
-	Total   int                       `json:"total"`   // Total number of business units.
-	Records []ListBusinessUnitsRecord `json:"records"` // Records of business units.
-}
-
 // SetBusinessUnitStatusRequest is the request to set the status of a business unit.
 type SetBusinessUnitStatusRequest struct {
 	Requester     string                   `json:"requester"`      // User who makes the request.
@@ -150,23 +128,6 @@ type RevokeAuthenticationRequest struct {
 	AuthenticationID string  `json:"authentication_id"` // Unique ID of the authentication.
 }
 
-// ListAuthenticationRequest is the request to list authentications.
-type ListAuthenticationRequest struct {
-	Offset int `json:"offset"` // Offset of the authentications to be listed.
-	Limit  int `json:"limit"`  // Limit of the authentications to be listed.
-
-	// Filters
-	ApplicationID     string   `json:"application_id"`     // The ID of the application this BusinessUnit belongs to.
-	BusinessUnitID    string   `json:"id"`                 // Unique DID of a BusinessUnit.
-	AuthenticationIDs []string `json:"authentication_ids"` // Unique IDs of the authentications.
-}
-
-// ListAuthenticationResult is the result of listing authentications.
-type ListAuthenticationResult struct {
-	Total   int                                `json:"total"`   // Total number of authentications.
-	Records []model.BusinessUnitAuthentication `json:"records"` // Records of authentications.
-}
-
 type GetJWSSignerRequest struct {
 	ApplicationID    string  `json:"application_id"`    // The ID of the application this BusinessUnit belongs to.
 	BusinessUnitID   did.DID `json:"id"`                // Unique DID of a BusinessUnit.
@@ -175,12 +136,12 @@ type GetJWSSignerRequest struct {
 
 type _BusinessUnitManager struct {
 	ca               cert_authority.CertAuthority
-	storage          BusinessUnitStorage
+	storage          storage.BusinessUnitStorage
 	webhookCtrl      webhook.WebhookController
 	jwsSignerFactory JWSSignerFactory
 }
 
-func NewBusinessUnitManager(storage BusinessUnitStorage, ca cert_authority.CertAuthority, webhookCtrl webhook.WebhookController, jwsSignerFactory JWSSignerFactory) BusinessUnitManager {
+func NewBusinessUnitManager(storage storage.BusinessUnitStorage, ca cert_authority.CertAuthority, webhookCtrl webhook.WebhookController, jwsSignerFactory JWSSignerFactory) BusinessUnitManager {
 	return &_BusinessUnitManager{
 		ca:               ca,
 		storage:          storage,
@@ -271,20 +232,20 @@ func (m *_BusinessUnitManager) UpdateBusinessUnit(ctx context.Context, ts int64,
 	return bu, nil
 }
 
-func (m *_BusinessUnitManager) ListBusinessUnits(ctx context.Context, req ListBusinessUnitsRequest) (ListBusinessUnitsResult, error) {
+func (m *_BusinessUnitManager) ListBusinessUnits(ctx context.Context, req storage.ListBusinessUnitsRequest) (storage.ListBusinessUnitsResult, error) {
 	if err := ValidateListBusinessUnitRequest(req); err != nil {
-		return ListBusinessUnitsResult{}, err
+		return storage.ListBusinessUnitsResult{}, err
 	}
 
 	tx, ctx, err := m.storage.CreateTx(ctx)
 	if err != nil {
-		return ListBusinessUnitsResult{}, err
+		return storage.ListBusinessUnitsResult{}, err
 	}
 	defer tx.Rollback(ctx)
 
 	result, err := m.storage.ListBusinessUnits(ctx, tx, req)
 	if err != nil {
-		return ListBusinessUnitsResult{}, err
+		return storage.ListBusinessUnitsResult{}, err
 	}
 	for i := range result.Records {
 		for j := range result.Records[i].Authentications {
@@ -305,7 +266,7 @@ func (m *_BusinessUnitManager) SetStatus(ctx context.Context, ts int64, req SetB
 	}
 	defer tx.Rollback(ctx)
 
-	listReq := ListBusinessUnitsRequest{
+	listReq := storage.ListBusinessUnitsRequest{
 		Limit:         1,
 		ApplicationID: req.ApplicationID,
 		BusinessUnitIDs: []string{
@@ -423,7 +384,7 @@ func (m *_BusinessUnitManager) RevokeAuthentication(ctx context.Context, ts int6
 	}
 	defer tx.Rollback(ctx)
 
-	listReq := ListAuthenticationRequest{
+	listReq := storage.ListAuthenticationRequest{
 		Limit:          1,
 		ApplicationID:  req.ApplicationID,
 		BusinessUnitID: req.BusinessUnitID.String(),
@@ -466,20 +427,20 @@ func (m *_BusinessUnitManager) RevokeAuthentication(ctx context.Context, ts int6
 	return auth, nil
 }
 
-func (m *_BusinessUnitManager) ListAuthentication(ctx context.Context, req ListAuthenticationRequest) (ListAuthenticationResult, error) {
+func (m *_BusinessUnitManager) ListAuthentication(ctx context.Context, req storage.ListAuthenticationRequest) (storage.ListAuthenticationResult, error) {
 	if err := ValidateListAuthenticationRequest(req); err != nil {
-		return ListAuthenticationResult{}, err
+		return storage.ListAuthenticationResult{}, err
 	}
 
 	tx, ctx, err := m.storage.CreateTx(ctx)
 	if err != nil {
-		return ListAuthenticationResult{}, err
+		return storage.ListAuthenticationResult{}, err
 	}
 	defer tx.Rollback(ctx)
 
 	result, err := m.storage.ListAuthentication(ctx, tx, req)
 	if err != nil {
-		return ListAuthenticationResult{}, err
+		return storage.ListAuthenticationResult{}, err
 	}
 
 	for i := range result.Records {
@@ -496,7 +457,7 @@ func (m _BusinessUnitManager) GetJWSSigner(ctx context.Context, req GetJWSSigner
 		}
 		defer tx.Rollback(ctx)
 
-		listReq := ListAuthenticationRequest{
+		listReq := storage.ListAuthenticationRequest{
 			Limit:          1,
 			ApplicationID:  req.ApplicationID,
 			BusinessUnitID: req.BusinessUnitID.String(),
@@ -538,7 +499,7 @@ func (m *_BusinessUnitManager) getBusinessUnit(ctx context.Context, tx storage.T
 		defer newTx.Rollback(ctx)
 		tx = newTx
 	}
-	req := ListBusinessUnitsRequest{
+	req := storage.ListBusinessUnitsRequest{
 		Limit:         1,
 		ApplicationID: appID,
 		BusinessUnitIDs: []string{

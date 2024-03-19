@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 
-	"github.com/openebl/openebl/pkg/bu_server/business_unit"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 )
@@ -40,7 +39,7 @@ SELECT * FROM new_data
 	return err
 }
 
-func (s *_Storage) ListBusinessUnits(ctx context.Context, tx storage.Tx, req business_unit.ListBusinessUnitsRequest) (business_unit.ListBusinessUnitsResult, error) {
+func (s *_Storage) ListBusinessUnits(ctx context.Context, tx storage.Tx, req storage.ListBusinessUnitsRequest) (storage.ListBusinessUnitsResult, error) {
 	query := `
 WITH filtered_record AS (
 	SELECT
@@ -61,11 +60,11 @@ FULL OUTER JOIN (SELECT business_unit, authentications FROM filtered_record ORDE
 `
 	rows, err := tx.Query(ctx, query, req.Offset, req.Limit, req.ApplicationID, req.BusinessUnitIDs)
 	if err != nil {
-		return business_unit.ListBusinessUnitsResult{}, err
+		return storage.ListBusinessUnitsResult{}, err
 	}
 	defer rows.Close()
 
-	result := business_unit.ListBusinessUnitsResult{}
+	result := storage.ListBusinessUnitsResult{}
 
 	for rows.Next() {
 		var total *int
@@ -73,13 +72,13 @@ FULL OUTER JOIN (SELECT business_unit, authentications FROM filtered_record ORDE
 		var authentications []model.BusinessUnitAuthentication
 
 		if err := rows.Scan(&total, &bu, &authentications); err != nil {
-			return business_unit.ListBusinessUnitsResult{}, err
+			return storage.ListBusinessUnitsResult{}, err
 		}
 		if total != nil {
 			result.Total = *total
 		}
 		if bu != nil {
-			record := business_unit.ListBusinessUnitsRecord{
+			record := storage.ListBusinessUnitsRecord{
 				BusinessUnit:    *bu,
 				Authentications: authentications,
 			}
@@ -87,7 +86,7 @@ FULL OUTER JOIN (SELECT business_unit, authentications FROM filtered_record ORDE
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return business_unit.ListBusinessUnitsResult{}, err
+		return storage.ListBusinessUnitsResult{}, err
 	}
 
 	return result, nil
@@ -124,7 +123,8 @@ SELECT * FROM new_data
 	}
 	return nil
 }
-func (s *_Storage) ListAuthentication(ctx context.Context, tx storage.Tx, req business_unit.ListAuthenticationRequest) (business_unit.ListAuthenticationResult, error) {
+
+func (s *_Storage) ListAuthentication(ctx context.Context, tx storage.Tx, req storage.ListAuthenticationRequest) (storage.ListAuthenticationResult, error) {
 	query := `
 WITH filtered_record AS (
 	SELECT
@@ -146,16 +146,16 @@ FULL OUTER JOIN (SELECT authentication FROM filtered_record ORDER BY rec_id ASC 
 
 	rows, err := tx.Query(ctx, query, req.Offset, req.Limit, req.ApplicationID, req.BusinessUnitID, req.AuthenticationIDs)
 	if err != nil {
-		return business_unit.ListAuthenticationResult{}, err
+		return storage.ListAuthenticationResult{}, err
 	}
 	defer rows.Close()
 
-	result := business_unit.ListAuthenticationResult{}
+	result := storage.ListAuthenticationResult{}
 	for rows.Next() {
 		var total *int
 		var auth *model.BusinessUnitAuthentication
 		if err := rows.Scan(&total, &auth); err != nil {
-			return business_unit.ListAuthenticationResult{}, err
+			return storage.ListAuthenticationResult{}, err
 		}
 		if total != nil {
 			result.Total = *total

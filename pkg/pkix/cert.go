@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"time"
 )
 
 // Verify verifies the certificate chain of trust.
@@ -16,33 +17,31 @@ import (
 // The rootCerts parameter is optional. If provided, the rootCerts and the system
 // preinstalled trusted certs are used to verify the certificate chain.
 //
+// ts is the timestamp to verify the certificate chain. If ts is 0, the current time is used.
+//
 // !!! Current implementation doesn't check KeyUsage extension for better new user migration.
-func Verify(certs []*x509.Certificate, rootCerts []*x509.Certificate) error {
+func Verify(certs []*x509.Certificate, rootCerts []*x509.Certificate, ts int64) error {
 	if len(certs) == 0 {
 		return errors.New("no certificate provided")
+	}
+
+	if ts == 0 {
+		ts = time.Now().Unix()
 	}
 
 	cert := certs[0]
 	intermediateCerts := certs[1:]
 
-	// This is a workaround to prevent the error "x509: certificate is not authorized to sign other certificates"
-	// when the intermediate certificates don't have the keyCertSign KeyUsage extension.
-	for len(intermediateCerts) > 0 {
-		rootPool := x509.NewCertPool()
-		rootPool.AddCert(intermediateCerts[0])
-		options := x509.VerifyOptions{
-			Roots:     rootPool,
-			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
-		}
-		if _, err := cert.Verify(options); err != nil {
-			return err
-		}
-		cert = intermediateCerts[0]
-		intermediateCerts = intermediateCerts[1:]
-	}
-
 	var err error
 	var rootPool *x509.CertPool
+	var intermediatePool *x509.CertPool
+	if len(intermediateCerts) > 0 {
+		pool := x509.NewCertPool()
+		for _, intermediateCert := range intermediateCerts {
+			pool.AddCert(intermediateCert)
+		}
+		intermediatePool = pool
+	}
 	if len(rootCerts) > 0 {
 		rootPool, err = x509.SystemCertPool()
 		if err != nil {
@@ -54,13 +53,19 @@ func Verify(certs []*x509.Certificate, rootCerts []*x509.Certificate) error {
 	}
 
 	options := x509.VerifyOptions{
-		Roots:     rootPool,
-		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+		Roots:         rootPool,
+		Intermediates: intermediatePool,
+		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+		CurrentTime:   time.Unix(ts, 0),
 	}
 
-	if _, err = cert.Verify(options); err != nil {
+	certChains, err := cert.Verify(options)
+	if err != nil {
 		return err
 	}
+
+	// TODO: Check if certificates involved in certChains are not revoked.
+	_ = certChains
 
 	return nil
 }

@@ -35,3 +35,15 @@ func ValidateCreateWebhookRequest(req CreateWebhookRequest) error {
 
 	return nil
 }
+
+func ValidateListWebhookRequest(req ListWebhookRequest) error {
+	err := validation.ValidateStruct(&req,
+		validation.Field(&req.Limit, validation.Required),
+		validation.Field(&req.ApplicationID, validation.Required),
+	)
+	if err != nil {
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
+	}
+
+	return nil
+}

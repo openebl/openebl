@@ -116,8 +116,8 @@ type ListWebhookRequest struct {
 }
 
 type ListWebhookResult struct {
-	Total   int              `json:"total"`   // Total number of webhooks.
-	Records []*model.Webhook `json:"records"` // Records of webhook.
+	Total   int             `json:"total"`   // Total number of webhooks.
+	Records []model.Webhook `json:"records"` // Records of webhook.
 }
 
 type OutboxMsg struct {

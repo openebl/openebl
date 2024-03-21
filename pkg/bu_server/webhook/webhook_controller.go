@@ -3,6 +3,7 @@ package webhook
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/openebl/openebl/pkg/bu_server/model"
@@ -11,6 +12,19 @@ import (
 
 type WebhookController interface {
 	Create(ctx context.Context, ts int64, req CreateWebhookRequest) (model.Webhook, error)
+	List(ctx context.Context, req ListWebhookRequest) (ListWebhookResponse, error)
+	Get(ctx context.Context, applicationID string, id string) (model.Webhook, error)
+}
+
+type ListWebhookRequest struct {
+	Offset        int    `json:"offset"`
+	Limit         int    `json:"limit"`
+	ApplicationID string `json:"application_id"`
+}
+
+type ListWebhookResponse struct {
+	Total   int             `json:"total"`
+	Records []model.Webhook `json:"record"`
 }
 
 type CreateWebhookRequest struct {
@@ -69,4 +83,67 @@ func (c *_WebhookController) Create(ctx context.Context, ts int64, req CreateWeb
 
 	webhook.Secret = ""
 	return webhook, nil
+}
+
+func (c *_WebhookController) List(ctx context.Context, req ListWebhookRequest) (ListWebhookResponse, error) {
+	err := ValidateListWebhookRequest(req)
+	if err != nil {
+		return ListWebhookResponse{}, err
+	}
+
+	listReq := storage.ListWebhookRequest{
+		Offset:        req.Offset,
+		Limit:         req.Limit,
+		ApplicationID: req.ApplicationID,
+	}
+
+	tx, ctx, err := c.storage.CreateTx(ctx)
+	if err != nil {
+		return ListWebhookResponse{}, nil
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	result, err := c.storage.ListWebhook(ctx, tx, listReq)
+	if err != nil {
+		return ListWebhookResponse{}, err
+	}
+
+	res := ListWebhookResponse{
+		Total:   result.Total,
+		Records: result.Records,
+	}
+
+	return res, nil
+}
+
+func (c *_WebhookController) Get(ctx context.Context, applicationID string, id string) (model.Webhook, error) {
+	if applicationID == "" {
+		return model.Webhook{}, errors.New("empty application id")
+	}
+	if id == "" {
+		return model.Webhook{}, errors.New("empty webhook id")
+	}
+	listReq := storage.ListWebhookRequest{
+		Offset:        0,
+		Limit:         1,
+		ApplicationID: applicationID,
+		IDs:           []string{id},
+	}
+
+	tx, ctx, err := c.storage.CreateTx(ctx)
+	if err != nil {
+		return model.Webhook{}, nil
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	result, err := c.storage.ListWebhook(ctx, tx, listReq)
+	if err != nil {
+		return model.Webhook{}, err
+	}
+
+	if len(result.Records) < 1 {
+		return model.Webhook{}, model.ErrWebhookNotFound
+	}
+
+	return result.Records[0], nil
 }

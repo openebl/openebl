@@ -719,6 +719,9 @@ func (s *ManagerAPITestSuite) TestCreateAPIKey() {
 		ID: "api_key_id",
 	}
 	apiKeyString := auth.APIKeyString("api_key_id:secret")
+	apiKeyResponse := map[string]any{
+		"api_key": "api_key_id:secret",
+	}
 
 	restRequest := map[string]any{
 		"scopes": []string{"all"},
@@ -736,7 +739,7 @@ func (s *ManagerAPITestSuite) TestCreateAPIKey() {
 	defer response.Body.Close()
 	s.Assert().Equal(http.StatusOK, response.StatusCode)
 	body, _ := io.ReadAll(response.Body)
-	s.Assert().Equal(string(apiKeyString), strings.TrimSpace(string(body)))
+	s.Assert().Equal(util.StructToJSON(apiKeyResponse), strings.TrimSpace(string(body)))
 }
 
 func (s *ManagerAPITestSuite) TestListAPIKey() {

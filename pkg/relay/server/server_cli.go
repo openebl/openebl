@@ -19,11 +19,11 @@ import (
 type RelayServerApp struct{}
 
 type RelayServerCli struct {
-	Server  struct{} `cmd help:"Run relay server."`
+	Server  struct{} `cmd:"" help:"Run relay server."`
 	Migrate struct {
-		Migrations string `type:"path" default:"migrations" help:"Path to migration folder."`
-	} `cmd help:"Migrate database."`
-	Config string `type:"path" default:"config.yaml" help:"Path to config file."`
+		Migrations string `short:"p" long:"path" type:"existingdir" help:"Path to the migration files" default:"migrations"`
+	} `cmd:"" help:"Migrate database."`
+	Config string `short:"c" long:"config" type:"existingfile" help:"Path to the configuration file" default:"config.yaml"`
 }
 
 type RelayServerConfig struct {

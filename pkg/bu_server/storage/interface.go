@@ -103,6 +103,7 @@ type TradeDocumentStorage interface {
 	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
 	AddTradeDocument(ctx context.Context, tx Tx, tradeDoc TradeDocument) error
 	ListTradeDocument(ctx context.Context, tx Tx, req ListTradeDocumentRequest) (ListTradeDocumentResponse, error)
+	AddTradeDocumentOutbox(ctx context.Context, tx Tx, ts int64, key string, payload []byte) error
 }
 
 type ListWebhookRequest struct {
@@ -133,4 +134,24 @@ type WebhookStorage interface {
 	AddWebhookEvent(ctx context.Context, tx Tx, ts int64, key string, event *model.WebhookEvent) error
 	GetWebhookEvent(ctx context.Context, tx Tx, batchSize int) ([]OutboxMsg, error)
 	DeleteWebhookEvent(ctx context.Context, tx Tx, recIDs ...int64) error
+}
+
+type OffsetStorage interface {
+	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
+	GetRelayServerOffset(ctx context.Context, tx Tx, serverID string) (int64, error)
+	UpdateRelayServerOffset(ctx context.Context, tx Tx, serverID string, offset int64) error
+}
+
+type TradeDocumentInboxStorage interface {
+	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
+	AddTradeDocument(ctx context.Context, tx Tx, tradeDoc TradeDocument) error
+	GetRelayServerOffset(ctx context.Context, tx Tx, serverID string) (int64, error)
+	UpdateRelayServerOffset(ctx context.Context, tx Tx, serverID string, offset int64) error
+}
+
+type TradeDocumentOutboxStorage interface {
+	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
+	AddTradeDocumentOutbox(ctx context.Context, tx Tx, ts int64, key string, payload []byte) error
+	GetTradeDocumentOutbox(ctx context.Context, tx Tx, batchSize int) ([]OutboxMsg, error)
+	DeleteTradeDocumentOutbox(ctx context.Context, tx Tx, recIDs ...int64) error
 }

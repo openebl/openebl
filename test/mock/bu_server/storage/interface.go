@@ -364,6 +364,20 @@ func (mr *MockTradeDocumentStorageMockRecorder) AddTradeDocument(ctx, tx, tradeD
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTradeDocument", reflect.TypeOf((*MockTradeDocumentStorage)(nil).AddTradeDocument), ctx, tx, tradeDoc)
 }
 
+// AddTradeDocumentOutbox mocks base method.
+func (m *MockTradeDocumentStorage) AddTradeDocumentOutbox(ctx context.Context, tx storage.Tx, ts int64, key string, payload []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddTradeDocumentOutbox", ctx, tx, ts, key, payload)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddTradeDocumentOutbox indicates an expected call of AddTradeDocumentOutbox.
+func (mr *MockTradeDocumentStorageMockRecorder) AddTradeDocumentOutbox(ctx, tx, ts, key, payload interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTradeDocumentOutbox", reflect.TypeOf((*MockTradeDocumentStorage)(nil).AddTradeDocumentOutbox), ctx, tx, ts, key, payload)
+}
+
 // CreateTx mocks base method.
 func (m *MockTradeDocumentStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
 	m.ctrl.T.Helper()
@@ -519,4 +533,256 @@ func (m *MockWebhookStorage) ListWebhook(ctx context.Context, tx storage.Tx, req
 func (mr *MockWebhookStorageMockRecorder) ListWebhook(ctx, tx, req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListWebhook", reflect.TypeOf((*MockWebhookStorage)(nil).ListWebhook), ctx, tx, req)
+}
+
+// MockOffsetStorage is a mock of OffsetStorage interface.
+type MockOffsetStorage struct {
+	ctrl     *gomock.Controller
+	recorder *MockOffsetStorageMockRecorder
+}
+
+// MockOffsetStorageMockRecorder is the mock recorder for MockOffsetStorage.
+type MockOffsetStorageMockRecorder struct {
+	mock *MockOffsetStorage
+}
+
+// NewMockOffsetStorage creates a new mock instance.
+func NewMockOffsetStorage(ctrl *gomock.Controller) *MockOffsetStorage {
+	mock := &MockOffsetStorage{ctrl: ctrl}
+	mock.recorder = &MockOffsetStorageMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockOffsetStorage) EXPECT() *MockOffsetStorageMockRecorder {
+	return m.recorder
+}
+
+// CreateTx mocks base method.
+func (m *MockOffsetStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx}
+	for _, a := range options {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CreateTx", varargs...)
+	ret0, _ := ret[0].(storage.Tx)
+	ret1, _ := ret[1].(context.Context)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// CreateTx indicates an expected call of CreateTx.
+func (mr *MockOffsetStorageMockRecorder) CreateTx(ctx interface{}, options ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx}, options...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTx", reflect.TypeOf((*MockOffsetStorage)(nil).CreateTx), varargs...)
+}
+
+// GetRelayServerOffset mocks base method.
+func (m *MockOffsetStorage) GetRelayServerOffset(ctx context.Context, tx storage.Tx, serverID string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRelayServerOffset", ctx, tx, serverID)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRelayServerOffset indicates an expected call of GetRelayServerOffset.
+func (mr *MockOffsetStorageMockRecorder) GetRelayServerOffset(ctx, tx, serverID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRelayServerOffset", reflect.TypeOf((*MockOffsetStorage)(nil).GetRelayServerOffset), ctx, tx, serverID)
+}
+
+// UpdateRelayServerOffset mocks base method.
+func (m *MockOffsetStorage) UpdateRelayServerOffset(ctx context.Context, tx storage.Tx, serverID string, offset int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateRelayServerOffset", ctx, tx, serverID, offset)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateRelayServerOffset indicates an expected call of UpdateRelayServerOffset.
+func (mr *MockOffsetStorageMockRecorder) UpdateRelayServerOffset(ctx, tx, serverID, offset interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRelayServerOffset", reflect.TypeOf((*MockOffsetStorage)(nil).UpdateRelayServerOffset), ctx, tx, serverID, offset)
+}
+
+// MockTradeDocumentInboxStorage is a mock of TradeDocumentInboxStorage interface.
+type MockTradeDocumentInboxStorage struct {
+	ctrl     *gomock.Controller
+	recorder *MockTradeDocumentInboxStorageMockRecorder
+}
+
+// MockTradeDocumentInboxStorageMockRecorder is the mock recorder for MockTradeDocumentInboxStorage.
+type MockTradeDocumentInboxStorageMockRecorder struct {
+	mock *MockTradeDocumentInboxStorage
+}
+
+// NewMockTradeDocumentInboxStorage creates a new mock instance.
+func NewMockTradeDocumentInboxStorage(ctrl *gomock.Controller) *MockTradeDocumentInboxStorage {
+	mock := &MockTradeDocumentInboxStorage{ctrl: ctrl}
+	mock.recorder = &MockTradeDocumentInboxStorageMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockTradeDocumentInboxStorage) EXPECT() *MockTradeDocumentInboxStorageMockRecorder {
+	return m.recorder
+}
+
+// AddTradeDocument mocks base method.
+func (m *MockTradeDocumentInboxStorage) AddTradeDocument(ctx context.Context, tx storage.Tx, tradeDoc storage.TradeDocument) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddTradeDocument", ctx, tx, tradeDoc)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddTradeDocument indicates an expected call of AddTradeDocument.
+func (mr *MockTradeDocumentInboxStorageMockRecorder) AddTradeDocument(ctx, tx, tradeDoc interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTradeDocument", reflect.TypeOf((*MockTradeDocumentInboxStorage)(nil).AddTradeDocument), ctx, tx, tradeDoc)
+}
+
+// CreateTx mocks base method.
+func (m *MockTradeDocumentInboxStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx}
+	for _, a := range options {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CreateTx", varargs...)
+	ret0, _ := ret[0].(storage.Tx)
+	ret1, _ := ret[1].(context.Context)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// CreateTx indicates an expected call of CreateTx.
+func (mr *MockTradeDocumentInboxStorageMockRecorder) CreateTx(ctx interface{}, options ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx}, options...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTx", reflect.TypeOf((*MockTradeDocumentInboxStorage)(nil).CreateTx), varargs...)
+}
+
+// GetRelayServerOffset mocks base method.
+func (m *MockTradeDocumentInboxStorage) GetRelayServerOffset(ctx context.Context, tx storage.Tx, serverID string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRelayServerOffset", ctx, tx, serverID)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRelayServerOffset indicates an expected call of GetRelayServerOffset.
+func (mr *MockTradeDocumentInboxStorageMockRecorder) GetRelayServerOffset(ctx, tx, serverID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRelayServerOffset", reflect.TypeOf((*MockTradeDocumentInboxStorage)(nil).GetRelayServerOffset), ctx, tx, serverID)
+}
+
+// UpdateRelayServerOffset mocks base method.
+func (m *MockTradeDocumentInboxStorage) UpdateRelayServerOffset(ctx context.Context, tx storage.Tx, serverID string, offset int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateRelayServerOffset", ctx, tx, serverID, offset)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateRelayServerOffset indicates an expected call of UpdateRelayServerOffset.
+func (mr *MockTradeDocumentInboxStorageMockRecorder) UpdateRelayServerOffset(ctx, tx, serverID, offset interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRelayServerOffset", reflect.TypeOf((*MockTradeDocumentInboxStorage)(nil).UpdateRelayServerOffset), ctx, tx, serverID, offset)
+}
+
+// MockTradeDocumentOutboxStorage is a mock of TradeDocumentOutboxStorage interface.
+type MockTradeDocumentOutboxStorage struct {
+	ctrl     *gomock.Controller
+	recorder *MockTradeDocumentOutboxStorageMockRecorder
+}
+
+// MockTradeDocumentOutboxStorageMockRecorder is the mock recorder for MockTradeDocumentOutboxStorage.
+type MockTradeDocumentOutboxStorageMockRecorder struct {
+	mock *MockTradeDocumentOutboxStorage
+}
+
+// NewMockTradeDocumentOutboxStorage creates a new mock instance.
+func NewMockTradeDocumentOutboxStorage(ctrl *gomock.Controller) *MockTradeDocumentOutboxStorage {
+	mock := &MockTradeDocumentOutboxStorage{ctrl: ctrl}
+	mock.recorder = &MockTradeDocumentOutboxStorageMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockTradeDocumentOutboxStorage) EXPECT() *MockTradeDocumentOutboxStorageMockRecorder {
+	return m.recorder
+}
+
+// AddTradeDocumentOutbox mocks base method.
+func (m *MockTradeDocumentOutboxStorage) AddTradeDocumentOutbox(ctx context.Context, tx storage.Tx, ts int64, key string, payload []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddTradeDocumentOutbox", ctx, tx, ts, key, payload)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddTradeDocumentOutbox indicates an expected call of AddTradeDocumentOutbox.
+func (mr *MockTradeDocumentOutboxStorageMockRecorder) AddTradeDocumentOutbox(ctx, tx, ts, key, payload interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTradeDocumentOutbox", reflect.TypeOf((*MockTradeDocumentOutboxStorage)(nil).AddTradeDocumentOutbox), ctx, tx, ts, key, payload)
+}
+
+// CreateTx mocks base method.
+func (m *MockTradeDocumentOutboxStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx}
+	for _, a := range options {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CreateTx", varargs...)
+	ret0, _ := ret[0].(storage.Tx)
+	ret1, _ := ret[1].(context.Context)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// CreateTx indicates an expected call of CreateTx.
+func (mr *MockTradeDocumentOutboxStorageMockRecorder) CreateTx(ctx interface{}, options ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx}, options...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTx", reflect.TypeOf((*MockTradeDocumentOutboxStorage)(nil).CreateTx), varargs...)
+}
+
+// DeleteTradeDocumentOutbox mocks base method.
+func (m *MockTradeDocumentOutboxStorage) DeleteTradeDocumentOutbox(ctx context.Context, tx storage.Tx, recIDs ...int64) error {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, tx}
+	for _, a := range recIDs {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "DeleteTradeDocumentOutbox", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteTradeDocumentOutbox indicates an expected call of DeleteTradeDocumentOutbox.
+func (mr *MockTradeDocumentOutboxStorageMockRecorder) DeleteTradeDocumentOutbox(ctx, tx interface{}, recIDs ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, tx}, recIDs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTradeDocumentOutbox", reflect.TypeOf((*MockTradeDocumentOutboxStorage)(nil).DeleteTradeDocumentOutbox), varargs...)
+}
+
+// GetTradeDocumentOutbox mocks base method.
+func (m *MockTradeDocumentOutboxStorage) GetTradeDocumentOutbox(ctx context.Context, tx storage.Tx, batchSize int) ([]storage.OutboxMsg, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTradeDocumentOutbox", ctx, tx, batchSize)
+	ret0, _ := ret[0].([]storage.OutboxMsg)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTradeDocumentOutbox indicates an expected call of GetTradeDocumentOutbox.
+func (mr *MockTradeDocumentOutboxStorageMockRecorder) GetTradeDocumentOutbox(ctx, tx, batchSize interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTradeDocumentOutbox", reflect.TypeOf((*MockTradeDocumentOutboxStorage)(nil).GetTradeDocumentOutbox), ctx, tx, batchSize)
 }

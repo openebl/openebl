@@ -12,3 +12,7 @@ server:
 manager:
   host: {{ or .MANAGER_BIND_ADDRESS "" }}
   port: {{ or .MANAGER_BIND_PORT "8081" }}
+broker:
+  relay_server: {{ or .RELAY_SERVER "ws://127.0.0.1:9001" }}
+  check_interval: {{ or .BROKER_CHECK_INTERVAL_SECONDS 30 }}
+  batch_size: {{ or .BROKER_BATCH_SIZE 10 }}

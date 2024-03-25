@@ -15,6 +15,7 @@ import (
 	"github.com/gobuffalo/pop"
 	"github.com/gobuffalo/pop/logging"
 	"github.com/openebl/openebl/pkg/bu_server/api"
+	"github.com/openebl/openebl/pkg/bu_server/broker"
 	"github.com/openebl/openebl/pkg/bu_server/manager"
 	"github.com/openebl/openebl/pkg/config"
 	"github.com/openebl/openebl/pkg/util"
@@ -25,9 +26,11 @@ type CLI struct {
 	Server struct {
 	} `cmd:"" help:"Run the server"`
 	Migrate struct {
-		Path string `short:"p" long:"path" help:"Path to the migration files" default:"migrations"`
+		Path string `short:"p" long:"path" help:"Path to the migration files" type:"existingdir" default:"migrations"`
 	} `cmd:"" help:"Migrate the database"`
-	Config string `short:"c" long:"config" help:"Path to the configuration file" default:"config.yaml"`
+	Broker struct {
+	} `cmd:"" help:"Run the broker to send/receive messages with the relay server"`
+	Config string `short:"c" long:"config" help:"Path to the configuration file" type:"existingfile" default:"config.yaml"`
 }
 
 type Config struct {
@@ -40,6 +43,11 @@ type Config struct {
 		Host string `yaml:"host"`
 		Port int    `yaml:"port"`
 	} `yaml:"manager"`
+	Broker struct {
+		RelayServer   string `yaml:"relay_server"`
+		CheckInterval int    `yaml:"check_interval"`
+		BatchSize     int    `yaml:"batch_size"`
+	} `yaml:"broker"`
 }
 
 type App struct{}
@@ -54,6 +62,8 @@ func (a *App) Run() {
 		a.runServer(cli)
 	case "migrate":
 		a.runMigrate(cli)
+	case "broker":
+		a.runBroker(cli)
 	default:
 	}
 }
@@ -93,6 +103,8 @@ func (a *App) runServer(cli CLI) {
 	go func(wg *sync.WaitGroup) {
 		wg.Add(1)
 		defer wg.Done()
+
+		logrus.Infof("API server is running on %s", apiConfig.LocalAddress)
 		if err := apiServer.Run(); err != nil {
 			logrus.Errorf("failed to run API server: %v", err)
 			os.Exit(1)
@@ -102,6 +114,8 @@ func (a *App) runServer(cli CLI) {
 	go func(wg *sync.WaitGroup) {
 		wg.Add(1)
 		defer wg.Done()
+
+		logrus.Infof("Manager server is running on %s", managerAPIConfig.LocalAddress)
 		if err := managerServer.Run(); err != nil {
 			logrus.Errorf("failed to run Manager server: %v", err)
 			os.Exit(1)
@@ -131,8 +145,8 @@ func (a *App) runServer(cli CLI) {
 }
 
 func (a *App) runMigrate(cli CLI) {
-	var cfg Config
-	if err := config.FromFile(cli.Config, &cfg); err != nil {
+	var appConfig Config
+	if err := config.FromFile(cli.Config, &appConfig); err != nil {
 		logrus.Errorf("failed to load config: %v", err)
 		os.Exit(128)
 	}
@@ -156,11 +170,11 @@ func (a *App) runMigrate(cli CLI) {
 	// setup database connection
 	cd := pop.ConnectionDetails{
 		Dialect:  "postgres",
-		Database: cfg.Database.Database,
-		Host:     cfg.Database.Host,
-		Port:     strconv.Itoa(cfg.Database.Port),
-		User:     cfg.Database.User,
-		Password: cfg.Database.Password,
+		Database: appConfig.Database.Database,
+		Host:     appConfig.Database.Host,
+		Port:     strconv.Itoa(appConfig.Database.Port),
+		User:     appConfig.Database.User,
+		Password: appConfig.Database.Password,
 	}
 	conn, err := pop.NewConnection(&cd)
 	if err != nil {
@@ -186,4 +200,60 @@ func (a *App) runMigrate(cli CLI) {
 		logrus.Errorf("failed to migrate: %v", err)
 		os.Exit(1)
 	}
+}
+
+func (a *App) runBroker(cli CLI) {
+	var appConfig Config
+	if err := config.FromFile(cli.Config, &appConfig); err != nil {
+		logrus.Errorf("failed to load config: %v", err)
+		os.Exit(128)
+	}
+
+	brokerConfig := broker.Config{
+		ClientID:    "default",
+		RelayServer: appConfig.Broker.RelayServer,
+		Database:    appConfig.Database,
+	}
+	brokerService, err := broker.NewFromConfig(
+		brokerConfig,
+		broker.WithCheckInterval(appConfig.Broker.CheckInterval),
+		broker.WithBatchSize(appConfig.Broker.BatchSize),
+	)
+	if err != nil {
+		logrus.Errorf("failed to create broker: %v", err)
+		os.Exit(128)
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	wg := &sync.WaitGroup{}
+
+	go func(wg *sync.WaitGroup) {
+		wg.Add(1)
+		defer wg.Done()
+
+		if err := brokerService.Run(ctx); err != nil {
+			logrus.Errorf("failed to run broker: %v", err)
+			os.Exit(1)
+		}
+	}(wg)
+
+	// listen for the stop signal
+	<-ctx.Done()
+
+	// Restore default behavior on the signals we are listening to
+	stop()
+	logrus.Info("shutting down gracefully, press Ctrl+C again to force")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := brokerService.Close(ctx); err != nil {
+		logrus.Warnf("failed to close broker: %v", err)
+		os.Exit(1)
+	}
+
+	wg.Wait()
+	logrus.Info("broker stopped")
 }

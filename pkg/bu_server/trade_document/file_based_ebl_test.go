@@ -305,6 +305,8 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 	}
 
 	var tdOnDB storage.TradeDocument
+	var receivedOutboxPayload []byte
+	var receivedOutboxKey string
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
@@ -368,6 +370,12 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 				return nil
 			},
 		).Return(nil),
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Any(), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+				receivedOutboxKey = docID
+				receivedOutboxPayload = payload
+				return nil
+			}),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -402,6 +410,8 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 	expectedBLPack.ID = result.BL.ID
 	s.Assert().NotEmpty(result.BL.ID)
 	s.Assert().Equal(util.StructToJSON(expectedBLPack), util.StructToJSON(result.BL))
+	s.Assert().EqualValues(tdOnDB.DocID, receivedOutboxKey)
+	s.Assert().EqualValues(tdOnDB.Doc, receivedOutboxPayload)
 }
 
 func (s *FileBasedEBLTestSuite) TestCreateDraftEBL() {
@@ -537,6 +547,7 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBLToNonDraftEBL() {
 	}
 
 	receivedTD := storage.TradeDocument{}
+	var receivedOutboxPayload []byte
 
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
@@ -595,6 +606,11 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBLToNonDraftEBL() {
 				return nil
 			},
 		),
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+				receivedOutboxPayload = payload
+				return nil
+			}),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -613,6 +629,7 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBLToNonDraftEBL() {
 	blPack.BL.Events[0].BillOfLading.File.Content = receivedBLPack.Events[0].BillOfLading.File.Content
 	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack.BL))
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLPack))
+	s.Assert().EqualValues(receivedTD.Doc, receivedOutboxPayload)
 
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_issued_ebl_jws.json", receivedTD.Doc, 0644)
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_issued_ebl.json", []byte(util.StructToJSON(expectedBlPack)), 0644)
@@ -784,6 +801,7 @@ func (s *FileBasedEBLTestSuite) TestShipperTransferEBL() {
 	}
 
 	receivedTD := storage.TradeDocument{}
+	var receivedOutboxPayload []byte
 
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
@@ -828,6 +846,11 @@ func (s *FileBasedEBLTestSuite) TestShipperTransferEBL() {
 				return nil
 			},
 		),
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+				receivedOutboxPayload = payload
+				return nil
+			}),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -847,6 +870,7 @@ func (s *FileBasedEBLTestSuite) TestShipperTransferEBL() {
 	blPack.BL.Events[0].BillOfLading.File.Content = receivedBLPack.Events[0].BillOfLading.File.Content
 	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack.BL))
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLPack))
+	s.Assert().EqualValues(receivedTD.Doc, receivedOutboxPayload)
 
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/consignee_ebl_jws.json", receivedTD.Doc, 0644)
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/consignee_ebl.json", []byte(util.StructToJSON(expectedBlPack)), 0644)
@@ -865,6 +889,7 @@ func (s *FileBasedEBLTestSuite) TestIssuerTransferEBL() {
 	}
 
 	receivedTD := storage.TradeDocument{}
+	var receivedOutboxPayload []byte
 
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
@@ -909,6 +934,11 @@ func (s *FileBasedEBLTestSuite) TestIssuerTransferEBL() {
 				return nil
 			},
 		),
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+				receivedOutboxPayload = payload
+				return nil
+			}),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -928,6 +958,7 @@ func (s *FileBasedEBLTestSuite) TestIssuerTransferEBL() {
 	blPack.BL.Events[0].BillOfLading.File.Content = receivedBLPack.Events[0].BillOfLading.File.Content
 	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack.BL))
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLPack))
+	s.Assert().EqualValues(receivedTD.Doc, receivedOutboxPayload)
 
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_transferred_ebl_jws.json", receivedTD.Doc, 0644)
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_transferred_ebl.json", []byte(util.StructToJSON(expectedBlPack)), 0644)
@@ -995,6 +1026,7 @@ func (s *FileBasedEBLTestSuite) TestAmendmentRequestEBL() {
 	}
 
 	receivedTD := storage.TradeDocument{}
+	var receivedOutboxPayload []byte
 
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
@@ -1039,6 +1071,11 @@ func (s *FileBasedEBLTestSuite) TestAmendmentRequestEBL() {
 				return nil
 			},
 		),
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+				receivedOutboxPayload = payload
+				return nil
+			}),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1058,6 +1095,7 @@ func (s *FileBasedEBLTestSuite) TestAmendmentRequestEBL() {
 	blPack.BL.Events[0].BillOfLading.File.Content = receivedBLPack.Events[0].BillOfLading.File.Content
 	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack.BL))
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLPack))
+	s.Assert().EqualValues(receivedTD.Doc, receivedOutboxPayload)
 
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/issuer_ebl_amendment_request_by_consignee_jws.json", receivedTD.Doc, 0644)
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/issuer_ebl_amendment_request_by_consignee.json", []byte(util.StructToJSON(expectedBlPack)), 0644)
@@ -1125,6 +1163,7 @@ func (s *FileBasedEBLTestSuite) TestReturn() {
 	}
 
 	var receivedTD storage.TradeDocument
+	var receivedOutboxPayload []byte
 	gomock.InOrder(
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
@@ -1155,6 +1194,11 @@ func (s *FileBasedEBLTestSuite) TestReturn() {
 				return nil
 			},
 		),
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+				receivedOutboxPayload = payload
+				return nil
+			}),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1174,6 +1218,7 @@ func (s *FileBasedEBLTestSuite) TestReturn() {
 	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
+	s.Assert().EqualValues(receivedTD.Doc, receivedOutboxPayload)
 
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/return_to_shipper_ebl_jws.json", receivedTD.Doc, 0644)
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/return_to_shipper_ebl.json", []byte(util.StructToJSON(expectedBlPack)), 0644)
@@ -1192,6 +1237,7 @@ func (s *FileBasedEBLTestSuite) TestReturnAmendmentRequest() {
 	}
 
 	var receivedTD storage.TradeDocument
+	var receivedOutboxPayload []byte
 	gomock.InOrder(
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
@@ -1222,6 +1268,11 @@ func (s *FileBasedEBLTestSuite) TestReturnAmendmentRequest() {
 				return nil
 			},
 		),
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+				receivedOutboxPayload = payload
+				return nil
+			}),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1241,6 +1292,7 @@ func (s *FileBasedEBLTestSuite) TestReturnAmendmentRequest() {
 	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
+	s.Assert().EqualValues(receivedTD.Doc, receivedOutboxPayload)
 
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/return_to_consignee_ebl_jws.json", receivedTD.Doc, 0644)
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/return_to_consignee_ebl.json", []byte(util.StructToJSON(expectedBlPack)), 0644)
@@ -1278,6 +1330,7 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL() {
 	}
 
 	receivedTD := storage.TradeDocument{}
+	var receivedOutboxPayload []byte
 
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
@@ -1322,6 +1375,11 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL() {
 				return nil
 			},
 		),
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+				receivedOutboxPayload = payload
+				return nil
+			}),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1346,6 +1404,7 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL() {
 	})
 	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack.BL))
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLPack))
+	s.Assert().EqualValues(receivedTD.Doc, receivedOutboxPayload)
 
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/consignee_amended_ebl_jws.json", receivedTD.Doc, 0644)
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/consignee_amended_ebl.json", []byte(util.StructToJSON(expectedBlPack)), 0644)
@@ -1383,6 +1442,7 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL_ReturnedByShipper() {
 	}
 
 	receivedTD := storage.TradeDocument{}
+	var receivedOutboxPayload []byte
 
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
@@ -1427,6 +1487,11 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL_ReturnedByShipper() {
 				return nil
 			},
 		),
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+				receivedOutboxPayload = payload
+				return nil
+			}),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1451,6 +1516,7 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL_ReturnedByShipper() {
 	})
 	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack.BL))
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLPack))
+	s.Assert().EqualValues(receivedTD.Doc, receivedOutboxPayload)
 
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_amended_ebl_jws.json", receivedTD.Doc, 0644)
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_amended_ebl.json", []byte(util.StructToJSON(expectedBlPack)), 0644)
@@ -1469,6 +1535,7 @@ func (s *FileBasedEBLTestSuite) TestSurrender() {
 	}
 
 	var receivedTD storage.TradeDocument
+	var receivedOutboxPayload []byte
 	gomock.InOrder(
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
@@ -1499,6 +1566,11 @@ func (s *FileBasedEBLTestSuite) TestSurrender() {
 				return nil
 			},
 		),
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+				receivedOutboxPayload = payload
+				return nil
+			}),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1518,6 +1590,7 @@ func (s *FileBasedEBLTestSuite) TestSurrender() {
 	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
+	s.Assert().EqualValues(receivedTD.Doc, receivedOutboxPayload)
 
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/release_agent_ebl_jws.json", receivedTD.Doc, 0644)
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/release_agent_ebl.json", []byte(util.StructToJSON(expectedBlPack)), 0644)
@@ -1536,6 +1609,7 @@ func (s *FileBasedEBLTestSuite) TestPrintToPaper() {
 	}
 
 	var receivedTD storage.TradeDocument
+	var receivedOutboxPayload []byte
 	gomock.InOrder(
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
@@ -1566,6 +1640,11 @@ func (s *FileBasedEBLTestSuite) TestPrintToPaper() {
 				return nil
 			},
 		),
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+				receivedOutboxPayload = payload
+				return nil
+			}),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1585,6 +1664,7 @@ func (s *FileBasedEBLTestSuite) TestPrintToPaper() {
 	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
+	s.Assert().EqualValues(receivedTD.Doc, receivedOutboxPayload)
 
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/consignee_printed_ebl_jws.json", receivedTD.Doc, 0644)
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/consignee_printed_ebl.json", []byte(util.StructToJSON(expectedBlPack)), 0644)
@@ -1603,6 +1683,7 @@ func (s *FileBasedEBLTestSuite) TestAccomplishEBL() {
 	}
 
 	var receivedTD storage.TradeDocument
+	var receivedOutboxPayload []byte
 	gomock.InOrder(
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.tdStorage.EXPECT().ListTradeDocument(
@@ -1633,6 +1714,11 @@ func (s *FileBasedEBLTestSuite) TestAccomplishEBL() {
 				return nil
 			},
 		),
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+				receivedOutboxPayload = payload
+				return nil
+			}),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1652,6 +1738,7 @@ func (s *FileBasedEBLTestSuite) TestAccomplishEBL() {
 	receivedBLBlock, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedBlPack), util.StructToJSON(receivedBLBlock))
+	s.Assert().EqualValues(receivedTD.Doc, receivedOutboxPayload)
 
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/release_agent_accomplished_ebl_jws.json", receivedTD.Doc, 0644)
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/release_agent_accomplished_ebl.json", []byte(util.StructToJSON(expectedBlPack)), 0644)

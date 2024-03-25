@@ -263,8 +263,14 @@ func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request I
 	}
 	defer tx.Rollback(ctx)
 
-	if err := c.storage.AddTradeDocument(ctx, tx, td); err != nil {
-		return FileBasedBillOfLadingRecord{}, err
+	if *request.Draft {
+		if err := c.storeTradeDocument(ctx, tx, td); err != nil {
+			return FileBasedBillOfLadingRecord{}, err
+		}
+	} else {
+		if err := c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
+			return FileBasedBillOfLadingRecord{}, err
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
@@ -344,8 +350,14 @@ func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, requ
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
-	if err := c.storage.AddTradeDocument(ctx, tx, td); err != nil {
-		return FileBasedBillOfLadingRecord{}, err
+	if *request.Draft {
+		if err := c.storeTradeDocument(ctx, tx, td); err != nil {
+			return FileBasedBillOfLadingRecord{}, err
+		}
+	} else {
+		if err := c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
+			return FileBasedBillOfLadingRecord{}, err
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
@@ -407,7 +419,7 @@ func (c *_FileBaseEBLController) Return(ctx context.Context, ts int64, req Retur
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
-	if err := c.storage.AddTradeDocument(ctx, tx, td); err != nil {
+	if err := c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -594,7 +606,7 @@ func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req Tra
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
-	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
+	if err = c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
@@ -664,7 +676,7 @@ func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64,
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
-	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
+	if err = c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
@@ -733,7 +745,7 @@ func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendF
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
-	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
+	if err = c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
@@ -798,7 +810,7 @@ func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req Su
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
-	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
+	if err = c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
@@ -858,7 +870,7 @@ func (c *_FileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, req
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
-	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
+	if err = c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -918,7 +930,7 @@ func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req A
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
-	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
+	if err = c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
@@ -976,7 +988,7 @@ func (c *_FileBaseEBLController) Delete(ctx context.Context, ts int64, req Delet
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
-	if err = c.storage.AddTradeDocument(ctx, tx, td); err != nil {
+	if err = c.storeTradeDocument(ctx, tx, td); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
@@ -1172,6 +1184,17 @@ func (c *_FileBaseEBLController) getEBL(ctx context.Context, tx storage.Tx, id s
 
 	hash := envelope.SHA512(resp.Docs[0].Doc)
 	return pack, hash, nil
+}
+
+func (c *_FileBaseEBLController) storeTradeDocument(ctx context.Context, tx storage.Tx, tradeDoc storage.TradeDocument) error {
+	return c.storage.AddTradeDocument(ctx, tx, tradeDoc)
+}
+
+func (c *_FileBaseEBLController) storeAndPublishTradeDocument(ctx context.Context, tx storage.Tx, tradeDoc storage.TradeDocument) error {
+	if err := c.storage.AddTradeDocument(ctx, tx, tradeDoc); err != nil {
+		return err
+	}
+	return c.storage.AddTradeDocumentOutbox(ctx, tx, tradeDoc.CreatedAt, tradeDoc.DocID, tradeDoc.Doc)
 }
 
 func ExtractBLPackFromTradeDocument(td storage.TradeDocument) (bill_of_lading.BillOfLadingPack, error) {

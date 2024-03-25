@@ -170,3 +170,126 @@ func (s *WebhookControllerTestSuite) TestGetWebhook() {
 	s.NoError(err)
 	s.Assert().Equal(expectedWebhook, res)
 }
+
+func (s *WebhookControllerTestSuite) TestUpdateWebhook() {
+	ts := time.Now().Unix()
+
+	req := webhook.UpdateWebhookRequest{
+		ID:            "webhook_1",
+		Requester:     "requester",
+		ApplicationID: "app_id",
+		Events:        []model.WebhookEventType{model.WebhookEventBLIssued, model.WebhookEventBLAccomplished, model.WebhookEventBLPrintedToPaper},
+		Url:           "https://example2.com/notify",
+		Secret:        "new_secret_key",
+	}
+
+	webhook := model.Webhook{
+		Version:       1,
+		ApplicationID: "app_id",
+		Events:        []model.WebhookEventType{model.WebhookEventBLAccomplished, model.WebhookEventBLPrintedToPaper},
+		Url:           "https://example.com/notify",
+		Secret:        "secret_key",
+		CreatedAt:     12345,
+		CreatedBy:     "requester",
+		UpdatedAt:     12345,
+		UpdatedBy:     "requester",
+		Deleted:       false,
+	}
+	expectedListReq := storage.ListWebhookRequest{
+		Offset:        0,
+		Limit:         1,
+		ApplicationID: "app_id",
+		IDs:           []string{"webhook_1"},
+	}
+	expectedListResp := storage.ListWebhookResult{
+		Total:   1,
+		Records: []model.Webhook{webhook},
+	}
+
+	expectedWebhook := model.Webhook{
+		Version:       2,
+		ApplicationID: "app_id",
+		Events:        []model.WebhookEventType{model.WebhookEventBLIssued, model.WebhookEventBLAccomplished, model.WebhookEventBLPrintedToPaper},
+		Url:           "https://example2.com/notify",
+		Secret:        "new_secret_key",
+		CreatedAt:     12345,
+		CreatedBy:     "requester",
+		UpdatedAt:     ts,
+		UpdatedBy:     "requester",
+		Deleted:       false,
+	}
+
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+		s.storage.EXPECT().ListWebhook(gomock.Any(), s.tx, expectedListReq).Return(expectedListResp, nil),
+		s.storage.EXPECT().AddWebhook(gomock.Any(), s.tx, expectedWebhook).Return(nil),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	res, err := s.webhookCtrl.Update(s.ctx, ts, req)
+	s.NoError(err)
+	s.Require().Empty(res.Secret)
+	res.Secret = expectedWebhook.Secret
+	s.Assert().Equal(expectedWebhook, res)
+}
+
+func (s *WebhookControllerTestSuite) TestDeleteWebhook() {
+	ts := time.Now().Unix()
+
+	req := webhook.DeleteWebhookRequest{
+		ID:            "webhook_1",
+		Requester:     "requester",
+		ApplicationID: "app_id",
+	}
+
+	webhook := model.Webhook{
+		Version:       1,
+		ApplicationID: "app_id",
+		Events:        []model.WebhookEventType{model.WebhookEventBLAccomplished, model.WebhookEventBLPrintedToPaper},
+		Url:           "https://example.com/notify",
+		Secret:        "secret_key",
+		CreatedAt:     12345,
+		CreatedBy:     "requester",
+		UpdatedAt:     12345,
+		UpdatedBy:     "requester",
+		Deleted:       false,
+	}
+	expectedListReq := storage.ListWebhookRequest{
+		Offset:        0,
+		Limit:         1,
+		ApplicationID: "app_id",
+		IDs:           []string{"webhook_1"},
+	}
+	expectedListResp := storage.ListWebhookResult{
+		Total:   1,
+		Records: []model.Webhook{webhook},
+	}
+
+	expectedWebhook := model.Webhook{
+		Version:       2,
+		ApplicationID: "app_id",
+		Events:        []model.WebhookEventType{model.WebhookEventBLAccomplished, model.WebhookEventBLPrintedToPaper},
+		Url:           "https://example.com/notify",
+		Secret:        "secret_key",
+		CreatedAt:     12345,
+		CreatedBy:     "requester",
+		UpdatedAt:     ts,
+		UpdatedBy:     "requester",
+		Deleted:       true,
+	}
+
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+		s.storage.EXPECT().ListWebhook(gomock.Any(), s.tx, expectedListReq).Return(expectedListResp, nil),
+		s.storage.EXPECT().AddWebhook(gomock.Any(), s.tx, expectedWebhook).Return(nil),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	res, err := s.webhookCtrl.Delete(s.ctx, ts, req)
+	s.NoError(err)
+	s.Require().Empty(res.Secret)
+	res.Secret = expectedWebhook.Secret
+	s.Assert().Equal(expectedWebhook, res)
+}

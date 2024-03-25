@@ -51,6 +51,7 @@ var ErrEBLActionNotAllowed = fmt.Errorf("%w", ErrFileBasedEBLError)
 
 // Webhook errors
 var ErrWebhookNotFound = fmt.Errorf("webhook not found%w", ErrWebhookError)
+var ErrWebhookUnreachable = fmt.Errorf("webhook is unreachable%w", ErrWebhookError)
 
 func ErrorToHttpStatus(err error) int {
 	if err == nil {

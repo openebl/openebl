@@ -2,6 +2,8 @@ package webhook_test
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -20,6 +22,9 @@ type WebhookControllerTestSuite struct {
 	storage     *mock_storage.MockWebhookStorage
 	tx          *mock_storage.MockTx
 	webhookCtrl webhook.WebhookController
+
+	mux    *http.ServeMux
+	server *httptest.Server
 }
 
 func TestWebhookController(t *testing.T) {
@@ -32,6 +37,8 @@ func (s *WebhookControllerTestSuite) SetupTest() {
 	s.storage = mock_storage.NewMockWebhookStorage(s.ctrl)
 	s.tx = mock_storage.NewMockTx(s.ctrl)
 	s.webhookCtrl = webhook.NewWebhookController(s.storage)
+	s.mux = http.NewServeMux()
+	s.server = httptest.NewServer(s.mux)
 }
 
 func (s *WebhookControllerTestSuite) TearDownTest() {

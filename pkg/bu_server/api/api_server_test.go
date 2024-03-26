@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -419,7 +420,7 @@ func (s *APITestSuite) TestUpdateFileBasedEBL() {
 }
 
 func (s *APITestSuite) TestListFileBasedEBL() {
-	endPoint := fmt.Sprintf("http://%s/ebl?offset=2&limit=5&status=sent&report=TrUe", s.localAddress)
+	endPoint := fmt.Sprintf("http://%s/ebl?offset=2&limit=5&status=sent&report=TrUe&keyword=%s", s.localAddress, url.QueryEscape("hello world"))
 
 	expectedReq := trade_document.ListFileBasedEBLRequest{
 		Application: s.appId,
@@ -428,6 +429,7 @@ func (s *APITestSuite) TestListFileBasedEBL() {
 		Limit:       5,
 		Status:      "sent",
 		Report:      true,
+		Keyword:     "hello world",
 	}
 
 	billOfLadingRecord := trade_document.ListFileBasedEBLRecord{

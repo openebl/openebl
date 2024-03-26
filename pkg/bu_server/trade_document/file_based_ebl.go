@@ -72,10 +72,11 @@ type ListFileBasedEBLRequest struct {
 	Application string `json:"application"`
 	RequestBy   string `json:"lister"`
 
-	Offset int    `json:"offset"`
-	Limit  int    `json:"limit"`
-	Status string `json:"status"`
-	Report bool   `json:"report"`
+	Offset  int    `json:"offset"`
+	Limit   int    `json:"limit"`
+	Status  string `json:"status"`
+	Report  bool   `json:"report"`
+	Keyword string `json:"keyword"`
 }
 
 type ListFileBasedEBLRecord struct {
@@ -552,11 +553,13 @@ func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLR
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	listReq := storage.ListTradeDocumentRequest{
-		Offset:    req.Offset,
-		Limit:     req.Limit,
-		RequestBy: req.RequestBy,
-		Kind:      int(relay.FileBasedBillOfLading),
-		Report:    req.Report,
+		Offset:       req.Offset,
+		Limit:        req.Limit,
+		RequestBy:    req.RequestBy,
+		Kind:         int(relay.FileBasedBillOfLading),
+		Report:       req.Report,
+		From:         req.Keyword,
+		DocReference: strings.ReplaceAll(req.Keyword, "%", "\\%"), // escape '%' character for ILIKE query
 	}
 	if req.Status != "" {
 		listReq.Meta = map[string]any{strings.ToLower(req.Status): []string{req.RequestBy}}
@@ -1199,14 +1202,24 @@ func (c *_FileBaseEBLController) signBillOfLadingPack(ctx context.Context, ts in
 		return storage.TradeDocument{}, err
 	}
 
+	var bl *bill_of_lading.BillOfLading
+	for i := len(blPack.Events) - 1; i >= 0; i-- {
+		if blPack.Events[i].BillOfLading != nil {
+			bl = blPack.Events[i].BillOfLading
+			break
+		}
+	}
+	blNumber := bl.BillOfLading.TransportDocumentReference
+
 	td := storage.TradeDocument{
-		RawID:      server.GetEventID([]byte(rawDoc)),
-		Kind:       int(relay.FileBasedBillOfLading),
-		DocID:      blPack.ID,
-		DocVersion: blPack.Version,
-		Doc:        []byte(rawDoc),
-		CreatedAt:  ts,
-		Meta:       meta,
+		RawID:        server.GetEventID([]byte(rawDoc)),
+		Kind:         int(relay.FileBasedBillOfLading),
+		DocID:        blPack.ID,
+		DocVersion:   blPack.Version,
+		Doc:          []byte(rawDoc),
+		DocReference: blNumber,
+		CreatedAt:    ts,
+		Meta:         meta,
 	}
 
 	return td, nil
@@ -1617,19 +1630,23 @@ func GetBillOfLadingPackMeta(blPack *bill_of_lading.BillOfLadingPack) (map[strin
 			return nil, errors.New("amendment requested by invalid party")
 		}
 
+		from, _ := GetOwnerShipTransferringByEvent(lastEvent)
 		res["action_needed"] = []string{blPack.CurrentOwner}
 		res["visible_to_bu"] = partiesByOrder
 		res["sent"] = partiesByOrder[1:amendmentRequesterIdx]    // amendment requested eB/L is 'action_needed' for issuer
 		res["upcoming"] = partiesByOrder[amendmentRequesterIdx:] // amendment requested eB/L is 'upcoming' for requester
+		res["from"] = from                                       // amendment requested eB/L is 'from' requester
 	} else {
 		_, currentOwnerIdx, _ := lo.FindIndexOf(partiesByOrder, func(p string) bool {
 			return p == blPack.CurrentOwner
 		})
 
+		from, _ := GetOwnerShipTransferringByEvent(lastEvent)
 		res["action_needed"] = []string{blPack.CurrentOwner}
 		res["visible_to_bu"] = partiesByOrder
 		res["sent"] = partiesByOrder[:currentOwnerIdx]
 		res["upcoming"] = partiesByOrder[currentOwnerIdx+1:]
+		res["from"] = from
 	}
 
 	return res, nil

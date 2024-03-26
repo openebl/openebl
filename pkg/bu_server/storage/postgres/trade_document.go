@@ -9,14 +9,15 @@ import (
 
 func (s *_Storage) AddTradeDocument(ctx context.Context, tx storage.Tx, tradeDoc storage.TradeDocument) error {
 	query := `
-INSERT INTO trade_document (id, kind, doc_id, doc_version, doc, created_at, meta) VALUES (
+INSERT INTO trade_document (id, kind, doc_id, doc_version, doc_reference, doc, created_at, meta) VALUES (
 	$1,	-- id
 	$2,	-- kind
 	$3, -- doc_id
 	$4,	-- doc_version
-	$5,	-- doc
-	$6,	-- created_at
-	$7	-- meta
+	$5, -- doc_reference
+	$6,	-- doc
+	$7,	-- created_at
+	$8	-- meta
 ) ON CONFLICT (id) DO NOTHING`
 	_, err := tx.Exec(
 		ctx,
@@ -25,6 +26,7 @@ INSERT INTO trade_document (id, kind, doc_id, doc_version, doc, created_at, meta
 		tradeDoc.Kind,
 		tradeDoc.DocID,
 		tradeDoc.DocVersion,
+		tradeDoc.DocReference,
 		tradeDoc.Doc,
 		tradeDoc.CreatedAt,
 		tradeDoc.Meta,
@@ -37,13 +39,33 @@ INSERT INTO trade_document (id, kind, doc_id, doc_version, doc, created_at, meta
 
 func (s *_Storage) ListTradeDocument(ctx context.Context, tx storage.Tx, req storage.ListTradeDocumentRequest) (storage.ListTradeDocumentResponse, error) {
 	query := `
-WITH latest_visible AS (
+WITH prefiltered_bu AS (
+	SELECT
+		id,
+		CASE
+			WHEN $8 = '' THEN 0
+			WHEN UPPER($8) = UPPER(name) THEN 2
+			ELSE WORD_SIMILARITY($8, name)
+		END AS keyword_score
+	FROM business_unit
+	WHERE
+		$8 = '' OR $8 <% name
+)
+, filtered_bu AS (
+	SELECT 
+		id AS bu_id
+	FROM prefiltered_bu
+	WHERE
+		keyword_score = (SELECT MAX(keyword_score) FROM prefiltered_bu)
+)
+, latest_visible AS (
     SELECT DISTINCT ON (rec_id, doc_id)
 		first_value(rec_id) OVER w AS rec_id,
 		first_value(id) OVER w AS id,
 		first_value(kind) OVER w AS kind,
 		doc_id,
 		first_value(doc_version) OVER w AS doc_version,
+		first_value(doc_reference) OVER w AS doc_reference,
 		first_value(doc) OVER w AS doc,
 		first_value(created_at) OVER w AS created_at,
 		first_value(meta) OVER w AS meta
@@ -58,7 +80,12 @@ WITH latest_visible AS (
 		NOT (meta ? 'deleted') AND
 		($3 = 0 OR $3 = kind) AND
 		(COALESCE(ARRAY_LENGTH($4::TEXT[], 1), 0) = 0 OR doc_id = ANY($4)) AND
-		($5::JSONB IS NULL OR meta @> $5)
+		($5::JSONB IS NULL OR meta @> $5) AND
+		(
+			($8 = '' AND $9 = '') OR
+			meta->>'from' = ANY(SELECT * FROM filtered_bu) OR
+		    doc_reference ILIKE '%' || $9 || '%' ESCAPE '\'
+		)
 )
 , report AS (
 	SELECT COUNT(*) AS total FROM filtered_record
@@ -69,6 +96,7 @@ WITH latest_visible AS (
 		kind,
 		doc_id,
 		doc_version,
+	    doc_reference,
 		doc,
 		created_at,
 		meta
@@ -99,6 +127,8 @@ LEFT JOIN LATERAL(
 		req.Meta,
 		req.RequestBy,
 		req.Report,
+		req.From,
+		req.DocReference,
 	)
 	if err != nil {
 		return storage.ListTradeDocumentResponse{}, err
@@ -111,6 +141,7 @@ LEFT JOIN LATERAL(
 		var kind sql.NullInt32
 		var docID sql.NullString
 		var docVersion sql.NullInt64
+		var docReference sql.NullString
 		var doc []byte
 		var createdAt sql.NullInt64
 		var meta map[string]interface{}
@@ -119,6 +150,7 @@ LEFT JOIN LATERAL(
 			&kind,
 			&docID,
 			&docVersion,
+			&docReference,
 			&doc,
 			&createdAt,
 			&meta,
@@ -131,13 +163,14 @@ LEFT JOIN LATERAL(
 		if rawID.Valid {
 			result.Docs = append(result.Docs,
 				storage.TradeDocument{
-					RawID:      rawID.String,
-					Kind:       int(kind.Int32),
-					DocID:      docID.String,
-					DocVersion: docVersion.Int64,
-					Doc:        doc,
-					CreatedAt:  createdAt.Int64,
-					Meta:       meta,
+					RawID:        rawID.String,
+					Kind:         int(kind.Int32),
+					DocID:        docID.String,
+					DocVersion:   docVersion.Int64,
+					DocReference: docReference.String,
+					Doc:          doc,
+					CreatedAt:    createdAt.Int64,
+					Meta:         meta,
 				},
 			)
 		}

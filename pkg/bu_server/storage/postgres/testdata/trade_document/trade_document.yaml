@@ -13,6 +13,7 @@
   kind: 1000
   doc_id: "doc_1"
   doc_version: 1
+  doc_reference: "NIKE_123"
   doc: "binary_data"
   created_at: 1634567890
   meta:
@@ -28,11 +29,13 @@
     "upcoming":
       - "did:openebl:consignee"
       - "did:openebl:release_agent"
+    "from": "did:openebl:issuer"
 - rec_id: 2 # transferred
   id: "raw_doc_2"
   kind: 1000
   doc_id: "doc_1"
   doc_version: 2
+  doc_reference: "NIKE_123"
   doc: "new binary_data"
   created_at: 1634567890
   meta:
@@ -48,11 +51,13 @@
       - "did:openebl:consignee"
     "upcoming":
       - "did:openebl:release_agent"
+    "from": "did:openebl:shipper"
 - rec_id: 3 # archived
   id: "raw_doc_3"
   kind: 1001
   doc_id: "doc_2"
   doc_version: 1
+  doc_reference: "UNDER_ARM%UR_1234"
   doc: "doc 2"
   created_at: 1634567890
   meta:
@@ -71,6 +76,7 @@
   kind: 1001
   doc_id: "doc_3"
   doc_version: 1
+  doc_reference: "ADIDAS_1234"
   doc: "doc 3"
   created_at: 1634567890
   meta:
@@ -83,6 +89,7 @@
   kind: 1001
   doc_id: "doc_3"
   doc_version: 2
+  doc_reference: "ADIDAS_1234"
   doc: "doc 3"
   created_at: 1634567890
   meta:

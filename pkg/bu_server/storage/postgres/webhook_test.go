@@ -1,7 +1,6 @@
 package postgres_test
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"testing"
@@ -144,7 +143,7 @@ func (s *WebhookStorageTestSuite) TestListWebhook() {
 }
 
 func (s *WebhookStorageTestSuite) TestWebhookEvent() {
-	tx, ctx, err := s.storage.CreateTx(context.Background(), storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	tx, ctx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	s.Require().NoError(err)
 	defer func() { _ = tx.Rollback(ctx) }()
 

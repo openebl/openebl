@@ -105,6 +105,8 @@ func (a *API) listFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 	req.Application = appID
 	req.Limit = 20
 	req.Status = r.URL.Query().Get("status")
+	req.Keyword = r.URL.Query().Get("keyword")
+
 	offsetStr := r.URL.Query().Get("offset")
 	if offsetStr != "" {
 		offset, err := strconv.ParseInt(offsetStr, 10, 32)

@@ -100,6 +100,8 @@ func (s *BusinessUnitStorageTestSuite) TestListBusinessUnit() {
 	s.Require().Equal(2, len(result.Records))
 	s.Assert().Equal("did:openebl:bu1", result.Records[0].BusinessUnit.ID.String())
 	s.Assert().Equal("did:openebl:bu2", result.Records[1].BusinessUnit.ID.String())
+	s.Assert().Equal("Business Unit 1", result.Records[0].BusinessUnit.Name)
+	s.Assert().Equal("Business Unit 2", result.Records[1].BusinessUnit.Name)
 	s.Require().Equal(2, len(result.Records[0].Authentications))
 	s.Assert().Equal("bu1_auth1", result.Records[0].Authentications[0].ID)
 	s.Assert().Equal("bu1_auth2", result.Records[0].Authentications[1].ID)

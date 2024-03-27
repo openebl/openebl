@@ -1,86 +1,106 @@
 package pkix_test
 
 import (
-	"crypto/sha1"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
-	"encoding/hex"
-	"encoding/pem"
-	"fmt"
-	"os"
+	"math/big"
 	"testing"
+	"time"
 
 	"github.com/openebl/openebl/pkg/pkix"
+	"github.com/stretchr/testify/suite"
+
+	gopkix "crypto/x509/pkix"
 )
 
-func TestVerifyWithCustomizedRootCertificates(t *testing.T) {
-	rootCert, err := LoadCert("../../credential/root_ca.crt")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	fingerPrint := sha1.Sum(rootCert.Raw)
-	fmt.Println(hex.EncodeToString(fingerPrint[:]))
-
-	cert, err := LoadCert("../../credential/bob_ecc.crt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = pkix.Verify([]*x509.Certificate{cert}, []*x509.Certificate{rootCert})
-	if err != nil {
-		t.Fatal(err)
-	}
+type CertVerifyTestSuite struct {
+	suite.Suite
+	rootCert          *x509.Certificate // Cert of Root CA. Self-signed in this test suite.
+	intermediateCert  *x509.Certificate // Cert of Intermediate CA. Signed by Root CA
+	intermediateCert2 *x509.Certificate // Cert of level 2 Intermediate CA. Signed by Intermediate CA
+	cert              *x509.Certificate // Cert of End Entity. Signed by Intermediate CA
 }
 
-func TestVerifyWithIntermediatesCertificates(t *testing.T) {
-	rootCert, err := LoadCert("../../credential/root_ca.crt")
-	if err != nil {
-		t.Fatal(err)
+func (s *CertVerifyTestSuite) SetupSuite() {
+	// Generate Root Certificate and Private Key with RSA.
+	rootPrivKey, _ := rsa.GenerateKey(rand.Reader, 4096)
+	interMediatePrivKey, _ := rsa.GenerateKey(rand.Reader, 4096)
+	interMediate2PrivKey, _ := rsa.GenerateKey(rand.Reader, 4096)
+	leafPrivKey, _ := rsa.GenerateKey(rand.Reader, 4096)
+
+	rootTemplate := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: gopkix.Name{
+			Country:            []string{"US", "TW"},
+			Organization:       []string{"BlueX Trade"},
+			OrganizationalUnit: []string{"BlueX RD Department"},
+			CommonName:         "BlueX Trade Root CA",
+		},
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		NotAfter:              time.Now().AddDate(100, 0, 0),
+		NotBefore:             time.Now(),
 	}
-	intermediateCert, err := LoadCert("../../credential/bob_ecc.crt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cert, err := LoadCert("../../credential/bob_ecc2.crt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = pkix.Verify([]*x509.Certificate{cert, intermediateCert}, []*x509.Certificate{rootCert})
-	if err != nil {
-		t.Fatal(err)
-	}
+
+	interMediateTemplate := rootTemplate
+	interMediateTemplate.Subject.CommonName = "BlueX Trade Intermediate CA"
+
+	interMediate2Template := rootTemplate
+	interMediate2Template.Subject.CommonName = "BlueX Trade Intermediate2 CA"
+
+	leafTemplate := rootTemplate
+	leafTemplate.Subject.CommonName = "BlueX Trade Leaf Certificate"
+
+	rootCertBytes, _ := x509.CreateCertificate(rand.Reader, &rootTemplate, &rootTemplate, &rootPrivKey.PublicKey, rootPrivKey)
+	rootCert, _ := x509.ParseCertificate(rootCertBytes)
+
+	interMediateCertBytes, _ := x509.CreateCertificate(rand.Reader, &interMediateTemplate, rootCert, &interMediatePrivKey.PublicKey, rootPrivKey)
+	interMediateCert, _ := x509.ParseCertificate(interMediateCertBytes)
+
+	interMediate2CertBytes, _ := x509.CreateCertificate(rand.Reader, &interMediate2Template, interMediateCert, &interMediate2PrivKey.PublicKey, interMediatePrivKey)
+	interMediate2Cert, _ := x509.ParseCertificate(interMediate2CertBytes)
+
+	leafCertBytes, _ := x509.CreateCertificate(rand.Reader, &leafTemplate, interMediateCert, &leafPrivKey.PublicKey, interMediatePrivKey)
+	leafCert, _ := x509.ParseCertificate(leafCertBytes)
+
+	s.rootCert = rootCert
+	s.intermediateCert = interMediateCert
+	s.intermediateCert2 = interMediate2Cert
+	s.cert = leafCert
 }
 
-func TestVerifyWithWrongIntermediatesCertificates(t *testing.T) {
-	rootCert, err := LoadCert("../../credential/root_ca.crt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	intermediateCert, err := LoadCert("../../credential/bob_ecc.crt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cert, err := LoadCert("../../credential/alice_ecc.crt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = pkix.Verify([]*x509.Certificate{cert, intermediateCert}, []*x509.Certificate{rootCert})
-	if err == nil {
-		t.Fatalf("expected error, got nil")
-	}
+func TestCertVerifyTestSuite(t *testing.T) {
+	suite.Run(t, new(CertVerifyTestSuite))
 }
 
-func LoadCert(fileName string) (*x509.Certificate, error) {
-	pemFile, err := os.ReadFile(fileName)
-	if err != nil {
-		return nil, err
-	}
-	certBlock, _ := pem.Decode(pemFile)
-	cert, err := x509.ParseCertificate(certBlock.Bytes)
-	if err != nil {
-		return nil, err
-	}
+func (s *CertVerifyTestSuite) TestVerifyWithRootCertificate() {
+	// s.intermediateCert is signed by s.rootCert, it should pass.
+	err := pkix.Verify([]*x509.Certificate{s.intermediateCert}, []*x509.Certificate{s.rootCert}, 0)
+	s.Assert().NoError(err)
 
-	return cert, nil
+	// s.intermediateCert is signed by s.rootCert, but the certificates are too old.
+	err = pkix.Verify([]*x509.Certificate{s.intermediateCert}, []*x509.Certificate{s.rootCert}, time.Now().AddDate(200, 0, 0).Unix())
+	s.Assert().Error(err)
+
+	// s.cert is not signed by s.rootCert, it should fail.
+	err = pkix.Verify([]*x509.Certificate{s.cert}, []*x509.Certificate{s.rootCert}, 0)
+	s.Assert().Error(err)
+}
+
+func (s *CertVerifyTestSuite) TestVerifyWithIntermediateCertificates() {
+	// s.cert is signed by s.intermediateCert, it should pass because s.intermediateCert is signed by s.rootCert.
+	err := pkix.Verify([]*x509.Certificate{s.cert, s.intermediateCert}, []*x509.Certificate{s.rootCert}, 0)
+	s.Assert().NoError(err)
+
+	// s.cert is signed by s.intermediateCert, it should fail because s.intermediateCert is signed by s.rootCert but they are too old..
+	err = pkix.Verify([]*x509.Certificate{s.cert, s.intermediateCert}, []*x509.Certificate{s.rootCert}, time.Now().AddDate(200, 0, 0).Unix())
+	s.Assert().Error(err)
+
+	// s.cert is not signed by s.intermediateCert2, it should fail.
+	err = pkix.Verify([]*x509.Certificate{s.cert, s.intermediateCert2}, []*x509.Certificate{s.rootCert}, 0)
+	s.Assert().Error(err)
 }
 
 func TestParseCertificate(t *testing.T) {

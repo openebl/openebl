@@ -734,6 +734,99 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBLToDraftEBL() {
 	s.Assert().EqualValues(util.StructToJSON(expectedBLPack), util.StructToJSON(receivedBLPack))
 }
 
+func (s *FileBasedEBLTestSuite) TestUpdateDraftEBL_FileNotChange() {
+	ts := int64(1708762799)
+	eta, err := model.NewDateTimeFromString("2022-01-01T00:00:00Z")
+	s.Require().NoError(err)
+
+	req := trade_document.UpdateFileBasedEBLDraftRequest{
+		ID: id,
+		IssueFileBasedEBLRequest: trade_document.IssueFileBasedEBLRequest{
+			MetaData:         bill_of_lading.ApplicationMetaData{"requester": json.RawMessage(`"application user"`)},
+			Application:      "app_id",
+			Issuer:           "did:openebl:issuer",
+			AuthenticationID: "issuer_auth1",
+			File: trade_document.File{
+				Name: "test.txt",
+				Type: "text/plain",
+			},
+			BLNumber:  "new_bl_number",
+			BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
+			ToOrder:   false,
+			ETA:       &eta,
+			Note:      "note",
+			Draft:     util.Ptr(true),
+		},
+	}
+
+	receivedTD := storage.TradeDocument{}
+
+	gomock.InOrder(
+		s.buMgr.EXPECT().ListBusinessUnits(
+			gomock.Any(),
+			storage.ListBusinessUnitsRequest{
+				Limit:           1,
+				ApplicationID:   "app_id",
+				BusinessUnitIDs: []string{"did:openebl:issuer"},
+			},
+		).Return(
+			storage.ListBusinessUnitsResult{
+				Total: 4,
+				Records: []storage.ListBusinessUnitsRecord{
+					{
+						BusinessUnit: s.issuer,
+					},
+				},
+			},
+			nil,
+		),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+		s.tdStorage.EXPECT().ListTradeDocument(
+			gomock.Any(),
+			s.tx,
+			storage.ListTradeDocumentRequest{
+				Limit:  1,
+				DocIDs: []string{req.ID},
+			},
+		).Return(
+			storage.ListTradeDocumentResponse{
+				Total: 1,
+				Docs:  []storage.TradeDocument{s.draftEbl},
+			},
+			nil,
+		),
+		s.buMgr.EXPECT().GetJWSSigner(
+			gomock.Any(),
+			business_unit.GetJWSSignerRequest{
+				ApplicationID:    "app_id",
+				BusinessUnitID:   did.MustParseDID(req.Issuer),
+				AuthenticationID: req.AuthenticationID,
+			},
+		).Return(s.issuerSigner, nil),
+		s.tdStorage.EXPECT().AddTradeDocument(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, td storage.TradeDocument) error {
+				receivedTD = td
+				return nil
+			},
+		),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	expectedBLPackJson := `{"id":"316f5f2d-eb10-4563-a0d2-45858a57ad5e","version":2,"parent_hash":"3da2e77f4a0f93946b2cabbe83ee49ea20e2261b148e335b3c09c0f6cbb7446f62202a39f3decc817c920be400a180a54884c3457eb605abe677704f843b4486","events":[{"bill_of_lading":{"bill_of_lading":{"transportDocumentReference":"new_bl_number","carrierCode":"","carrierCodeListProvider":"","issuingParty":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:issuer"}]},"shipmentLocations":[{"location":{"locationName":"","address":null,"UNLocationCode":"","facilityCode":"","facilityCodeListProvider":""},"shipmentLocationTypeCode":"POL"},{"location":{"locationName":"","address":null,"UNLocationCode":"","facilityCode":"","facilityCodeListProvider":""},"shipmentLocationTypeCode":"POD","eventDateTime":"2022-01-01T00:00:00Z"}],"shippingInstruction":{"shippingInstructionReference":"","documentStatus":"DRFT","transportDocumentTypeCode":"","consignmentItems":null,"utilizedTransportEquipments":null,"documentParties":[{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:issuer"}]},"partyFunction":"DDR","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":""}]},"partyFunction":"OS","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":""}]},"partyFunction":"CN","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":""}]},"partyFunction":"DDS","isToBeNotified":false}]}},"file":{"name":"test.txt","file_type":"text/plain","content":"dGVzdCBjb250ZW50","created_date":"2024-02-24T08:19:59Z"},"doc_type":"HouseBillOfLading","created_by":"did:openebl:issuer","created_at":"2024-02-24T08:19:59Z","note":"note","metadata":{"requester":"application user"}}}],"current_owner":"did:openebl:issuer"}`
+	expectedBLPack := bill_of_lading.BillOfLadingPack{}
+	json.Unmarshal([]byte(expectedBLPackJson), &expectedBLPack)
+
+	blPack, err := s.eblCtrl.UpdateDraft(s.ctx, ts, req)
+	s.Require().NoError(err)
+	receivedBLPack, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
+	s.Require().NoError(err)
+	s.Assert().Empty(blPack.BL.Events[0].BillOfLading.File.Content)
+	blPack.BL.Events[0].BillOfLading.File.Content = receivedBLPack.Events[0].BillOfLading.File.Content
+	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack.BL))
+	s.Assert().EqualValues(util.StructToJSON(expectedBLPack), util.StructToJSON(receivedBLPack))
+}
+
 func (s *FileBasedEBLTestSuite) TestListEBL() {
 	req := trade_document.ListFileBasedEBLRequest{
 		Application: "appid",
@@ -1419,6 +1512,113 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL() {
 
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/consignee_amended_ebl_jws.json", receivedTD.Doc, 0644)
 	// os.WriteFile("../../../testdata/bu_server/trade_document/file_based_ebl/consignee_amended_ebl.json", []byte(util.StructToJSON(expectedBlPack)), 0644)
+}
+
+func (s *FileBasedEBLTestSuite) TestAmendEBL_FileNotChange() {
+	ts := int64(1709613375)
+	eta, err := model.NewDateTimeFromString("2024-03-30T00:00:00Z")
+	s.Require().NoError(err)
+
+	req := trade_document.AmendFileBasedEBLRequest{
+		MetaData:         bill_of_lading.ApplicationMetaData{"requester": json.RawMessage(`"application user"`)},
+		Application:      "app_id",
+		Issuer:           "did:openebl:issuer",
+		AuthenticationID: "issuer_auth1",
+		ID:               id,
+		File: trade_document.File{
+			Name: "test.txt",
+			Type: "text/plain",
+		},
+		BLNumber:  "new_bl_number",
+		BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
+		ToOrder:   false,
+		POL: trade_document.Location{
+			LocationName: "New Port of Loading",
+			UNLocCode:    "POL",
+		},
+		POD: trade_document.Location{
+			LocationName: "New Port of Discharge",
+			UNLocCode:    "POD",
+		},
+		ETA:  &eta,
+		Note: "amended by issuer",
+	}
+
+	receivedTD := storage.TradeDocument{}
+	var receivedOutboxPayload []byte
+
+	gomock.InOrder(
+		s.buMgr.EXPECT().ListBusinessUnits(
+			gomock.Any(),
+			storage.ListBusinessUnitsRequest{
+				Limit:           1,
+				ApplicationID:   "app_id",
+				BusinessUnitIDs: []string{"did:openebl:issuer"},
+			},
+		).Return(
+			storage.ListBusinessUnitsResult{
+				Total:   1,
+				Records: []storage.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
+			}, nil,
+		),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+		s.tdStorage.EXPECT().ListTradeDocument(
+			gomock.Any(),
+			s.tx,
+			storage.ListTradeDocumentRequest{
+				Limit:  1,
+				DocIDs: []string{req.ID},
+			},
+		).Return(
+			storage.ListTradeDocumentResponse{
+				Total: 1,
+				Docs:  []storage.TradeDocument{s.issuerEblAmendmentRequested},
+			},
+			nil,
+		),
+		s.buMgr.EXPECT().GetJWSSigner(
+			gomock.Any(),
+			business_unit.GetJWSSignerRequest{
+				ApplicationID:    "app_id",
+				BusinessUnitID:   did.MustParseDID("did:openebl:issuer"),
+				AuthenticationID: "issuer_auth1",
+			},
+		).Return(s.issuerSigner, nil),
+		s.tdStorage.EXPECT().AddTradeDocument(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, td storage.TradeDocument) error {
+				receivedTD = td
+				return nil
+			},
+		),
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+				receivedOutboxPayload = payload
+				return nil
+			}),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "app_id", id, model.WebhookEventBLAmended).Return(nil),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	expectedBLPackJson := `{"id":"316f5f2d-eb10-4563-a0d2-45858a57ad5e","version":5,"parent_hash":"bb2429c1a4ff41ee0cf4baba80e11ec016c6afa17ee84642f668589f504e37f0239622d3d2ce10a24cbc71b4900785cfd63fe6789a07cf06bb5b42f00fba9a64","events":[{"bill_of_lading":{"bill_of_lading":{"transportDocumentReference":"bl_number","carrierCode":"","carrierCodeListProvider":"","issuingParty":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:issuer"}]},"shipmentLocations":[{"location":{"locationName":"Real Port of Loading","address":null,"UNLocationCode":"POL","facilityCode":"","facilityCodeListProvider":""},"shipmentLocationTypeCode":"POL"},{"location":{"locationName":"Real Port of Discharge","address":null,"UNLocationCode":"POD","facilityCode":"","facilityCodeListProvider":""},"shipmentLocationTypeCode":"POD","eventDateTime":"2022-01-01T00:00:00Z"}],"shippingInstruction":{"shippingInstructionReference":"","documentStatus":"ISSU","transportDocumentTypeCode":"","consignmentItems":null,"utilizedTransportEquipments":null,"documentParties":[{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:issuer"}]},"partyFunction":"DDR","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:shipper"}]},"partyFunction":"OS","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:consignee"}]},"partyFunction":"CN","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:release_agent"}]},"partyFunction":"DDS","isToBeNotified":false}]}},"file":{"name":"test.txt","file_type":"text/plain","content":"cmVhbCBjb250ZW50","created_date":"2024-02-24T08:19:59Z"},"doc_type":"HouseBillOfLading","created_by":"did:openebl:issuer","created_at":"2024-02-24T08:19:59Z","note":"note","metadata":{"requester":"application user"}}},{"transfer":{"transfer_by":"did:openebl:issuer","transfer_to":"did:openebl:shipper","transfer_at":"2024-02-24T08:19:59Z","note":"note","metadata":{"requester":"application user"}}},{"transfer":{"transfer_by":"did:openebl:shipper","transfer_to":"did:openebl:consignee","transfer_at":"2024-03-04T05:18:22Z","note":"note","metadata":{"requester":"application user"}}},{"amendment_request":{"request_by":"did:openebl:consignee","request_to":"did:openebl:issuer","request_at":"2024-03-04T09:53:21Z","note":"amendment request note","metadata":{"requester":"application user"}}},{"bill_of_lading":{"bill_of_lading":{"transportDocumentReference":"new_bl_number","carrierCode":"","carrierCodeListProvider":"","issuingParty":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:issuer"}]},"shipmentLocations":[{"location":{"locationName":"New Port of Loading","address":null,"UNLocationCode":"POL","facilityCode":"","facilityCodeListProvider":""},"shipmentLocationTypeCode":"POL"},{"location":{"locationName":"New Port of Discharge","address":null,"UNLocationCode":"POD","facilityCode":"","facilityCodeListProvider":""},"shipmentLocationTypeCode":"POD","eventDateTime":"2024-03-30T00:00:00Z"}],"shippingInstruction":{"shippingInstructionReference":"","documentStatus":"ISSU","transportDocumentTypeCode":"","consignmentItems":null,"utilizedTransportEquipments":null,"documentParties":[{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:issuer"}]},"partyFunction":"DDR","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:shipper"}]},"partyFunction":"OS","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:consignee"}]},"partyFunction":"CN","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:release_agent"}]},"partyFunction":"DDS","isToBeNotified":false}]}},"file":{"name":"test.txt","file_type":"text/plain","content":"cmVhbCBjb250ZW50","created_date":"2024-03-05T04:36:15Z"},"doc_type":"HouseBillOfLading","created_by":"did:openebl:issuer","created_at":"2024-03-05T04:36:15Z","note":"amended by issuer","metadata":{"requester":"application user"}}},{"transfer":{"transfer_by":"did:openebl:issuer","transfer_to":"did:openebl:consignee","transfer_at":"2024-03-05T04:36:15Z","note":"amended by issuer","metadata":{"requester":"application user"}}}],"current_owner":"did:openebl:consignee"}`
+	expectedBLPack := bill_of_lading.BillOfLadingPack{}
+	err = json.Unmarshal([]byte(expectedBLPackJson), &expectedBLPack)
+	s.Assert().NoError(err)
+
+	blPack, err := s.eblCtrl.Amend(s.ctx, ts, req)
+	s.Require().NoError(err)
+	receivedBLPack, err := trade_document.ExtractBLPackFromTradeDocument(receivedTD)
+	s.Require().NoError(err)
+
+	lo.ForEach(blPack.BL.Events, func(event bill_of_lading.BillOfLadingEvent, i int) {
+		if event.BillOfLading != nil {
+			s.Assert().Empty(event.BillOfLading.File.Content)
+			event.BillOfLading.File.Content = receivedBLPack.Events[i].BillOfLading.File.Content
+		}
+	})
+	s.Assert().EqualValues(util.StructToJSON(receivedBLPack), util.StructToJSON(blPack.BL))
+	s.Assert().EqualValues(util.StructToJSON(expectedBLPack), util.StructToJSON(receivedBLPack))
+	s.Assert().EqualValues(receivedTD.Doc, receivedOutboxPayload)
 }
 
 func (s *FileBasedEBLTestSuite) TestAmendEBL_ReturnedByShipper() {

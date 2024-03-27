@@ -12,6 +12,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/middleware"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/trade_document"
+	"github.com/openebl/openebl/pkg/util"
 	"github.com/sirupsen/logrus"
 )
 
@@ -28,10 +29,20 @@ func (a *API) createFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 	req.Application = appID
 	req.Issuer = buID
 
+	simplifiedReq := req
+	simplifiedReq.File.Content = nil
+	logrus.Debugf("%s %s is invoked with application: %v, request: %v", r.Method, r.RequestURI, appID, util.StructToJSON(simplifiedReq))
+
 	ts := time.Now().Unix()
 	result, err := a.fileEBLCtrl.Create(ctx, ts, req)
 	if err != nil {
-		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		errCode := model.ErrorToHttpStatus(err)
+		if errCode/100 == 5 {
+			logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		} else {
+			logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		}
+		http.Error(w, err.Error(), errCode)
 		return
 	}
 
@@ -50,6 +61,7 @@ func (a *API) updateFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 
 	var req trade_document.UpdateFileBasedEBLDraftRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -57,10 +69,20 @@ func (a *API) updateFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 	req.Issuer = buID
 	req.ID = docID
 
+	simplifiedReq := req
+	simplifiedReq.File.Content = nil
+	logrus.Debugf("%s %s is invoked with application: %v, request: %v", r.Method, r.RequestURI, appID, util.StructToJSON(simplifiedReq))
+
 	ts := time.Now().Unix()
 	result, err := a.fileEBLCtrl.UpdateDraft(ctx, ts, req)
 	if err != nil {
-		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		errCode := model.ErrorToHttpStatus(err)
+		if errCode/100 == 5 {
+			logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		} else {
+			logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		}
+		http.Error(w, err.Error(), errCode)
 		return
 	}
 
@@ -75,6 +97,8 @@ func (a *API) listFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
+
+	logrus.Debugf("%s %s is invoked with application: %v", r.Method, r.RequestURI, appID)
 
 	var req trade_document.ListFileBasedEBLRequest
 	req.RequestBy = buID
@@ -103,6 +127,7 @@ func (a *API) listFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 	if reportStr != "" {
 		report, err := strconv.ParseBool(strings.ToLower(reportStr))
 		if err != nil {
+			logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 			http.Error(w, "report is invalid", http.StatusBadRequest)
 			return
 		}
@@ -111,7 +136,13 @@ func (a *API) listFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 
 	result, err := a.fileEBLCtrl.List(ctx, req)
 	if err != nil {
-		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		errCode := model.ErrorToHttpStatus(err)
+		if errCode/100 == 5 {
+			logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		} else {
+			logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		}
+		http.Error(w, err.Error(), errCode)
 		return
 	}
 
@@ -128,6 +159,8 @@ func (a *API) getFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
 	docID := mux.Vars(r)["id"]
 
+	logrus.Debugf("%s %s is invoked with application: %v", r.Method, r.RequestURI, appID)
+
 	var req trade_document.GetFileBasedEBLRequest
 	req.Requester = buID
 	req.Application = appID
@@ -135,7 +168,13 @@ func (a *API) getFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 
 	result, err := a.fileEBLCtrl.Get(ctx, req)
 	if err != nil {
-		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		errCode := model.ErrorToHttpStatus(err)
+		if errCode/100 == 5 {
+			logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		} else {
+			logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		}
+		http.Error(w, err.Error(), errCode)
 		return
 	}
 
@@ -160,10 +199,18 @@ func (a *API) transferEBL(w http.ResponseWriter, r *http.Request) {
 	req.TransferBy = buID
 	req.ID = mux.Vars(r)["id"]
 
+	logrus.Debugf("%s %s is invoked with application: %v, request: %v", r.Method, r.RequestURI, appID, util.StructToJSON(req))
+
 	ts := time.Now().Unix()
 	result, err := a.fileEBLCtrl.Transfer(ctx, ts, req)
 	if err != nil {
-		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		errCode := model.ErrorToHttpStatus(err)
+		if errCode/100 == 5 {
+			logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		} else {
+			logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		}
+		http.Error(w, err.Error(), errCode)
 		return
 	}
 
@@ -188,10 +235,18 @@ func (a *API) returnEBL(w http.ResponseWriter, r *http.Request) {
 	req.BusinessUnit = buID
 	req.ID = mux.Vars(r)["id"]
 
+	logrus.Debugf("%s %s is invoked with application: %v, request: %v", r.Method, r.RequestURI, appID, util.StructToJSON(req))
+
 	ts := time.Now().Unix()
 	result, err := a.fileEBLCtrl.Return(ctx, ts, req)
 	if err != nil {
-		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		errCode := model.ErrorToHttpStatus(err)
+		if errCode/100 == 5 {
+			logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		} else {
+			logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		}
+		http.Error(w, err.Error(), errCode)
 		return
 	}
 
@@ -216,10 +271,18 @@ func (a *API) amendmentRequestEBL(w http.ResponseWriter, r *http.Request) {
 	req.RequestBy = buID
 	req.ID = mux.Vars(r)["id"]
 
+	logrus.Debugf("%s %s is invoked with application: %v, request: %v", r.Method, r.RequestURI, appID, util.StructToJSON(req))
+
 	ts := time.Now().Unix()
 	result, err := a.fileEBLCtrl.AmendmentRequest(ctx, ts, req)
 	if err != nil {
-		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		errCode := model.ErrorToHttpStatus(err)
+		if errCode/100 == 5 {
+			logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		} else {
+			logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		}
+		http.Error(w, err.Error(), errCode)
 		return
 	}
 
@@ -244,10 +307,20 @@ func (a *API) amendFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 	req.Issuer = buID
 	req.ID = mux.Vars(r)["id"]
 
+	simplifiedReq := req
+	simplifiedReq.File.Content = nil
+	logrus.Debugf("%s %s is invoked with application: %v, request: %v", r.Method, r.RequestURI, appID, util.StructToJSON(simplifiedReq))
+
 	ts := time.Now().Unix()
 	result, err := a.fileEBLCtrl.Amend(ctx, ts, req)
 	if err != nil {
-		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		errCode := model.ErrorToHttpStatus(err)
+		if errCode/100 == 5 {
+			logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		} else {
+			logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		}
+		http.Error(w, err.Error(), errCode)
 		return
 	}
 
@@ -272,10 +345,18 @@ func (a *API) surrenderEBL(w http.ResponseWriter, r *http.Request) {
 	req.RequestBy = buID
 	req.ID = mux.Vars(r)["id"]
 
+	logrus.Debugf("%s %s is invoked with application: %v, request: %v", r.Method, r.RequestURI, appID, util.StructToJSON(req))
+
 	ts := time.Now().Unix()
 	result, err := a.fileEBLCtrl.Surrender(ctx, ts, req)
 	if err != nil {
-		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		errCode := model.ErrorToHttpStatus(err)
+		if errCode/100 == 5 {
+			logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		} else {
+			logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		}
+		http.Error(w, err.Error(), errCode)
 		return
 	}
 
@@ -300,10 +381,18 @@ func (a *API) printEBLToPaper(w http.ResponseWriter, r *http.Request) {
 	req.RequestBy = buID
 	req.ID = mux.Vars(r)["id"]
 
+	logrus.Debugf("%s %s is invoked with application: %v, request: %v", r.Method, r.RequestURI, appID, util.StructToJSON(req))
+
 	ts := time.Now().Unix()
 	result, err := a.fileEBLCtrl.PrintToPaper(ctx, ts, req)
 	if err != nil {
-		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		errCode := model.ErrorToHttpStatus(err)
+		if errCode/100 == 5 {
+			logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		} else {
+			logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		}
+		http.Error(w, err.Error(), errCode)
 		return
 	}
 
@@ -328,10 +417,18 @@ func (a *API) accomplishEBL(w http.ResponseWriter, r *http.Request) {
 	req.RequestBy = buID
 	req.ID = mux.Vars(r)["id"]
 
+	logrus.Debugf("%s %s is invoked with application: %v, request: %v", r.Method, r.RequestURI, appID, util.StructToJSON(req))
+
 	ts := time.Now().Unix()
 	result, err := a.fileEBLCtrl.Accomplish(ctx, ts, req)
 	if err != nil {
-		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		errCode := model.ErrorToHttpStatus(err)
+		if errCode/100 == 5 {
+			logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		} else {
+			logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		}
+		http.Error(w, err.Error(), errCode)
 		return
 	}
 
@@ -356,10 +453,18 @@ func (a *API) deleteEBL(w http.ResponseWriter, r *http.Request) {
 	req.RequestBy = buID
 	req.ID = mux.Vars(r)["id"]
 
+	logrus.Debugf("%s %s is invoked with application: %v, request: %v", r.Method, r.RequestURI, appID, util.StructToJSON(req))
+
 	ts := time.Now().Unix()
 	result, err := a.fileEBLCtrl.Delete(ctx, ts, req)
 	if err != nil {
-		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		errCode := model.ErrorToHttpStatus(err)
+		if errCode/100 == 5 {
+			logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		} else {
+			logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		}
+		http.Error(w, err.Error(), errCode)
 		return
 	}
 
@@ -381,9 +486,17 @@ func (a *API) getFileBasedEBLDocument(w http.ResponseWriter, r *http.Request) {
 	req.Application = appID
 	req.ID = docID
 
+	logrus.Debugf("%s %s is invoked with application: %v, request: %v", r.Method, r.RequestURI, appID, util.StructToJSON(req))
+
 	file, err := a.fileEBLCtrl.GetDocument(ctx, req)
 	if err != nil {
-		http.Error(w, err.Error(), model.ErrorToHttpStatus(err))
+		errCode := model.ErrorToHttpStatus(err)
+		if errCode/100 == 5 {
+			logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		} else {
+			logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, errCode, err.Error())
+		}
+		http.Error(w, err.Error(), errCode)
 		return
 	}
 

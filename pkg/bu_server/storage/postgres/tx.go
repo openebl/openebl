@@ -94,15 +94,12 @@ func (s *_Storage) CreateTx(ctx context.Context, options ...storage.CreateTxOpti
 		return &_InnerTxWrapper{tx}, ctx, nil
 	}
 
-	option := storage.TxWrapperOption{}
-	for _, opt := range options {
-		opt(&option)
-	}
-
 	connPool := s.dbPool
-	sqlTxOption := sql.TxOptions{}
+	sqlTxOption := sql.TxOptions{
+		ReadOnly: true,
+	}
 	for _, opt := range options {
-		opt(&option)
+		opt(&sqlTxOption)
 	}
 
 	txOption := pgx.TxOptions{}

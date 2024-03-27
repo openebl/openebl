@@ -44,21 +44,21 @@ type Result interface {
 	RowsAffected() (int64, error)
 }
 
-type CreateTxOption func(*TxWrapperOption)
+type CreateTxOption func(*sql.TxOptions)
 
 type TransactionInterface interface {
 	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
 }
 
 func TxOptionWithWrite(write bool) CreateTxOption {
-	return func(option *TxWrapperOption) {
-		option.write = write
+	return func(option *sql.TxOptions) {
+		option.ReadOnly = !write
 	}
 }
 
 func TxOptionWithIsolationLevel(level sql.IsolationLevel) CreateTxOption {
-	return func(option *TxWrapperOption) {
-		option.level = level
+	return func(option *sql.TxOptions) {
+		option.Isolation = level
 	}
 }
 

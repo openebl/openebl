@@ -126,17 +126,21 @@ func (a *API) createBusinessUnit(w http.ResponseWriter, r *http.Request) {
 	// Parse the request body
 	var req business_unit.CreateBusinessUnitRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	logrus.Debugf("%s %s is invoked with application: %v, request: %v", r.Method, r.RequestURI, appID, util.StructToJSON(req))
 
 	req.ApplicationID = appID
 	result, err := a.buMgr.CreateBusinessUnit(ctx, time.Now().Unix(), req)
 	if errors.Is(err, model.ErrInvalidParameter) {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if err != nil {
+		logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusInternalServerError, err.Error())
 		http.Error(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
@@ -151,6 +155,8 @@ func (a *API) createBusinessUnit(w http.ResponseWriter, r *http.Request) {
 func (a *API) listBusinessUnit(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
+
+	logrus.Debugf("%s %s is invoked with application: %v", r.Method, r.RequestURI, appID)
 
 	// TODO: Get parameters from QueryString.
 	req := storage.ListBusinessUnitsRequest{}
@@ -176,10 +182,12 @@ func (a *API) listBusinessUnit(w http.ResponseWriter, r *http.Request) {
 
 	result, err := a.buMgr.ListBusinessUnits(ctx, req)
 	if errors.Is(err, model.ErrInvalidParameter) {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if err != nil {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusInternalServerError, err.Error())
 		http.Error(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
@@ -196,6 +204,8 @@ func (a *API) getBusinessUnit(w http.ResponseWriter, r *http.Request) {
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID := mux.Vars(r)["id"]
 
+	logrus.Debugf("%s %s is invoked with application: %v", r.Method, r.RequestURI, appID)
+
 	listReq := storage.ListBusinessUnitsRequest{
 		Limit:           1,
 		ApplicationID:   appID,
@@ -203,15 +213,18 @@ func (a *API) getBusinessUnit(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := a.buMgr.ListBusinessUnits(ctx, listReq)
 	if errors.Is(err, model.ErrInvalidParameter) {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if err != nil {
+		logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusInternalServerError, err.Error())
 		http.Error(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
 	if len(result.Records) == 0 {
+		logrus.Debugf("%s %s returns status code %d", r.Method, r.RequestURI, http.StatusNotFound)
 		http.Error(w, "Not found", http.StatusNotFound)
 		return
 	}
@@ -228,15 +241,19 @@ func (a *API) updateBusinessUnit(w http.ResponseWriter, r *http.Request) {
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID := mux.Vars(r)["id"]
 
+	logrus.Debugf("%s %s is invoked with application: %v", r.Method, r.RequestURI, appID)
+
 	// Parse the request body
 	req := business_unit.UpdateBusinessUnitRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	req.ApplicationID = appID
 	buDID, err := did.ParseDID(buID)
 	if err != nil {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -244,14 +261,17 @@ func (a *API) updateBusinessUnit(w http.ResponseWriter, r *http.Request) {
 
 	result, err := a.buMgr.UpdateBusinessUnit(ctx, time.Now().Unix(), req)
 	if errors.Is(err, model.ErrInvalidParameter) {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if errors.Is(err, model.ErrBusinessUnitNotFound) {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusNotFound, err.Error())
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	if err != nil {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusInternalServerError, err.Error())
 		http.Error(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
@@ -267,8 +287,11 @@ func (a *API) setBusinessUnitStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 
+	logrus.Debugf("%s %s is invoked with application: %v", r.Method, r.RequestURI, appID)
+
 	req := business_unit.SetBusinessUnitStatusRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -276,6 +299,7 @@ func (a *API) setBusinessUnitStatus(w http.ResponseWriter, r *http.Request) {
 	buID := mux.Vars(r)["id"]
 	buDID, err := did.ParseDID(buID)
 	if err != nil {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -283,14 +307,17 @@ func (a *API) setBusinessUnitStatus(w http.ResponseWriter, r *http.Request) {
 
 	result, err := a.buMgr.SetStatus(ctx, time.Now().Unix(), req)
 	if errors.Is(err, model.ErrInvalidParameter) {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if errors.Is(err, model.ErrBusinessUnitNotFound) {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusNotFound, err.Error())
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	if err != nil {
+		logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusInternalServerError, err.Error())
 		http.Error(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
@@ -308,13 +335,18 @@ func (a *API) createBusinessUnitAuthentication(w http.ResponseWriter, r *http.Re
 
 	req := business_unit.AddAuthenticationRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	logrus.Debugf("%s %s is invoked with application: %v, request: %v", r.Method, r.RequestURI, appID, util.StructToJSON(req))
+
 	req.ApplicationID = appID
 	buID := mux.Vars(r)["id"]
 	buDID, err := did.ParseDID(buID)
 	if err != nil {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -322,14 +354,17 @@ func (a *API) createBusinessUnitAuthentication(w http.ResponseWriter, r *http.Re
 
 	result, err := a.buMgr.AddAuthentication(ctx, time.Now().Unix(), req)
 	if errors.Is(err, model.ErrInvalidParameter) {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if errors.Is(err, model.ErrBusinessUnitNotFound) {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusNotFound, err.Error())
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	if err != nil {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusInternalServerError, err.Error())
 		http.Error(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
@@ -345,6 +380,8 @@ func (a *API) listBusinessUnitAuthentication(w http.ResponseWriter, r *http.Requ
 	ctx := r.Context()
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID := mux.Vars(r)["id"]
+
+	logrus.Debugf("%s %s is invoked with application: %v", r.Method, r.RequestURI, appID)
 
 	req := storage.ListAuthenticationRequest{}
 	offsetStr := r.URL.Query().Get("offset")
@@ -370,10 +407,12 @@ func (a *API) listBusinessUnitAuthentication(w http.ResponseWriter, r *http.Requ
 
 	result, err := a.buMgr.ListAuthentication(ctx, req)
 	if errors.Is(err, model.ErrInvalidParameter) {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if err != nil {
+		logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusInternalServerError, err.Error())
 		http.Error(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
@@ -391,6 +430,8 @@ func (a *API) getBusinessUnitAuthentication(w http.ResponseWriter, r *http.Reque
 	buID := mux.Vars(r)["id"]
 	authenticationID := mux.Vars(r)["authentication_id"]
 
+	logrus.Debugf("%s %s is invoked with application: %v", r.Method, r.RequestURI, appID)
+
 	req := storage.ListAuthenticationRequest{
 		Limit:             1,
 		ApplicationID:     appID,
@@ -400,14 +441,17 @@ func (a *API) getBusinessUnitAuthentication(w http.ResponseWriter, r *http.Reque
 
 	result, err := a.buMgr.ListAuthentication(ctx, req)
 	if errors.Is(err, model.ErrInvalidParameter) {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if err != nil {
+		logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusInternalServerError, err.Error())
 		http.Error(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 	if len(result.Records) == 0 {
+		logrus.Debugf("%s %s returns status code %d", r.Method, r.RequestURI, http.StatusNotFound)
 		http.Error(w, "Not found", http.StatusNotFound)
 		return
 	}
@@ -425,8 +469,11 @@ func (a *API) revokeBusinessUnitAuthentication(w http.ResponseWriter, r *http.Re
 	buID := mux.Vars(r)["id"]
 	authenticationID := mux.Vars(r)["authentication_id"]
 
+	logrus.Debugf("%s %s is invoked with application: %v", r.Method, r.RequestURI, appID)
+
 	buDID, err := did.ParseDID(buID)
 	if err != nil {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -439,10 +486,12 @@ func (a *API) revokeBusinessUnitAuthentication(w http.ResponseWriter, r *http.Re
 
 	result, err := a.buMgr.RevokeAuthentication(ctx, time.Now().Unix(), req)
 	if errors.Is(err, model.ErrInvalidParameter) || errors.Is(err, model.ErrBusinessUnitNotFound) || errors.Is(err, model.ErrAuthenticationNotFound) {
+		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if err != nil {
+		logrus.Errorf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusInternalServerError, err.Error())
 		http.Error(w, fmt.Sprintf("Internal server error: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}

@@ -17,6 +17,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/api"
 	"github.com/openebl/openebl/pkg/bu_server/broker"
 	"github.com/openebl/openebl/pkg/bu_server/manager"
+	"github.com/openebl/openebl/pkg/bu_server/webhook"
 	"github.com/openebl/openebl/pkg/config"
 	"github.com/openebl/openebl/pkg/util"
 	"github.com/sirupsen/logrus"
@@ -48,6 +49,12 @@ type Config struct {
 		CheckInterval int    `yaml:"check_interval"`
 		BatchSize     int    `yaml:"batch_size"`
 	} `yaml:"broker"`
+	Webhook struct {
+		CheckInterval int `yaml:"check_interval"`
+		BatchSize     int `yaml:"batch_size"`
+		Timeout       int `yaml:"timeout"`
+		MaxRetry      int `yaml:"max_retry"`
+	} `yaml:"webhook"`
 }
 
 type App struct{}
@@ -98,6 +105,19 @@ func (a *App) runServer(cli CLI) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	processorConfig := webhook.Config{
+		Database:      appConfig.Database,
+		CheckInterval: appConfig.Webhook.CheckInterval,
+		BatchSize:     appConfig.Webhook.BatchSize,
+		Timeout:       appConfig.Webhook.Timeout,
+		MaxRetry:      appConfig.Webhook.MaxRetry,
+	}
+	processor, err := webhook.NewProcessorWithConfig(processorConfig)
+	if err != nil {
+		logrus.Errorf("failed to create webhook processor: %v", err)
+		os.Exit(128)
+	}
+
 	wg := &sync.WaitGroup{}
 
 	go func(wg *sync.WaitGroup) {
@@ -120,6 +140,12 @@ func (a *App) runServer(cli CLI) {
 			logrus.Errorf("failed to run Manager server: %v", err)
 			os.Exit(1)
 		}
+	}(wg)
+
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		processor.Run(ctx)
 	}(wg)
 
 	// listen for the stop signal

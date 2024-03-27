@@ -14,6 +14,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
+	"github.com/openebl/openebl/pkg/bu_server/webhook"
 	"github.com/openebl/openebl/pkg/envelope"
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/relay/server"
@@ -196,14 +197,16 @@ type FileBaseEBLController interface {
 }
 
 type _FileBaseEBLController struct {
-	storage storage.TradeDocumentStorage
-	buCtrl  business_unit.BusinessUnitManager
+	storage     storage.TradeDocumentStorage
+	buCtrl      business_unit.BusinessUnitManager
+	webhookCtrl webhook.WebhookController
 }
 
-func NewFileBaseEBLController(storage storage.TradeDocumentStorage, buCtrl business_unit.BusinessUnitManager) *_FileBaseEBLController {
+func NewFileBaseEBLController(storage storage.TradeDocumentStorage, buCtrl business_unit.BusinessUnitManager, webhookCtrl webhook.WebhookController) FileBaseEBLController {
 	return &_FileBaseEBLController{
-		storage: storage,
-		buCtrl:  buCtrl,
+		storage:     storage,
+		buCtrl:      buCtrl,
+		webhookCtrl: webhookCtrl,
 	}
 }
 
@@ -271,7 +274,11 @@ func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request I
 		if err := c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
 			return FileBasedBillOfLadingRecord{}, err
 		}
+		if err = c.webhookCtrl.SendWebhookEvent(ctx, tx, ts, request.Application, td.DocID, model.WebhookEventBLIssued); err != nil {
+			return FileBasedBillOfLadingRecord{}, err
+		}
 	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -358,6 +365,9 @@ func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, requ
 		if err := c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
 			return FileBasedBillOfLadingRecord{}, err
 		}
+		if err = c.webhookCtrl.SendWebhookEvent(ctx, tx, ts, request.Application, td.DocID, model.WebhookEventBLIssued); err != nil {
+			return FileBasedBillOfLadingRecord{}, err
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
@@ -420,6 +430,9 @@ func (c *_FileBaseEBLController) Return(ctx context.Context, ts int64, req Retur
 	}
 
 	if err := c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
+		return FileBasedBillOfLadingRecord{}, err
+	}
+	if err = c.webhookCtrl.SendWebhookEvent(ctx, tx, ts, req.Application, td.DocID, model.WebhookEventBLReturned); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -609,6 +622,9 @@ func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req Tra
 	if err = c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
+	if err = c.webhookCtrl.SendWebhookEvent(ctx, tx, ts, req.Application, td.DocID, model.WebhookEventBLTransferred); err != nil {
+		return FileBasedBillOfLadingRecord{}, err
+	}
 	if err = tx.Commit(ctx); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -677,6 +693,9 @@ func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64,
 		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
+		return FileBasedBillOfLadingRecord{}, err
+	}
+	if err = c.webhookCtrl.SendWebhookEvent(ctx, tx, ts, req.Application, td.DocID, model.WebhookEventBLAmendmentRequested); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
@@ -748,6 +767,9 @@ func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendF
 	if err = c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
+	if err = c.webhookCtrl.SendWebhookEvent(ctx, tx, ts, req.Application, td.DocID, model.WebhookEventBLAmended); err != nil {
+		return FileBasedBillOfLadingRecord{}, err
+	}
 	if err = tx.Commit(ctx); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -813,6 +835,9 @@ func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req Su
 	if err = c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
+	if err = c.webhookCtrl.SendWebhookEvent(ctx, tx, ts, req.Application, td.DocID, model.WebhookEventBLSurrendered); err != nil {
+		return FileBasedBillOfLadingRecord{}, err
+	}
 	if err = tx.Commit(ctx); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -873,7 +898,9 @@ func (c *_FileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, req
 	if err = c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
-
+	if err = c.webhookCtrl.SendWebhookEvent(ctx, tx, ts, req.Application, td.DocID, model.WebhookEventBLPrintedToPaper); err != nil {
+		return FileBasedBillOfLadingRecord{}, err
+	}
 	if err = tx.Commit(ctx); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -931,6 +958,9 @@ func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req A
 		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = c.storeAndPublishTradeDocument(ctx, tx, td); err != nil {
+		return FileBasedBillOfLadingRecord{}, err
+	}
+	if err = c.webhookCtrl.SendWebhookEvent(ctx, tx, ts, req.Application, td.DocID, model.WebhookEventBLAccomplished); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
@@ -1088,7 +1118,7 @@ func (c *_FileBaseEBLController) GetDocument(ctx context.Context, request GetFil
 }
 
 func (c *_FileBaseEBLController) checkBUExistence(ctx context.Context, appID string, buIDs []string) error {
-	req := business_unit.ListBusinessUnitsRequest{
+	req := storage.ListBusinessUnitsRequest{
 		Limit:           len(buIDs),
 		ApplicationID:   appID,
 		BusinessUnitIDs: buIDs,

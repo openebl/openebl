@@ -5,6 +5,7 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/openebl/openebl/pkg/bu_server/model"
+	"github.com/openebl/openebl/pkg/bu_server/storage"
 )
 
 func ValidateCreateBusinessUnitRequest(req CreateBusinessUnitRequest) error {
@@ -33,7 +34,7 @@ func ValidateUpdateBusinessUnitRequest(req UpdateBusinessUnitRequest) error {
 	return nil
 }
 
-func ValidateListBusinessUnitRequest(req ListBusinessUnitsRequest) error {
+func ValidateListBusinessUnitRequest(req storage.ListBusinessUnitsRequest) error {
 	if err := validation.ValidateStruct(&req,
 		validation.Field(&req.Limit, validation.Required),
 		validation.Field(&req.ApplicationID, validation.Required),
@@ -92,7 +93,7 @@ func ValidateRevokeAuthenticationRequest(req RevokeAuthenticationRequest) error 
 	return nil
 }
 
-func ValidateListAuthenticationRequest(req ListAuthenticationRequest) error {
+func ValidateListAuthenticationRequest(req storage.ListAuthenticationRequest) error {
 	if err := validation.ValidateStruct(&req,
 		validation.Field(&req.Limit, validation.Required),
 		validation.Field(&req.ApplicationID, validation.Required),

@@ -62,6 +62,53 @@ func TxOptionWithIsolationLevel(level sql.IsolationLevel) CreateTxOption {
 	}
 }
 
+// ListBusinessUnitsRequest is the request to list business units.
+type ListBusinessUnitsRequest struct {
+	Offset int `json:"offset"` // Offset of the business units to be listed.
+	Limit  int `json:"limit"`  // Limit of the business units to be listed.
+
+	// Filters
+	ApplicationID   string   `json:"application_id"`    // The ID of the application this BusinessUnit belongs to.
+	BusinessUnitIDs []string `json:"business_unit_ids"` // The IDs of the business units.
+}
+
+// ListBusinessUnitsResult is the result of listing business units.
+type ListBusinessUnitsResult struct {
+	Total   int                       `json:"total"`   // Total number of business units.
+	Records []ListBusinessUnitsRecord `json:"records"` // Records of business units.
+}
+
+// ListAuthenticationRequest is the request to list authentications.
+type ListAuthenticationRequest struct {
+	Offset int `json:"offset"` // Offset of the authentications to be listed.
+	Limit  int `json:"limit"`  // Limit of the authentications to be listed.
+
+	// Filters
+	ApplicationID     string   `json:"application_id"`     // The ID of the application this BusinessUnit belongs to.
+	BusinessUnitID    string   `json:"id"`                 // Unique DID of a BusinessUnit.
+	AuthenticationIDs []string `json:"authentication_ids"` // Unique IDs of the authentications.
+}
+
+// ListAuthenticationResult is the result of listing authentications.
+type ListAuthenticationResult struct {
+	Total   int                                `json:"total"`   // Total number of authentications.
+	Records []model.BusinessUnitAuthentication `json:"records"` // Records of authentications.
+}
+
+// ListBusinessUnitsRecord is the record of a business unit.
+type ListBusinessUnitsRecord struct {
+	BusinessUnit    model.BusinessUnit                 `json:"business_unit"`   // The business unit.
+	Authentications []model.BusinessUnitAuthentication `json:"authentications"` // The authentications of the business unit.
+}
+
+type BusinessUnitStorage interface {
+	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
+	StoreBusinessUnit(ctx context.Context, tx Tx, bu model.BusinessUnit) error
+	ListBusinessUnits(ctx context.Context, tx Tx, req ListBusinessUnitsRequest) (ListBusinessUnitsResult, error)
+	StoreAuthentication(ctx context.Context, tx Tx, auth model.BusinessUnitAuthentication) error
+	ListAuthentication(ctx context.Context, tx Tx, req ListAuthenticationRequest) (ListAuthenticationResult, error)
+}
+
 type TradeDocument struct {
 	RawID      string         // The Raw ID of the envelope of the document.
 	Kind       int            // The kind of the document. It provides the hint of how to process the document.

@@ -17,6 +17,7 @@ import (
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
 	mock_cert_authority "github.com/openebl/openebl/test/mock/bu_server/cert_authority"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
+	mock_webhook "github.com/openebl/openebl/test/mock/bu_server/webhook"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -24,7 +25,8 @@ type BusinessUnitManagerTestSuite struct {
 	suite.Suite
 	ctx              context.Context
 	ctrl             *gomock.Controller
-	storage          *mock_business_unit.MockBusinessUnitStorage
+	storage          *mock_storage.MockBusinessUnitStorage
+	webhookCtrl      *mock_webhook.MockWebhookController
 	jwsSignerFactory *mock_business_unit.MockJWSSignerFactory
 	ca               *mock_cert_authority.MockCertAuthority
 	tx               *mock_storage.MockTx
@@ -38,11 +40,12 @@ func TestBusinessUnitManager(t *testing.T) {
 func (s *BusinessUnitManagerTestSuite) SetupTest() {
 	s.ctx = context.Background()
 	s.ctrl = gomock.NewController(s.T())
-	s.storage = mock_business_unit.NewMockBusinessUnitStorage(s.ctrl)
+	s.storage = mock_storage.NewMockBusinessUnitStorage(s.ctrl)
+	s.webhookCtrl = mock_webhook.NewMockWebhookController(s.ctrl)
 	s.jwsSignerFactory = mock_business_unit.NewMockJWSSignerFactory(s.ctrl)
 	s.ca = mock_cert_authority.NewMockCertAuthority(s.ctrl)
 	s.tx = mock_storage.NewMockTx(s.ctrl)
-	s.buManager = business_unit.NewBusinessUnitManager(s.storage, s.ca, s.jwsSignerFactory)
+	s.buManager = business_unit.NewBusinessUnitManager(s.storage, s.ca, s.webhookCtrl, s.jwsSignerFactory)
 }
 
 func (s *BusinessUnitManagerTestSuite) TearDownTest() {
@@ -85,6 +88,7 @@ func (s *BusinessUnitManagerTestSuite) TestCreateBusinessUnit() {
 				return nil
 			},
 		),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "application-id", gomock.Any(), model.WebhookEventBUCreated).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -142,20 +146,21 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 		s.storage.EXPECT().ListBusinessUnits(
 			gomock.Any(),
 			s.tx,
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   request.ApplicationID,
 				BusinessUnitIDs: []string{request.ID.String()},
 			},
-		).Return(business_unit.ListBusinessUnitsResult{
+		).Return(storage.ListBusinessUnitsResult{
 			Total: 1,
-			Records: []business_unit.ListBusinessUnitsRecord{
+			Records: []storage.ListBusinessUnitsRecord{
 				{
 					BusinessUnit: oldBusinessUnit,
 				},
 			},
 		}, nil),
 		s.storage.EXPECT().StoreBusinessUnit(gomock.Any(), s.tx, expectedBusinessUnit).Return(nil),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "application-id", "did:openebl:u0e2345", model.WebhookEventBUUpdated).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -166,7 +171,7 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 }
 
 func (s *BusinessUnitManagerTestSuite) TestListBusinessUnits() {
-	request := business_unit.ListBusinessUnitsRequest{
+	request := storage.ListBusinessUnitsRequest{
 		Offset:          1,
 		Limit:           10,
 		ApplicationID:   "application-id",
@@ -188,9 +193,9 @@ func (s *BusinessUnitManagerTestSuite) TestListBusinessUnits() {
 		UpdatedBy:     "requester",
 	}
 
-	listResult := business_unit.ListBusinessUnitsResult{
+	listResult := storage.ListBusinessUnitsResult{
 		Total: 1,
-		Records: []business_unit.ListBusinessUnitsRecord{
+		Records: []storage.ListBusinessUnitsRecord{
 			{
 				BusinessUnit: expectedBusinessUnit,
 			},
@@ -257,20 +262,21 @@ func (s *BusinessUnitManagerTestSuite) TestSetBusinessUnitStatus() {
 		s.storage.EXPECT().ListBusinessUnits(
 			gomock.Any(),
 			s.tx,
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   request.ApplicationID,
 				BusinessUnitIDs: []string{request.ID.String()},
 			},
-		).Return(business_unit.ListBusinessUnitsResult{
+		).Return(storage.ListBusinessUnitsResult{
 			Total: 1,
-			Records: []business_unit.ListBusinessUnitsRecord{
+			Records: []storage.ListBusinessUnitsRecord{
 				{
 					BusinessUnit: oldBusinessUnit,
 				},
 			},
 		}, nil),
 		s.storage.EXPECT().StoreBusinessUnit(gomock.Any(), s.tx, expectedBusinessUnit).Return(nil),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "application-id", "did:openebl:u0e2345", model.WebhookEventBUUpdated).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -307,14 +313,14 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 		CreatedBy:     "old-requester",
 	}
 
-	expectedListBuRequest := business_unit.ListBusinessUnitsRequest{
+	expectedListBuRequest := storage.ListBusinessUnitsRequest{
 		Limit:           1,
 		ApplicationID:   request.ApplicationID,
 		BusinessUnitIDs: []string{request.BusinessUnitID.String()},
 	}
-	listBuResult := business_unit.ListBusinessUnitsResult{
+	listBuResult := storage.ListBusinessUnitsResult{
 		Total: 1,
-		Records: []business_unit.ListBusinessUnitsRecord{
+		Records: []storage.ListBusinessUnitsRecord{
 			{
 				BusinessUnit: bu,
 			},
@@ -358,6 +364,7 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 				return nil
 			},
 		),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "application-id", gomock.Any(), model.WebhookEventAuthCreated).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -418,17 +425,18 @@ func (s *BusinessUnitManagerTestSuite) TestRevokeAuthentication() {
 		s.storage.EXPECT().ListAuthentication(
 			gomock.Any(),
 			s.tx,
-			business_unit.ListAuthenticationRequest{
+			storage.ListAuthenticationRequest{
 				Limit:             1,
 				ApplicationID:     request.ApplicationID,
 				BusinessUnitID:    request.BusinessUnitID.String(),
 				AuthenticationIDs: []string{request.AuthenticationID},
 			},
-		).Return(business_unit.ListAuthenticationResult{
+		).Return(storage.ListAuthenticationResult{
 			Total:   1,
 			Records: []model.BusinessUnitAuthentication{oldAuthentication},
 		}, nil),
 		s.storage.EXPECT().StoreAuthentication(gomock.Any(), s.tx, expectedAuthentication).Return(nil),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "application-id", "authentication-id", model.WebhookEventAuthRevoked).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -441,7 +449,7 @@ func (s *BusinessUnitManagerTestSuite) TestRevokeAuthentication() {
 }
 
 func (s *BusinessUnitManagerTestSuite) TestListAuthentication() {
-	request := business_unit.ListAuthenticationRequest{
+	request := storage.ListAuthenticationRequest{
 		Offset:            1,
 		Limit:             10,
 		ApplicationID:     "application-id",
@@ -461,7 +469,7 @@ func (s *BusinessUnitManagerTestSuite) TestListAuthentication() {
 		RevokedAt:    0,
 	}
 
-	listResult := business_unit.ListAuthenticationResult{
+	listResult := storage.ListAuthenticationResult{
 		Total:   1,
 		Records: []model.BusinessUnitAuthentication{expectedAuthentication},
 	}
@@ -490,7 +498,7 @@ func (s *BusinessUnitManagerTestSuite) TestGetJWSSigner() {
 		AuthenticationID: "authentication-id",
 	}
 
-	listAuthRequest := business_unit.ListAuthenticationRequest{
+	listAuthRequest := storage.ListAuthenticationRequest{
 		Limit:             1,
 		ApplicationID:     request.ApplicationID,
 		BusinessUnitID:    request.BusinessUnitID.String(),
@@ -505,7 +513,7 @@ func (s *BusinessUnitManagerTestSuite) TestGetJWSSigner() {
 		PrivateKey:   "FAKE PEM PRIVATE",
 		Certificate:  "FAKE PEM CERT",
 	}
-	listAuthResult := business_unit.ListAuthenticationResult{
+	listAuthResult := storage.ListAuthenticationResult{
 		Total:   1,
 		Records: []model.BusinessUnitAuthentication{buAuth},
 	}

@@ -8,7 +8,6 @@ import (
 	"github.com/go-testfixtures/testfixtures/v3"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/openebl/openebl/pkg/bu_server/business_unit"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
@@ -17,7 +16,7 @@ import (
 
 type BusinessUnitStorageTestSuite struct {
 	BaseTestSuite
-	storage business_unit.BusinessUnitStorage
+	storage storage.BusinessUnitStorage
 }
 
 func TestBusinessUnitStorage(t *testing.T) {
@@ -89,7 +88,7 @@ func (s *BusinessUnitStorageTestSuite) TestListBusinessUnit() {
 	s.Require().NoError(err)
 	defer tx.Rollback(ctx)
 
-	req := business_unit.ListBusinessUnitsRequest{
+	req := storage.ListBusinessUnitsRequest{
 		Limit:         10,
 		ApplicationID: "app1",
 	}
@@ -174,7 +173,7 @@ func (s *BusinessUnitStorageTestSuite) TestListAuthentication() {
 	defer tx.Rollback(s.ctx)
 
 	// Test Basic Function (filter by ApplicationID)
-	req := business_unit.ListAuthenticationRequest{
+	req := storage.ListAuthenticationRequest{
 		Limit:         10,
 		ApplicationID: "app1",
 	}
@@ -210,7 +209,7 @@ func (s *BusinessUnitStorageTestSuite) TestListAuthentication() {
 	// End of Test Filter by BusinessUnitIDs
 
 	// Test Filter by AuthenticationIDs
-	req = business_unit.ListAuthenticationRequest{
+	req = storage.ListAuthenticationRequest{
 		Limit:             10,
 		ApplicationID:     "app1",
 		AuthenticationIDs: []string{"bu1_auth2"},

@@ -16,3 +16,8 @@ broker:
   relay_server: {{ or .RELAY_SERVER "ws://127.0.0.1:9001" }}
   check_interval: {{ or .BROKER_CHECK_INTERVAL_SECONDS 30 }}
   batch_size: {{ or .BROKER_BATCH_SIZE 10 }}
+webhook:
+  check_interval: {{ or .WEBHOOK_CHECK_INTERVAL_SECONDS 10 }}
+  batch_size: {{ or .WEBHOOK_BATCH_SIZE 10 }}
+  timeout: {{ or .WEBHOOK_TIMEOUT_SECONDS 5 }}
+  max_retry: {{ or .WEBHOOK_MAX_RETRY 5 }}

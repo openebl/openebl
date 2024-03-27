@@ -18,6 +18,7 @@ import (
 	"github.com/openebl/openebl/pkg/util"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
+	mock_webhook "github.com/openebl/openebl/test/mock/bu_server/webhook"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/suite"
 )
@@ -25,12 +26,13 @@ import (
 type FileBasedEBLTestSuite struct {
 	suite.Suite
 
-	ctx       context.Context
-	ctrl      *gomock.Controller
-	tdStorage *mock_storage.MockTradeDocumentStorage
-	tx        *mock_storage.MockTx
-	buMgr     *mock_business_unit.MockBusinessUnitManager
-	eblCtrl   trade_document.FileBaseEBLController
+	ctx         context.Context
+	ctrl        *gomock.Controller
+	tdStorage   *mock_storage.MockTradeDocumentStorage
+	tx          *mock_storage.MockTx
+	buMgr       *mock_business_unit.MockBusinessUnitManager
+	webhookCtrl *mock_webhook.MockWebhookController
+	eblCtrl     trade_document.FileBaseEBLController
 
 	issuer          model.BusinessUnit
 	issuerAuth      model.BusinessUnitAuthentication
@@ -93,8 +95,9 @@ func (s *FileBasedEBLTestSuite) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
 	s.tdStorage = mock_storage.NewMockTradeDocumentStorage(s.ctrl)
 	s.tx = mock_storage.NewMockTx(s.ctrl)
+	s.webhookCtrl = mock_webhook.NewMockWebhookController(s.ctrl)
 	s.buMgr = mock_business_unit.NewMockBusinessUnitManager(s.ctrl)
-	s.eblCtrl = trade_document.NewFileBaseEBLController(s.tdStorage, s.buMgr)
+	s.eblCtrl = trade_document.NewFileBaseEBLController(s.tdStorage, s.buMgr, s.webhookCtrl)
 }
 
 func (s *FileBasedEBLTestSuite) TearDownTest() {
@@ -310,15 +313,15 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           4,
 				ApplicationID:   "appid",
 				BusinessUnitIDs: []string{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total: 4,
-				Records: []business_unit.ListBusinessUnitsRecord{
+				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
 							ID:            did.MustParseDID("did:openebl:issuer"),
@@ -376,6 +379,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 				receivedOutboxPayload = payload
 				return nil
 			}),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "appid", gomock.Any(), model.WebhookEventBLIssued).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -437,15 +441,15 @@ func (s *FileBasedEBLTestSuite) TestCreateDraftEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "appid",
 				BusinessUnitIDs: []string{"did:openebl:issuer"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total: 4,
-				Records: []business_unit.ListBusinessUnitsRecord{
+				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
 							ID:            did.MustParseDID("did:openebl:issuer"),
@@ -552,15 +556,15 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBLToNonDraftEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           4,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total: 4,
-				Records: []business_unit.ListBusinessUnitsRecord{
+				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: s.issuer,
 					},
@@ -611,6 +615,7 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBLToNonDraftEBL() {
 				receivedOutboxPayload = payload
 				return nil
 			}),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "app_id", gomock.Any(), model.WebhookEventBLIssued).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -666,15 +671,15 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBLToDraftEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:issuer"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total: 4,
-				Records: []business_unit.ListBusinessUnitsRecord{
+				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: s.issuer,
 					},
@@ -746,15 +751,15 @@ func (s *FileBasedEBLTestSuite) TestListEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "appid",
 				BusinessUnitIDs: []string{"did:openebl:issuer"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total: 1,
-				Records: []business_unit.ListBusinessUnitsRecord{
+				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
 							ID:            did.MustParseDID("did:openebl:issuer"),
@@ -806,15 +811,15 @@ func (s *FileBasedEBLTestSuite) TestShipperTransferEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:shipper"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total:   1,
-				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.shipper}},
+				Records: []storage.ListBusinessUnitsRecord{{BusinessUnit: s.shipper}},
 			}, nil,
 		),
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
@@ -851,6 +856,7 @@ func (s *FileBasedEBLTestSuite) TestShipperTransferEBL() {
 				receivedOutboxPayload = payload
 				return nil
 			}),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "app_id", id, model.WebhookEventBLTransferred).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -894,15 +900,15 @@ func (s *FileBasedEBLTestSuite) TestIssuerTransferEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:issuer"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total:   1,
-				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
+				Records: []storage.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
 			}, nil,
 		),
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
@@ -939,6 +945,7 @@ func (s *FileBasedEBLTestSuite) TestIssuerTransferEBL() {
 				receivedOutboxPayload = payload
 				return nil
 			}),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "app_id", id, model.WebhookEventBLTransferred).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -979,15 +986,15 @@ func (s *FileBasedEBLTestSuite) TestTransferEBL_ActionNotAllowed() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:shipper"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total:   1,
-				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.shipper}},
+				Records: []storage.ListBusinessUnitsRecord{{BusinessUnit: s.shipper}},
 			}, nil,
 		),
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
@@ -1031,15 +1038,15 @@ func (s *FileBasedEBLTestSuite) TestAmendmentRequestEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:consignee"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total:   1,
-				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.consignee}},
+				Records: []storage.ListBusinessUnitsRecord{{BusinessUnit: s.consignee}},
 			}, nil,
 		),
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
@@ -1076,6 +1083,7 @@ func (s *FileBasedEBLTestSuite) TestAmendmentRequestEBL() {
 				receivedOutboxPayload = payload
 				return nil
 			}),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "app_id", id, model.WebhookEventBLAmendmentRequested).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1116,15 +1124,15 @@ func (s *FileBasedEBLTestSuite) TestAmendmentRequestEBL_ActionNotAllowed() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:issuer"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total:   1,
-				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
+				Records: []storage.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
 			}, nil,
 		),
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
@@ -1199,6 +1207,7 @@ func (s *FileBasedEBLTestSuite) TestReturn() {
 				receivedOutboxPayload = payload
 				return nil
 			}),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "app_id", id, model.WebhookEventBLReturned).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1273,6 +1282,7 @@ func (s *FileBasedEBLTestSuite) TestReturnAmendmentRequest() {
 				receivedOutboxPayload = payload
 				return nil
 			}),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "app_id", id, model.WebhookEventBLReturned).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1335,15 +1345,15 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:issuer"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total:   1,
-				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
+				Records: []storage.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
 			}, nil,
 		),
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
@@ -1380,6 +1390,7 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL() {
 				receivedOutboxPayload = payload
 				return nil
 			}),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "app_id", id, model.WebhookEventBLAmended).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1447,15 +1458,15 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL_ReturnedByShipper() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "app_id",
 				BusinessUnitIDs: []string{"did:openebl:issuer"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total:   1,
-				Records: []business_unit.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
+				Records: []storage.ListBusinessUnitsRecord{{BusinessUnit: s.issuer}},
 			}, nil,
 		),
 		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
@@ -1492,6 +1503,7 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL_ReturnedByShipper() {
 				receivedOutboxPayload = payload
 				return nil
 			}),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "app_id", id, model.WebhookEventBLAmended).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1571,6 +1583,7 @@ func (s *FileBasedEBLTestSuite) TestSurrender() {
 				receivedOutboxPayload = payload
 				return nil
 			}),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "app_id", id, model.WebhookEventBLSurrendered).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1645,6 +1658,7 @@ func (s *FileBasedEBLTestSuite) TestPrintToPaper() {
 				receivedOutboxPayload = payload
 				return nil
 			}),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "app_id", id, model.WebhookEventBLPrintedToPaper).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1719,6 +1733,7 @@ func (s *FileBasedEBLTestSuite) TestAccomplishEBL() {
 				receivedOutboxPayload = payload
 				return nil
 			}),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "app_id", id, model.WebhookEventBLAccomplished).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -1764,15 +1779,15 @@ func (s *FileBasedEBLTestSuite) TestGetEBL() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "appid",
 				BusinessUnitIDs: []string{"did:openebl:requester"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total: 1,
-				Records: []business_unit.ListBusinessUnitsRecord{
+				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
 							ID:            did.MustParseDID("did:openebl:requester"),
@@ -1889,15 +1904,15 @@ func (s *FileBasedEBLTestSuite) TestGetEBLDocument() {
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
-			business_unit.ListBusinessUnitsRequest{
+			storage.ListBusinessUnitsRequest{
 				Limit:           1,
 				ApplicationID:   "appid",
 				BusinessUnitIDs: []string{"did:openebl:requester"},
 			},
 		).Return(
-			business_unit.ListBusinessUnitsResult{
+			storage.ListBusinessUnitsResult{
 				Total: 1,
-				Records: []business_unit.ListBusinessUnitsRecord{
+				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
 							ID:            did.MustParseDID("did:openebl:requester"),

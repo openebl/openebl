@@ -2,6 +2,8 @@ package webhook_test
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -20,6 +22,9 @@ type WebhookControllerTestSuite struct {
 	storage     *mock_storage.MockWebhookStorage
 	tx          *mock_storage.MockTx
 	webhookCtrl webhook.WebhookController
+
+	mux    *http.ServeMux
+	server *httptest.Server
 }
 
 func TestWebhookController(t *testing.T) {
@@ -32,6 +37,8 @@ func (s *WebhookControllerTestSuite) SetupTest() {
 	s.storage = mock_storage.NewMockWebhookStorage(s.ctrl)
 	s.tx = mock_storage.NewMockTx(s.ctrl)
 	s.webhookCtrl = webhook.NewWebhookController(s.storage)
+	s.mux = http.NewServeMux()
+	s.server = httptest.NewServer(s.mux)
 }
 
 func (s *WebhookControllerTestSuite) TearDownTest() {
@@ -292,4 +299,51 @@ func (s *WebhookControllerTestSuite) TestDeleteWebhook() {
 	s.Require().Empty(res.Secret)
 	res.Secret = expectedWebhook.Secret
 	s.Assert().Equal(expectedWebhook, res)
+}
+
+func (s *WebhookControllerTestSuite) TestSendWebhookEvent() {
+	const (
+		id    = "subject_id"
+		appID = "app_id"
+	)
+	ts := time.Now().Unix()
+
+	expectedWebhook := model.Webhook{
+		ID:            "webhook_1",
+		Version:       1,
+		ApplicationID: appID,
+		Url:           "https://example.com/notify",
+		Events:        []model.WebhookEventType{model.WebhookEventBLAccomplished, model.WebhookEventBLPrintedToPaper},
+		Secret:        "secret_key",
+		CreatedAt:     12345,
+		CreatedBy:     "requester",
+		UpdatedAt:     12345,
+		UpdatedBy:     "requester",
+		Deleted:       false,
+	}
+	expectedListReq := storage.ListWebhookRequest{
+		Offset:        0,
+		Limit:         1,
+		ApplicationID: appID,
+		Events:        []string{"bl.accomplished"},
+	}
+	expectedListResp := storage.ListWebhookResult{
+		Total:   1,
+		Records: []model.Webhook{expectedWebhook},
+	}
+
+	expectedEvent := &model.WebhookEvent{
+		ID:        id,
+		Url:       "https://example.com/notify",
+		Type:      model.WebhookEventBLAccomplished,
+		CreatedAt: ts,
+	}
+
+	gomock.InOrder(
+		s.storage.EXPECT().ListWebhook(gomock.Any(), s.tx, expectedListReq).Return(expectedListResp, nil),
+		s.storage.EXPECT().AddWebhookEvent(gomock.Any(), s.tx, ts, gomock.Any(), expectedEvent).Return(nil),
+	)
+
+	err := s.webhookCtrl.SendWebhookEvent(s.ctx, s.tx, ts, appID, id, model.WebhookEventBLAccomplished)
+	s.Require().NoError(err)
 }

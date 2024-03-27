@@ -4,6 +4,7 @@ go 1.22.1
 
 require (
 	github.com/alecthomas/kong v0.8.1
+	github.com/avast/retry-go/v4 v4.5.1
 	github.com/bluexlab/logrus-formatter v0.1.0
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
 	github.com/go-testfixtures/testfixtures/v3 v3.9.0

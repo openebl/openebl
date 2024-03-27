@@ -43,7 +43,6 @@ MOCK_SOURCES := \
 	pkg/bu_server/auth/api_key.go \
 	pkg/bu_server/auth/application.go \
 	pkg/bu_server/auth/user.go \
-	pkg/bu_server/business_unit/bu_storage.go \
 	pkg/bu_server/business_unit/bu_controller.go \
 	pkg/bu_server/business_unit/bu_jws_signer.go \
 	pkg/bu_server/trade_document/file_based_ebl.go \

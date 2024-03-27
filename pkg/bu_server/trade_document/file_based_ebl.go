@@ -231,7 +231,7 @@ func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request I
 		currentOwner = request.Shipper
 	}
 
-	bl := CreateFileBasedBillOfLadingFromRequest(request, currentTime)
+	bl := CreateFileBasedBillOfLadingFromRequest(request, nil, currentTime)
 	blPack := bill_of_lading.BillOfLadingPack{
 		ID:           uuid.NewString(),
 		Version:      1,
@@ -326,7 +326,8 @@ func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, requ
 		currentOwner = request.Shipper
 	}
 
-	bl := CreateFileBasedBillOfLadingFromRequest(request.IssueFileBasedEBLRequest, currentTime)
+	oldBL := GetLastBillOfLading(&oldPack)
+	bl := CreateFileBasedBillOfLadingFromRequest(request.IssueFileBasedEBLRequest, oldBL, currentTime)
 	blPack := bill_of_lading.BillOfLadingPack{
 		ID:           oldPack.ID,
 		Version:      oldPack.Version + 1,
@@ -447,7 +448,7 @@ func (c *_FileBaseEBLController) Return(ctx context.Context, ts int64, req Retur
 	return result, nil
 }
 
-func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, currentTime model.DateTime) *bill_of_lading.BillOfLading {
+func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, oldBL *bill_of_lading.BillOfLading, currentTime model.DateTime) *bill_of_lading.BillOfLading {
 	bl := &bill_of_lading.BillOfLading{
 		BillOfLading: &bill_of_lading.TransportDocument{
 			TransportDocumentReference: request.BLNumber,
@@ -464,6 +465,7 @@ func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, cu
 		Note:      request.Note,
 		MetaData:  request.MetaData,
 	}
+	FallbackFileInfoFromOldBL(bl, oldBL)
 
 	td := bl.BillOfLading
 	SetPOL(td, request.POL)
@@ -499,6 +501,8 @@ func AmendFileBasedBillOfLadingFromRequest(req AmendFileBasedEBLRequest, oldPack
 		Note:      req.Note,
 		MetaData:  req.MetaData,
 	}
+	oldBL := GetLastBillOfLading(&oldPack)
+	FallbackFileInfoFromOldBL(bl, oldBL)
 
 	parties := GetFileBaseEBLParticipatorsFromBLPack(&oldPack)
 	td := bl.BillOfLading
@@ -514,6 +518,22 @@ func AmendFileBasedBillOfLadingFromRequest(req AmendFileBasedEBLRequest, oldPack
 	SetToOrder(td, req.ToOrder)
 	SetDraft(td, false)
 	return bl
+}
+
+func FallbackFileInfoFromOldBL(bl, oldBL *bill_of_lading.BillOfLading) {
+	if oldBL == nil {
+		return
+	}
+
+	if bl.File.Name == "" {
+		bl.File.Name = oldBL.File.Name
+	}
+	if bl.File.FileType == "" {
+		bl.File.FileType = oldBL.File.FileType
+	}
+	if len(bl.File.Content) == 0 {
+		bl.File.Content = oldBL.File.Content
+	}
 }
 
 func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLRequest) (ListFileBasedEBLRecord, error) {
@@ -1371,13 +1391,7 @@ func GetFileBaseEBLParticipatorsFromBLPack(blPack *bill_of_lading.BillOfLadingPa
 		return FileBaseEBLParticipators{}
 	}
 
-	var bl *bill_of_lading.BillOfLading
-	for i := len(blPack.Events) - 1; i >= 0; i-- {
-		if blPack.Events[i].BillOfLading != nil {
-			bl = blPack.Events[i].BillOfLading
-			break
-		}
-	}
+	bl := GetLastBillOfLading(blPack)
 	if bl == nil {
 		return FileBaseEBLParticipators{}
 	}
@@ -1483,6 +1497,19 @@ func GetLastEvent(blPack *bill_of_lading.BillOfLadingPack) *bill_of_lading.BillO
 	}
 
 	return &blPack.Events[len(blPack.Events)-1]
+}
+
+func GetLastBillOfLading(blPack *bill_of_lading.BillOfLadingPack) *bill_of_lading.BillOfLading {
+	if blPack == nil || len(blPack.Events) == 0 {
+		return nil
+	}
+
+	for i := len(blPack.Events) - 1; i >= 0; i-- {
+		if blPack.Events[i].BillOfLading != nil {
+			return blPack.Events[i].BillOfLading
+		}
+	}
+	return nil
 }
 
 // GetOwnerShipTransferringByEvent returns the transferring information of the bill of lading event.

@@ -67,7 +67,7 @@ func NewAPIWithController(apiKeyMgr auth.APIKeyAuthenticator, buMgr business_uni
 	}
 
 	r := mux.NewRouter()
-	r.Use(middleware.NewAPIKeyAuth(apiServer.apiKeyMgr).Authenticate)
+	r.Use(middleware.TimeTrace, middleware.NewAPIKeyAuth(apiServer.apiKeyMgr).Authenticate)
 	r.HandleFunc("/business_unit", apiServer.createBusinessUnit).Methods(http.MethodPost)
 	r.HandleFunc("/business_unit", apiServer.listBusinessUnit).Methods(http.MethodGet)
 	r.HandleFunc("/business_unit/{id}", apiServer.getBusinessUnit).Methods(http.MethodGet)
@@ -84,7 +84,7 @@ func NewAPIWithController(apiKeyMgr auth.APIKeyAuthenticator, buMgr business_uni
 	r.HandleFunc("/webhook/{id}", apiServer.deleteWebhook).Methods(http.MethodDelete)
 
 	eblRouter := r.NewRoute().Subrouter()
-	eblRouter.Use(middleware.ExtractBusinessUnitID)
+	eblRouter.Use(middleware.TimeTrace, middleware.ExtractBusinessUnitID)
 	eblRouter.HandleFunc("/ebl", apiServer.listFileBasedEBL).Methods(http.MethodGet)
 	eblRouter.HandleFunc("/ebl", apiServer.createFileBasedEBL).Methods(http.MethodPost)
 	eblRouter.HandleFunc("/ebl/{id}", apiServer.getFileBasedEBL).Methods(http.MethodGet)

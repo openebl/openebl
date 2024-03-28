@@ -44,12 +44,13 @@ func (s *TradeDocumentStorageTestSuite) TestAddTradeDocument() {
 	defer tx.Rollback(ctx)
 
 	tradeDocument := storage.TradeDocument{
-		RawID:      "test-raw-id",
-		Kind:       1001,
-		DocID:      "test-doc-id",
-		DocVersion: 1,
-		Doc:        []byte("test-doc"),
-		CreatedAt:  123,
+		RawID:        "test-raw-id",
+		Kind:         1001,
+		DocID:        "test-doc-id",
+		DocVersion:   1,
+		DocReference: "test-bl-number",
+		Doc:          []byte("test-doc"),
+		CreatedAt:    123,
 		Meta: map[string]interface{}{
 			"bu": "test-bu",
 		},
@@ -79,29 +80,32 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 
 	docsOnDB := []storage.TradeDocument{
 		{
-			RawID:      "raw_doc_3",
-			Kind:       1001,
-			DocID:      "doc_2",
-			DocVersion: 1,
-			Doc:        []byte("doc 2"),
-			CreatedAt:  1634567890,
+			RawID:        "raw_doc_3",
+			Kind:         1001,
+			DocID:        "doc_2",
+			DocVersion:   1,
+			DocReference: "UNDER_ARM%UR_1234",
+			Doc:          []byte("doc 2"),
+			CreatedAt:    1634567890,
 			Meta: map[string]any{
 				"visible_to_bu": []any{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"},
 				"archive":       []any{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"},
 			},
 		},
 		{
-			RawID:      "raw_doc_2",
-			Kind:       1000,
-			DocID:      "doc_1",
-			DocVersion: 2,
-			Doc:        []byte("new binary_data"),
-			CreatedAt:  1634567890,
+			RawID:        "raw_doc_2",
+			Kind:         1000,
+			DocID:        "doc_1",
+			DocVersion:   2,
+			DocReference: "NIKE_123",
+			Doc:          []byte("new binary_data"),
+			CreatedAt:    1634567890,
 			Meta: map[string]any{
 				"visible_to_bu": []any{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"},
 				"sent":          []any{"did:openebl:issuer", "did:openebl:shipper"},
 				"action_needed": []any{"did:openebl:consignee"},
 				"upcoming":      []any{"did:openebl:release_agent"},
+				"from":          "did:openebl:shipper",
 			},
 		},
 	}
@@ -234,6 +238,30 @@ func (s *TradeDocumentStorageTestSuite) TestListTradeDocument() {
 		s.Assert().Equal(1, resp.Total)
 		s.Assert().Equal(1, resp.Report.Sent)
 		s.Assert().Equal(1, resp.Report.Archive)
+		s.Assert().ElementsMatch(docsOnDB[:1], resp.Docs)
+	}()
+
+	// List with 'from' party keyword
+	func() {
+		newReq := req
+		newReq.RequestBy = "did:openebl:consignee"
+		newReq.From = "Brav%"
+		newReq.DocReference = "Brav\\%"
+		resp, err := s.storage.ListTradeDocument(ctx, tx, newReq)
+		s.Require().NoError(err)
+		s.Assert().Equal(1, resp.Total)
+		s.Assert().ElementsMatch(docsOnDB[1:], resp.Docs)
+	}()
+
+	// List with 'bl_number' keyword
+	func() {
+		newReq := req
+		newReq.RequestBy = "did:openebl:issuer"
+		newReq.From = "UNDER_ARM%UR"
+		newReq.DocReference = "UNDER_ARM\\%UR"
+		resp, err := s.storage.ListTradeDocument(ctx, tx, newReq)
+		s.Require().NoError(err)
+		s.Assert().Equal(1, resp.Total)
 		s.Assert().ElementsMatch(docsOnDB[:1], resp.Docs)
 	}()
 }

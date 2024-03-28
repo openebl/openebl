@@ -10,12 +10,13 @@ import (
 func (s *_Storage) StoreBusinessUnit(ctx context.Context, tx storage.Tx, bu model.BusinessUnit) error {
 	query := `
 WITH new_data AS (
-	INSERT INTO business_unit (id, "version", application_id, "status", business_unit, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $6)
+	INSERT INTO business_unit (id, "version", application_id, "status", name, business_unit, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
 	ON CONFLICT (id) DO UPDATE SET
 		"version" = excluded."version",
 		application_id = excluded.application_id,
 		"status" = excluded."status",
+		name = excluded.name,
 		business_unit = excluded.business_unit,
 		updated_at = excluded.updated_at
 	RETURNING id, "version", business_unit, updated_at
@@ -30,6 +31,7 @@ SELECT * FROM new_data
 		bu.Version,
 		bu.ApplicationID,
 		bu.Status,
+		bu.Name,
 		bu,
 		bu.UpdatedAt,
 	)

@@ -143,7 +143,7 @@ func (s *WebhookStorageTestSuite) TestListWebhook() {
 }
 
 func (s *WebhookStorageTestSuite) TestWebhookEvent() {
-	tx, ctx, err := s.storage.CreateTx(s.ctx)
+	tx, ctx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	s.Require().NoError(err)
 	defer func() { _ = tx.Rollback(ctx) }()
 

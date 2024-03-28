@@ -1,7 +1,9 @@
 package trade_document
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/openebl/openebl/pkg/bu_server/model"
@@ -20,6 +22,24 @@ func (r LocationRule) Validate(value interface{}) error {
 		validation.Field(&loc.LocationName, validation.Required),
 		validation.Field(&loc.UNLocCode, validation.Required),
 	)
+}
+
+type NoteRule struct{}
+
+func (r NoteRule) Validate(value any) error {
+	note, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("invalid note type: %T", value)
+	}
+
+	if len(note) == 0 {
+		return errors.New("empty note")
+	}
+	if len(strings.TrimSpace(note)) == 0 {
+		return errors.New("note with only spaces")
+	}
+
+	return nil
 }
 
 func ValidateIssueFileBasedEBLRequest(req IssueFileBasedEBLRequest) error {
@@ -112,7 +132,7 @@ func ValidateAmendmentRequestEBLRequest(req AmendmentRequestEBLRequest) error {
 		validation.Field(&req.RequestBy, validation.Required),
 		validation.Field(&req.AuthenticationID, validation.Required),
 		validation.Field(&req.ID, validation.Required),
-		validation.Field(&req.Note, validation.Required),
+		validation.Field(&req.Note, validation.Required, &NoteRule{}),
 	); err != nil {
 		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
@@ -132,6 +152,7 @@ func ValidateAmendFileBasedEBLRequest(req AmendFileBasedEBLRequest) error {
 		validation.Field(&req.ToOrder, validation.In(false)),
 		validation.Field(&req.POL, validation.Required, &LocationRule{}),
 		validation.Field(&req.POD, validation.Required, &LocationRule{}),
+		validation.Field(&req.Note, validation.Required, &NoteRule{}),
 	); err != nil {
 		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}

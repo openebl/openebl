@@ -395,6 +395,11 @@ paths:
               - upcoming
               - sent
               - archive
+        - name: keyword
+          in: query
+          description: Keyword to search, could be either 'From' or 'bl_number'
+          schema:
+            type: string
         - name: report
           in: query
           description: whether to include the report

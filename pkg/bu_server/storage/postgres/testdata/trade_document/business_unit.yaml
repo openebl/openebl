@@ -1,49 +1,49 @@
 - rec_id: 1
-  id: "did:openebl:bu1"
+  id: "did:openebl:issuer"
   version: 1
-  application_id: "app1"
+  application_id: "app_id"
   status: "active"
-  name: "Business Unit 1"
+  name: "Alpha the Issuer"
   business_unit:
-    id: "did:openebl:bu1"
+    id: "did:openebl:issuer"
     version: 1
-    application_id: "app1"
+    application_id: "app_id"
     status: "active"
-    name: "Business Unit 1"
+    name: "Alpha the Issuer"
     created_at: 1634567890
     updated_at: 1634567890
   created_at: 1634567890
   updated_at: 1634567890
 
 - rec_id: 2
-  id: "did:openebl:bu2"
+  id: "did:openebl:shipper"
   version: 1
-  application_id: "app1"
+  application_id: "app_id"
   status: "active"
-  name: "Business Unit 2"
+  name: "Brav% the Shipper"
   business_unit:
-    id: "did:openebl:bu2"
+    id: "did:openebl:shipper"
     version: 1
-    application_id: "app1"
+    application_id: "app_id"
     status: "active"
-    name: "Business Unit 2"
+    name: "Brav% the Shipper"
     created_at: 1634567890
     updated_at: 1634567890
   created_at: 1634567890
   updated_at: 1634567890
 
 - rec_id: 3
-  id: "did:openebl:bu3"
+  id: "did:openebl:consignee"
   version: 1
-  application_id: "app2"
+  application_id: "app_id"
   status: "active"
-  name: "Business Unit 3"
+  name: "Charlie the Consignee"
   business_unit:
-    id: "did:openebl:bu3"
+    id: "did:openebl:consignee"
     version: 1
-    application_id: "app2"
+    application_id: "app_id"
     status: "active"
-    name: "Business Unit 3"
+    name: "Charlie the Consignee"
     created_at: 1634567890
     updated_at: 1634567890
   created_at: 1634567890

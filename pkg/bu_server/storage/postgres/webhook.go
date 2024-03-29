@@ -17,6 +17,7 @@ WITH new_data AS (
 	ON CONFLICT (id) DO UPDATE SET
 		"version" = excluded."version",
 		application_id = excluded.application_id,
+		deleted = excluded.deleted,
 		events = excluded.events,
 		webhook = excluded.webhook,
 		updated_at = excluded.updated_at

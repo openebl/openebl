@@ -124,7 +124,6 @@ func (a *App) runServer(cli CLI) {
 		wg.Add(1)
 		defer wg.Done()
 
-		logrus.Infof("API server is running on %s", apiConfig.LocalAddress)
 		if err := apiServer.Run(); err != nil {
 			logrus.Errorf("failed to run API server: %v", err)
 			os.Exit(1)
@@ -135,7 +134,6 @@ func (a *App) runServer(cli CLI) {
 		wg.Add(1)
 		defer wg.Done()
 
-		logrus.Infof("Manager server is running on %s", managerAPIConfig.LocalAddress)
 		if err := managerServer.Run(); err != nil {
 			logrus.Errorf("failed to run Manager server: %v", err)
 			os.Exit(1)

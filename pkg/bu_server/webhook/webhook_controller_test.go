@@ -133,6 +133,9 @@ func (s *WebhookControllerTestSuite) TestListWebhook() {
 
 	res, err := s.webhookCtrl.List(s.ctx, req)
 	s.NoError(err)
+	s.Require().Len(res.Records, 1)
+	s.Require().Empty(res.Records[0].Secret)
+	res.Records[0].Secret = expectedWebhook.Secret
 	s.Assert().Equal(expectedListResp, res)
 }
 
@@ -140,6 +143,7 @@ func (s *WebhookControllerTestSuite) TestGetWebhook() {
 	const (
 		appID     = "app_1"
 		webhookID = "webhook_1"
+		secret    = "secret_key"
 	)
 
 	expectedWebhook := model.Webhook{
@@ -148,7 +152,7 @@ func (s *WebhookControllerTestSuite) TestGetWebhook() {
 		ApplicationID: "app_1",
 		Url:           "https://example.com/notify",
 		Events:        []model.WebhookEventType{model.WebhookEventBLAccomplished, model.WebhookEventBLPrintedToPaper},
-		Secret:        "secret_key",
+		Secret:        secret,
 		CreatedAt:     12345,
 		CreatedBy:     "requester",
 		UpdatedAt:     12346,
@@ -175,6 +179,9 @@ func (s *WebhookControllerTestSuite) TestGetWebhook() {
 
 	res, err := s.webhookCtrl.Get(s.ctx, appID, webhookID)
 	s.NoError(err)
+	s.Require().Empty(res.Secret)
+
+	res.Secret = secret
 	s.Assert().Equal(expectedWebhook, res)
 }
 

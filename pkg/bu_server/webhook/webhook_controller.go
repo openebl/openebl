@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
+	"github.com/samber/lo"
 )
 
 type WebhookController interface {
@@ -31,7 +32,7 @@ type ListWebhookRequest struct {
 
 type ListWebhookResponse struct {
 	Total   int             `json:"total"`
-	Records []model.Webhook `json:"record"`
+	Records []model.Webhook `json:"records"`
 }
 
 type CreateWebhookRequest struct {
@@ -130,6 +131,10 @@ func (c *_WebhookController) List(ctx context.Context, req ListWebhookRequest) (
 		return ListWebhookResponse{}, err
 	}
 
+	lo.ForEach(result.Records, func(webhook model.Webhook, i int) {
+		result.Records[i].Secret = ""
+	})
+
 	res := ListWebhookResponse{
 		Total:   result.Total,
 		Records: result.Records,
@@ -167,6 +172,7 @@ func (c *_WebhookController) Get(ctx context.Context, applicationID string, id s
 		return model.Webhook{}, model.ErrWebhookNotFound
 	}
 
+	result.Records[0].Secret = ""
 	return result.Records[0], nil
 }
 
@@ -275,6 +281,10 @@ func (c *_WebhookController) SendWebhookEvent(ctx context.Context, tx storage.Tx
 	}
 
 	webhook := res.Records[0]
+	if webhook.Deleted {
+		return nil
+	}
+
 	event := &model.WebhookEvent{
 		ID:        id,
 		Url:       webhook.Url,

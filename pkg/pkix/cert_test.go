@@ -36,7 +36,7 @@ func (s *CertVerifyTestSuite) SetupSuite() {
 			OrganizationalUnit: []string{"BlueX RD Department"},
 			CommonName:         "BlueX Trade Root CA",
 		},
-		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCRLSign,
 		IsCA:                  true,
 		BasicConstraintsValid: true,
 		NotAfter:              time.Now().AddDate(100, 0, 0),
@@ -51,6 +51,8 @@ func (s *CertVerifyTestSuite) SetupSuite() {
 
 	leafTemplate := rootTemplate
 	leafTemplate.Subject.CommonName = "BlueX Trade Leaf Certificate"
+	leafTemplate.IsCA = false
+	leafTemplate.KeyUsage = x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature
 
 	rootCertBytes, _ := x509.CreateCertificate(rand.Reader, &rootTemplate, &rootTemplate, &rootPrivKey.PublicKey, rootPrivKey)
 	rootCert, _ := x509.ParseCertificate(rootCertBytes)

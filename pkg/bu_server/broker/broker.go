@@ -206,13 +206,17 @@ func tradeDocumentFromEvent(data []byte) (storage.TradeDocument, error) {
 
 	ts := time.Now().Unix()
 	td := storage.TradeDocument{
-		RawID:      server.GetEventID(data),
-		Kind:       int(relay.FileBasedBillOfLading),
-		DocID:      blPack.ID,
-		DocVersion: blPack.Version,
-		Doc:        data,
-		CreatedAt:  ts,
-		Meta:       meta,
+		RawID:        server.GetEventID(data),
+		Kind:         int(relay.FileBasedBillOfLading),
+		DocID:        blPack.ID,
+		DocVersion:   blPack.Version,
+		DocReference: "",
+		Doc:          data,
+		CreatedAt:    ts,
+		Meta:         meta,
+	}
+	if bl := trade_document.GetLastBillOfLading(&blPack); bl != nil {
+		td.DocReference = bl.BillOfLading.TransportDocumentReference
 	}
 	return td, nil
 }

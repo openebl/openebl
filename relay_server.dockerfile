@@ -1,4 +1,4 @@
-FROM golang:1.21.3-alpine3.18 AS builder
+FROM golang:1.22.1-alpine3.19 AS builder
 
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
@@ -25,16 +25,16 @@ COPY . .
 RUN go build -o /app/bin/relay_server ./app/relay_server
 
 # From scratch
-FROM alpine:3.18
+FROM alpine:3.19
 
-ARG APP_HOME=/app
-ENV PATH=$APP_HOME:$PATH GIN_MODE=release
+ARG APPHOME=/app
+ENV PATH=$APPHOME:$PATH GIN_MODE=release
 
-WORKDIR $APP_HOME
+WORKDIR $APPHOME
 
 COPY --from=builder /usr/local/go/lib/time/zoneinfo.zip /usr/local/go/lib/time/zoneinfo.zip
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /app/bin/relay_server $APP_HOME/relay_server
-COPY --from=builder /app/src/app/relay_server/config.yaml $APP_HOME/config.yaml
-COPY --from=builder /app/src/pkg/relay/server/storage/postgres/migrations/*up.sql $APP_HOME/migrations/
-COPY --from=builder /app/src/pkg/relay/server/storage/postgres/migrations/*down.sql $APP_HOME/migrations/
+COPY --from=builder /app/bin/relay_server $APPHOME/relay_server
+COPY --from=builder /app/src/app/relay_server/config.yaml $APPHOME/config.yaml
+COPY --from=builder /app/src/pkg/relay/server/storage/postgres/migrations/*up.sql $APPHOME/migrations/
+COPY --from=builder /app/src/pkg/relay/server/storage/postgres/migrations/*down.sql $APPHOME/migrations/

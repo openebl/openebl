@@ -4,14 +4,13 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	gopkix "crypto/x509/pkix"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/openebl/openebl/pkg/pkix"
 	"github.com/stretchr/testify/suite"
-
-	gopkix "crypto/x509/pkix"
 )
 
 type CertVerifyTestSuite struct {

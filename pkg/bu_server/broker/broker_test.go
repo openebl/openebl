@@ -190,14 +190,19 @@ func loadTradeDocument(datafile string) storage.TradeDocument {
 	if err != nil {
 		panic(err)
 	}
+	docReference := ""
+	if bl := trade_document.GetLastBillOfLading(&blPack); bl != nil {
+		docReference = bl.BillOfLading.TransportDocumentReference
+	}
 
 	return storage.TradeDocument{
-		RawID:      server.GetEventID(content),
-		Kind:       int(relay.FileBasedBillOfLading),
-		DocID:      blPack.ID,
-		DocVersion: blPack.Version,
-		Doc:        content,
-		CreatedAt:  1234567890,
-		Meta:       meta,
+		RawID:        server.GetEventID(content),
+		Kind:         int(relay.FileBasedBillOfLading),
+		DocID:        blPack.ID,
+		DocVersion:   blPack.Version,
+		DocReference: docReference,
+		Doc:          content,
+		CreatedAt:    1234567890,
+		Meta:         meta,
 	}
 }

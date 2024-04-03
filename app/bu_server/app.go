@@ -12,6 +12,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	formatter "github.com/bluexlab/logrus-formatter"
+	otlp_util "github.com/bluexlab/otlp-util-go"
 	"github.com/gobuffalo/pop"
 	"github.com/gobuffalo/pop/logging"
 	"github.com/openebl/openebl/pkg/bu_server/api"
@@ -22,6 +23,8 @@ import (
 	"github.com/openebl/openebl/pkg/util"
 	"github.com/sirupsen/logrus"
 )
+
+const appName string = "bu-server"
 
 type CLI struct {
 	Server struct {
@@ -55,6 +58,7 @@ type Config struct {
 		Timeout       int `yaml:"timeout"`
 		MaxRetry      int `yaml:"max_retry"`
 	} `yaml:"webhook"`
+	OTLPEndpoint string `yaml:"otlp_endpoint"`
 }
 
 type App struct{}
@@ -80,6 +84,17 @@ func (a *App) runServer(cli CLI) {
 	if err := config.FromFile(cli.Config, &appConfig); err != nil {
 		logrus.Errorf("failed to load config: %v", err)
 		os.Exit(128)
+	}
+
+	if endpoint := appConfig.OTLPEndpoint; endpoint != "" {
+		otlp_util.InitGlobalTracer(
+			otlp_util.WithEndPoint(endpoint),
+			otlp_util.WithServiceName(appName),
+			otlp_util.WithInSecure(),
+			otlp_util.WithErrorHandler(func(err error) {
+				logrus.Warnf("OTLP error: %v", err)
+			}),
+		)
 	}
 
 	apiConfig := api.APIConfig{

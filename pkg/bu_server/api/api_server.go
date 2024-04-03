@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	otlp_util "github.com/bluexlab/otlp-util-go"
 	"github.com/gorilla/mux"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
@@ -67,24 +68,29 @@ func NewAPIWithController(apiKeyMgr auth.APIKeyAuthenticator, buMgr business_uni
 	}
 
 	r := mux.NewRouter()
-	r.Use(middleware.TimeTrace, middleware.NewAPIKeyAuth(apiServer.apiKeyMgr).Authenticate)
-	r.HandleFunc("/business_unit", apiServer.createBusinessUnit).Methods(http.MethodPost)
-	r.HandleFunc("/business_unit", apiServer.listBusinessUnit).Methods(http.MethodGet)
-	r.HandleFunc("/business_unit/{id}", apiServer.getBusinessUnit).Methods(http.MethodGet)
-	r.HandleFunc("/business_unit/{id}", apiServer.updateBusinessUnit).Methods(http.MethodPost)
-	r.HandleFunc("/business_unit/{id}/status", apiServer.setBusinessUnitStatus).Methods(http.MethodPost)
-	r.HandleFunc("/business_unit/{id}/authentication", apiServer.createBusinessUnitAuthentication).Methods(http.MethodPost)
-	r.HandleFunc("/business_unit/{id}/authentication", apiServer.listBusinessUnitAuthentication).Methods(http.MethodGet)
-	r.HandleFunc("/business_unit/{id}/authentication/{authentication_id}", apiServer.getBusinessUnitAuthentication).Methods(http.MethodGet)
-	r.HandleFunc("/business_unit/{id}/authentication/{authentication_id}", apiServer.revokeBusinessUnitAuthentication).Methods(http.MethodDelete)
-	r.HandleFunc("/webhook", apiServer.createWebhook).Methods(http.MethodPost)
-	r.HandleFunc("/webhook", apiServer.listWebhook).Methods(http.MethodGet)
-	r.HandleFunc("/webhook/{id}", apiServer.getWebhook).Methods(http.MethodGet)
-	r.HandleFunc("/webhook/{id}", apiServer.updateWebhook).Methods(http.MethodPost)
-	r.HandleFunc("/webhook/{id}", apiServer.deleteWebhook).Methods(http.MethodDelete)
 
-	eblRouter := r.NewRoute().Subrouter()
-	eblRouter.Use(middleware.TimeTrace, middleware.ExtractBusinessUnitID)
+	healthRouter := r.NewRoute().Subrouter()
+	healthRouter.HandleFunc("/health", apiServer.health).Methods(http.MethodGet)
+
+	apiRouter := r.NewRoute().Subrouter()
+	apiRouter.Use(middleware.TimeTrace, middleware.NewAPIKeyAuth(apiServer.apiKeyMgr).Authenticate)
+	apiRouter.HandleFunc("/business_unit", apiServer.createBusinessUnit).Methods(http.MethodPost)
+	apiRouter.HandleFunc("/business_unit", apiServer.listBusinessUnit).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/business_unit/{id}", apiServer.getBusinessUnit).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/business_unit/{id}", apiServer.updateBusinessUnit).Methods(http.MethodPost)
+	apiRouter.HandleFunc("/business_unit/{id}/status", apiServer.setBusinessUnitStatus).Methods(http.MethodPost)
+	apiRouter.HandleFunc("/business_unit/{id}/authentication", apiServer.createBusinessUnitAuthentication).Methods(http.MethodPost)
+	apiRouter.HandleFunc("/business_unit/{id}/authentication", apiServer.listBusinessUnitAuthentication).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/business_unit/{id}/authentication/{authentication_id}", apiServer.getBusinessUnitAuthentication).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/business_unit/{id}/authentication/{authentication_id}", apiServer.revokeBusinessUnitAuthentication).Methods(http.MethodDelete)
+	apiRouter.HandleFunc("/webhook", apiServer.createWebhook).Methods(http.MethodPost)
+	apiRouter.HandleFunc("/webhook", apiServer.listWebhook).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/webhook/{id}", apiServer.getWebhook).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/webhook/{id}", apiServer.updateWebhook).Methods(http.MethodPost)
+	apiRouter.HandleFunc("/webhook/{id}", apiServer.deleteWebhook).Methods(http.MethodDelete)
+
+	eblRouter := apiRouter.NewRoute().Subrouter()
+	eblRouter.Use(middleware.ExtractBusinessUnitID)
 	eblRouter.HandleFunc("/ebl", apiServer.listFileBasedEBL).Methods(http.MethodGet)
 	eblRouter.HandleFunc("/ebl", apiServer.createFileBasedEBL).Methods(http.MethodPost)
 	eblRouter.HandleFunc("/ebl/{id}", apiServer.getFileBasedEBL).Methods(http.MethodGet)
@@ -119,8 +125,26 @@ func (a *API) Close(ctx context.Context) error {
 	return a.httpServer.Shutdown(ctx)
 }
 
+func (a *API) health(w http.ResponseWriter, r *http.Request) {
+	response := struct {
+		Status    string `json:"status"`
+		Timestamp string `json:"timestamp"`
+	}{
+		Status:    "OK",
+		Timestamp: time.Now().Format(time.RFC3339),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logrus.Warnf("failed to encode/write response for health check: %v", err)
+	}
+}
+
 func (a *API) createBusinessUnit(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/createBusinessUnit")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 
 	// Parse the request body
@@ -153,7 +177,9 @@ func (a *API) createBusinessUnit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) listBusinessUnit(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/listBusinessUnit")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 
 	logrus.Debugf("%s %s is invoked with application: %v", r.Method, r.RequestURI, appID)
@@ -200,7 +226,9 @@ func (a *API) listBusinessUnit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getBusinessUnit(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/getBusinessUnit")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID := mux.Vars(r)["id"]
 
@@ -237,7 +265,9 @@ func (a *API) getBusinessUnit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) updateBusinessUnit(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/updateBusinessUnit")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID := mux.Vars(r)["id"]
 
@@ -284,7 +314,9 @@ func (a *API) updateBusinessUnit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) setBusinessUnitStatus(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/setBusinessUnitStatus")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 
 	logrus.Debugf("%s %s is invoked with application: %v", r.Method, r.RequestURI, appID)
@@ -330,7 +362,9 @@ func (a *API) setBusinessUnitStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) createBusinessUnitAuthentication(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/createBusinessUnitAuthentication")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 
 	req := business_unit.AddAuthenticationRequest{}
@@ -377,7 +411,9 @@ func (a *API) createBusinessUnitAuthentication(w http.ResponseWriter, r *http.Re
 }
 
 func (a *API) listBusinessUnitAuthentication(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/listBusinessUnitAuthentication")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID := mux.Vars(r)["id"]
 
@@ -425,7 +461,9 @@ func (a *API) listBusinessUnitAuthentication(w http.ResponseWriter, r *http.Requ
 }
 
 func (a *API) getBusinessUnitAuthentication(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/getBusinessUnitAuthentication")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID := mux.Vars(r)["id"]
 	authenticationID := mux.Vars(r)["authentication_id"]
@@ -464,7 +502,9 @@ func (a *API) getBusinessUnitAuthentication(w http.ResponseWriter, r *http.Reque
 }
 
 func (a *API) revokeBusinessUnitAuthentication(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/revokeBusinessUnitAuthentication")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID := mux.Vars(r)["id"]
 	authenticationID := mux.Vars(r)["authentication_id"]

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	otlp_util "github.com/bluexlab/otlp-util-go"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 )
@@ -23,7 +24,9 @@ func NewAPIKeyAuth(auth auth.APIKeyAuthenticator) *APIKeyAuth {
 
 func (a *APIKeyAuth) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx, span := otlp_util.Start(r.Context(), "bu_server/middleware/Authenticate")
+		defer span.End()
+
 		apiKeyString := auth.APIKeyString(getBearerToken(r))
 		if apiKeyString == "" {
 			w.WriteHeader(http.StatusUnauthorized)

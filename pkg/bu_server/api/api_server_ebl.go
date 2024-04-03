@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	otlp_util "github.com/bluexlab/otlp-util-go"
 	"github.com/goccy/go-json"
 	"github.com/gorilla/mux"
 	"github.com/openebl/openebl/pkg/bu_server/middleware"
@@ -17,7 +18,9 @@ import (
 )
 
 func (a *API) createFileBasedEBL(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/createFileBasedEBL")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
 
@@ -54,7 +57,9 @@ func (a *API) createFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) updateFileBasedEBL(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/updateFileBasedEBL")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
 	docID := mux.Vars(r)["id"]
@@ -94,7 +99,9 @@ func (a *API) updateFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) listFileBasedEBL(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/listFileBasedEBL")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
 
@@ -156,7 +163,9 @@ func (a *API) listFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getFileBasedEBL(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/getFileBasedEBL")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
 	docID := mux.Vars(r)["id"]
@@ -188,7 +197,9 @@ func (a *API) getFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) transferEBL(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/transferEBL")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
 
@@ -224,7 +235,9 @@ func (a *API) transferEBL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) returnEBL(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/returnEBL")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
 
@@ -260,7 +273,9 @@ func (a *API) returnEBL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) amendmentRequestEBL(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/amendmentRequestEBL")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
 
@@ -296,7 +311,9 @@ func (a *API) amendmentRequestEBL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) amendFileBasedEBL(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/amendFileBasedEBL")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
 
@@ -334,7 +351,9 @@ func (a *API) amendFileBasedEBL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) surrenderEBL(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/surrenderEBL")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
 
@@ -370,7 +389,9 @@ func (a *API) surrenderEBL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) printEBLToPaper(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/printEBLToPaper")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
 
@@ -406,7 +427,9 @@ func (a *API) printEBLToPaper(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) accomplishEBL(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/accomplishEBL")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
 
@@ -442,7 +465,9 @@ func (a *API) accomplishEBL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) deleteEBL(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/deleteEBL")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
 
@@ -478,7 +503,9 @@ func (a *API) deleteEBL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getFileBasedEBLDocument(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/getFileBasedEBLDocument")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	buID, _ := ctx.Value(middleware.BUSINESS_UNIT_ID).(string)
 	docID := mux.Vars(r)["id"]

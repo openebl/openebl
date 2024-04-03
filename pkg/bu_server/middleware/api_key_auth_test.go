@@ -50,7 +50,7 @@ func (s *APIKeyAuthTestSuite) TestAuthenticate() {
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", apiKeyString))
 	response := httptest.NewRecorder()
 
-	s.authenticator.EXPECT().Authenticate(gomock.Eq(s.ctx), gomock.Eq(apiKeyString)).Return(auth.APIKey{ApplicationID: appID}, nil)
+	s.authenticator.EXPECT().Authenticate(gomock.Any(), gomock.Eq(apiKeyString)).Return(auth.APIKey{ApplicationID: appID}, nil)
 
 	var receivedAppID string
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -79,7 +79,7 @@ func (s *APIKeyAuthTestSuite) TestAuthenticateWithoutPassingAPIKeyAuthentication
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", apiKeyString))
 	response := httptest.NewRecorder()
 
-	s.authenticator.EXPECT().Authenticate(gomock.Eq(s.ctx), gomock.Eq(apiKeyString)).Return(auth.APIKey{}, model.ErrMismatchAPIKey)
+	s.authenticator.EXPECT().Authenticate(gomock.Any(), gomock.Eq(apiKeyString)).Return(auth.APIKey{}, model.ErrMismatchAPIKey)
 
 	s.auth.Authenticate(OkHandler).ServeHTTP(response, request)
 	s.Equal(http.StatusUnauthorized, response.Code)

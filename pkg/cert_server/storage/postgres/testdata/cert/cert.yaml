@@ -1,0 +1,36 @@
+- rec_id: 1
+  id: "cert1"
+  version: 1
+  type: "root"
+  status: "active"
+  created_at: 1617443200
+  updated_at: 1617443200
+  cert:
+    id: "cert1"
+    version: 1
+    type: "root"
+    status: "active"
+- rec_id: 2
+  id: "cert2"
+  version: 2
+  type: "ca"
+  status: "revoked"
+  created_at: 1617443200
+  updated_at: 1617443200
+  cert:
+    id: "cert2"
+    version: 2
+    type: "ca"
+    status: "revoked"
+- rec_id: 3
+  id: "cert3"
+  version: 3
+  type: "third_party_ca"
+  status: "rejected"
+  created_at: 1617443200
+  updated_at: 1617443200
+  cert:
+    id: "cert3"
+    version: 3
+    type: "third_party_ca"
+    status: "rejected"

@@ -12,7 +12,6 @@ import (
 	"github.com/openebl/openebl/pkg/cert_server/model"
 	"github.com/openebl/openebl/pkg/cert_server/storage"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
-	mock_cert_authority "github.com/openebl/openebl/test/mock/cert_server/cert_authority"
 	mock_storage "github.com/openebl/openebl/test/mock/cert_server/storage"
 	"github.com/stretchr/testify/suite"
 )
@@ -22,16 +21,13 @@ type CertAuthorityTestSuite struct {
 
 	ctrl    *gomock.Controller
 	ctx     context.Context
-	storage *mock_cert_authority.MockCertStorage
+	storage *mock_storage.MockCertStorage
 	tx      *mock_storage.MockTx
 	ca      cert_authority.CertAuthority
 }
 
 func TestCertAuthorityTestSuite(t *testing.T) {
 	suite.Run(t, new(CertAuthorityTestSuite))
-}
-
-func (s *CertAuthorityTestSuite) SetupSuite() {
 }
 
 func (s *CertAuthorityTestSuite) SetupTest() {
@@ -42,7 +38,7 @@ func (s *CertAuthorityTestSuite) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
 
 	// Create a new instance of the CertStorage implementation
-	s.storage = mock_cert_authority.NewMockCertStorage(s.ctrl)
+	s.storage = mock_storage.NewMockCertStorage(s.ctrl)
 	s.tx = mock_storage.NewMockTx(s.ctrl)
 
 	// Create a new instance of the CertAuthority implementation
@@ -128,13 +124,13 @@ func (s *CertAuthorityTestSuite) TestRevokeRootCertificate() {
 		s.storage.EXPECT().ListCertificates(
 			gomock.Any(),
 			s.tx,
-			cert_authority.ListCertificatesRequest{
+			storage.ListCertificatesRequest{
 				Limit: 1,
 				IDs:   []string{"root_cert_id"},
 				Types: []model.CertType{model.RootCert},
 			},
 		).Return(
-			cert_authority.ListCertificatesResponse{
+			storage.ListCertificatesResponse{
 				Total: 1,
 				Certs: []model.Cert{oldRootCert},
 			},
@@ -162,13 +158,13 @@ func (s *CertAuthorityTestSuite) TestRevokeRootCertificateWithInvalidCertID() {
 		s.storage.EXPECT().ListCertificates(
 			gomock.Any(),
 			s.tx,
-			cert_authority.ListCertificatesRequest{
+			storage.ListCertificatesRequest{
 				Limit: 1,
 				IDs:   []string{"root_cert_id"},
 				Types: []model.CertType{model.RootCert},
 			},
 		).Return(
-			cert_authority.ListCertificatesResponse{
+			storage.ListCertificatesResponse{
 				Total: 0,
 			},
 			nil,
@@ -279,13 +275,13 @@ func (s *CertAuthorityTestSuite) TestRespondCACertificateSigningRequest() {
 		s.storage.EXPECT().ListCertificates(
 			gomock.Any(),
 			s.tx,
-			cert_authority.ListCertificatesRequest{
+			storage.ListCertificatesRequest{
 				Limit: 1,
 				IDs:   []string{"ca_cert_id"},
 				Types: []model.CertType{model.CACert},
 			},
 		).Return(
-			cert_authority.ListCertificatesResponse{
+			storage.ListCertificatesResponse{
 				Total: 1,
 				Certs: []model.Cert{oldCert},
 			},
@@ -409,13 +405,13 @@ func (s *CertAuthorityTestSuite) TestIssueCertificate() {
 			s.storage.EXPECT().ListCertificates(
 				gomock.Any(),
 				s.tx,
-				cert_authority.ListCertificatesRequest{
+				storage.ListCertificatesRequest{
 					Limit: 1,
 					IDs:   []string{req.CACertID},
 					Types: []model.CertType{model.CACert},
 				},
 			).Return(
-				cert_authority.ListCertificatesResponse{
+				storage.ListCertificatesResponse{
 					Total: 1,
 					Certs: []model.Cert{oldCACert},
 				},
@@ -424,13 +420,13 @@ func (s *CertAuthorityTestSuite) TestIssueCertificate() {
 			s.storage.EXPECT().ListCertificates(
 				gomock.Any(),
 				s.tx,
-				cert_authority.ListCertificatesRequest{
+				storage.ListCertificatesRequest{
 					Limit: 1,
 					IDs:   []string{req.CertID},
 					Types: []model.CertType{req.CertType},
 				},
 			).Return(
-				cert_authority.ListCertificatesResponse{
+				storage.ListCertificatesResponse{
 					Total: 1,
 					Certs: []model.Cert{oldCert},
 				},
@@ -497,13 +493,13 @@ func (s *CertAuthorityTestSuite) TestRejectCertificateSigningRequest() {
 		s.storage.EXPECT().ListCertificates(
 			gomock.Any(),
 			s.tx,
-			cert_authority.ListCertificatesRequest{
+			storage.ListCertificatesRequest{
 				Limit: 1,
 				IDs:   []string{req.CertID},
 				Types: []model.CertType{req.CertType},
 			},
 		).Return(
-			cert_authority.ListCertificatesResponse{
+			storage.ListCertificatesResponse{
 				Total: 1,
 				Certs: []model.Cert{oldCert},
 			},

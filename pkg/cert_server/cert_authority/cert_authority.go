@@ -37,12 +37,6 @@ type CertAuthority interface {
 	RejectCertificateSigningRequest(ctx context.Context, ts int64, req RejectCertificateSigningRequestRequest) (model.Cert, error)
 }
 
-type CertStorage interface {
-	CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error)
-	AddCertificate(ctx context.Context, tx storage.Tx, cert model.Cert) error
-	ListCertificates(ctx context.Context, tx storage.Tx, req ListCertificatesRequest) (ListCertificatesResponse, error)
-}
-
 type AddRootCertificateRequest struct {
 	Requester string `json:"requester"` // Who makes the request.
 	Cert      string `json:"cert"`      // PEM encoded certificate. It may contains multiple certificates. The first certificate is root certificate for the server. Others are intermediate certificates of the root certificate.
@@ -93,30 +87,11 @@ type RejectCertificateSigningRequestRequest struct {
 	Reason    string         `json:"reason"`    // Reason of the rejection.
 }
 
-type ListCertificatesRequest struct {
-	Offset int `json:"offset"` // Offset of the list.
-	Limit  int `json:"limit"`  // Limit of the list.
-
-	// Filter by type of the certificate.
-	IDs      []string           `json:"ids"`      // List of IDs of the certificates to be listed.
-	Statuses []model.CertStatus `json:"statuses"` // List of statuses of the certificates to be listed.
-	Types    []model.CertType   `json:"types"`    // List of types of the certificates to be listed.
-
-	// ValidFrom and ValidTo must be both zero or both non-zero.
-	ValidFrom int64 `json:"valid_from"` // Unix Time (in second) when the certificate becomes valid.
-	ValidTo   int64 `json:"valid_to"`   // Unix Time (in second) when the certificate becomes invalid.
-}
-
-type ListCertificatesResponse struct {
-	Total int64        `json:"total"` // Total number of certificates.
-	Certs []model.Cert `json:"certs"` // List of certificates.
-}
-
 type _CertAuthority struct {
-	certStorage CertStorage
+	certStorage storage.CertStorage
 }
 
-func NewCertAuthority(certStorage CertStorage) *_CertAuthority {
+func NewCertAuthority(certStorage storage.CertStorage) *_CertAuthority {
 	return &_CertAuthority{
 		certStorage: certStorage,
 	}
@@ -481,7 +456,7 @@ func (ca *_CertAuthority) RejectCertificateSigningRequest(ctx context.Context, t
 }
 
 func (ca *_CertAuthority) getCert(ctx context.Context, tx storage.Tx, certID string, certTypes []model.CertType) (model.Cert, error) {
-	req := ListCertificatesRequest{
+	req := storage.ListCertificatesRequest{
 		IDs:   []string{certID},
 		Types: certTypes,
 		Limit: 1,

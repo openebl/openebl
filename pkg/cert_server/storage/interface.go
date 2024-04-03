@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"database/sql"
+
+	"github.com/openebl/openebl/pkg/cert_server/model"
 )
 
 type StorageContextKey string
@@ -58,4 +60,24 @@ func TxOptionWithIsolationLevel(level sql.IsolationLevel) CreateTxOption {
 	return func(option *sql.TxOptions) {
 		option.Isolation = level
 	}
+}
+
+type CertStorage interface {
+	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
+	AddCertificate(ctx context.Context, tx Tx, cert model.Cert) error
+	ListCertificates(ctx context.Context, tx Tx, req ListCertificatesRequest) (ListCertificatesResponse, error)
+}
+type ListCertificatesRequest struct {
+	Offset int `json:"offset"` // Offset of the list.
+	Limit  int `json:"limit"`  // Limit of the list.
+
+	// Filter by type of the certificate.
+	IDs      []string           `json:"ids"`      // List of IDs of the certificates to be listed.
+	Statuses []model.CertStatus `json:"statuses"` // List of statuses of the certificates to be listed.
+	Types    []model.CertType   `json:"types"`    // List of types of the certificates to be listed.
+}
+
+type ListCertificatesResponse struct {
+	Total int64        `json:"total"` // Total number of certificates.
+	Certs []model.Cert `json:"certs"` // List of certificates.
 }

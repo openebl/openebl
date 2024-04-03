@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	model "github.com/openebl/openebl/pkg/cert_server/model"
 	storage "github.com/openebl/openebl/pkg/cert_server/storage"
 )
 
@@ -324,4 +325,77 @@ func (mr *MockTransactionInterfaceMockRecorder) CreateTx(ctx interface{}, option
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx}, options...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTx", reflect.TypeOf((*MockTransactionInterface)(nil).CreateTx), varargs...)
+}
+
+// MockCertStorage is a mock of CertStorage interface.
+type MockCertStorage struct {
+	ctrl     *gomock.Controller
+	recorder *MockCertStorageMockRecorder
+}
+
+// MockCertStorageMockRecorder is the mock recorder for MockCertStorage.
+type MockCertStorageMockRecorder struct {
+	mock *MockCertStorage
+}
+
+// NewMockCertStorage creates a new mock instance.
+func NewMockCertStorage(ctrl *gomock.Controller) *MockCertStorage {
+	mock := &MockCertStorage{ctrl: ctrl}
+	mock.recorder = &MockCertStorageMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockCertStorage) EXPECT() *MockCertStorageMockRecorder {
+	return m.recorder
+}
+
+// AddCertificate mocks base method.
+func (m *MockCertStorage) AddCertificate(ctx context.Context, tx storage.Tx, cert model.Cert) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddCertificate", ctx, tx, cert)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddCertificate indicates an expected call of AddCertificate.
+func (mr *MockCertStorageMockRecorder) AddCertificate(ctx, tx, cert interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCertificate", reflect.TypeOf((*MockCertStorage)(nil).AddCertificate), ctx, tx, cert)
+}
+
+// CreateTx mocks base method.
+func (m *MockCertStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx}
+	for _, a := range options {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CreateTx", varargs...)
+	ret0, _ := ret[0].(storage.Tx)
+	ret1, _ := ret[1].(context.Context)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// CreateTx indicates an expected call of CreateTx.
+func (mr *MockCertStorageMockRecorder) CreateTx(ctx interface{}, options ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx}, options...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTx", reflect.TypeOf((*MockCertStorage)(nil).CreateTx), varargs...)
+}
+
+// ListCertificates mocks base method.
+func (m *MockCertStorage) ListCertificates(ctx context.Context, tx storage.Tx, req storage.ListCertificatesRequest) (storage.ListCertificatesResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListCertificates", ctx, tx, req)
+	ret0, _ := ret[0].(storage.ListCertificatesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListCertificates indicates an expected call of ListCertificates.
+func (mr *MockCertStorageMockRecorder) ListCertificates(ctx, tx, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListCertificates", reflect.TypeOf((*MockCertStorage)(nil).ListCertificates), ctx, tx, req)
 }

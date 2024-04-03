@@ -8,6 +8,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	formatter "github.com/bluexlab/logrus-formatter"
+	otlp_util "github.com/bluexlab/otlp-util-go"
 	"github.com/gobuffalo/pop"
 	"github.com/gobuffalo/pop/logging"
 	"github.com/openebl/openebl/pkg/config"
@@ -15,6 +16,8 @@ import (
 	"github.com/openebl/openebl/pkg/util"
 	"github.com/sirupsen/logrus"
 )
+
+const appName string = "relay-server"
 
 type RelayServerApp struct{}
 
@@ -30,6 +33,7 @@ type RelayServerConfig struct {
 	Database     util.PostgresDatabaseConfig `yaml:"database"`
 	LocalAddress string                      `yaml:"local_address"`
 	OtherPeers   []string                    `yaml:"other_peers"`
+	OTLPEndpoint string                      `yaml:"otlp_endpoint"`
 }
 
 func (r *RelayServerApp) Run() error {
@@ -58,6 +62,17 @@ func (r *RelayServerApp) runServer(cli RelayServerCli) error {
 	if err != nil {
 		logrus.Errorf("failed to create event storage: %v", err)
 		os.Exit(1)
+	}
+
+	if otlpEndpoint := cfg.OTLPEndpoint; otlpEndpoint != "" {
+		otlp_util.InitGlobalTracer(
+			otlp_util.WithEndPoint(otlpEndpoint),
+			otlp_util.WithServiceName(appName),
+			otlp_util.WithInSecure(),
+			otlp_util.WithErrorHandler(func(err error) {
+				logrus.Warnf("OTLP error: %v", err)
+			}),
+		)
 	}
 
 	relayServer, err := NewServer(

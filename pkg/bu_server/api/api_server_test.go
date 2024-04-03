@@ -88,6 +88,16 @@ func (s *APITestSuite) TearDownTest() {
 	s.api.Close(s.ctx)
 }
 
+func (s *APITestSuite) TestHealthCheck() {
+	endPoint := fmt.Sprintf("http://%s/health", s.localAddress)
+	httpRequest, _ := http.NewRequestWithContext(s.ctx, http.MethodGet, endPoint, nil)
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	defer resp.Body.Close()
+
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+}
+
 func (s *APITestSuite) TestCreateBusinessUnit() {
 	request := business_unit.CreateBusinessUnitRequest{
 		Requester:    "John Doe",

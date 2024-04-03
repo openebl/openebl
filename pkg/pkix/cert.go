@@ -6,11 +6,10 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	gopkix "crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
 	"time"
-
-	gopkix "crypto/x509/pkix"
 )
 
 var ErrInvalidParameter = errors.New("")

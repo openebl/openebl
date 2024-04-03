@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	otlp_util "github.com/bluexlab/otlp-util-go"
 	"github.com/gorilla/mux"
 	"github.com/openebl/openebl/pkg/bu_server/middleware"
 	"github.com/openebl/openebl/pkg/bu_server/model"
@@ -14,7 +15,9 @@ import (
 )
 
 func (a *API) createWebhook(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/createWebhook")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 
 	var req webhook.CreateWebhookRequest
@@ -39,7 +42,9 @@ func (a *API) createWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) listWebhook(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/listWebhook")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 
 	var req webhook.ListWebhookRequest
@@ -79,7 +84,8 @@ func (a *API) listWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) getWebhook(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/getWebhook")
+	defer span.End()
 
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 	webhookID := mux.Vars(r)["id"]
@@ -98,7 +104,9 @@ func (a *API) getWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) updateWebhook(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/updateWebhook")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 
 	var req webhook.UpdateWebhookRequest
@@ -124,7 +132,9 @@ func (a *API) updateWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) deleteWebhook(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := otlp_util.Start(r.Context(), "bu_server/api/deleteWebhook")
+	defer span.End()
+
 	appID, _ := ctx.Value(middleware.APPLICATION_ID).(string)
 
 	req := webhook.DeleteWebhookRequest{

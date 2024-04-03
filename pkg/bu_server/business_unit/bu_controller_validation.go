@@ -6,6 +6,7 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
+	eblpkix "github.com/openebl/openebl/pkg/pkix"
 )
 
 func ValidateCreateBusinessUnitRequest(req CreateBusinessUnitRequest) error {
@@ -71,8 +72,8 @@ func ValidateAddAuthenticationRequest(req AddAuthenticationRequest) error {
 	privateKeyOption := req.PrivateKeyOption
 	if err := validation.ValidateStruct(&privateKeyOption,
 		validation.Field(&privateKeyOption.KeyType, validation.Required),
-		validation.Field(&privateKeyOption.BitLength, validation.Required.When(privateKeyOption.KeyType == PrivateKeyTypeRSA)),
-		validation.Field(&privateKeyOption.CurveType, validation.Required.When(privateKeyOption.KeyType == PrivateKeyTypeECDSA)),
+		validation.Field(&privateKeyOption.BitLength, validation.Required.When(privateKeyOption.KeyType == eblpkix.PrivateKeyTypeRSA)),
+		validation.Field(&privateKeyOption.CurveType, validation.Required.When(privateKeyOption.KeyType == eblpkix.PrivateKeyTypeECDSA)),
 	); err != nil {
 		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}

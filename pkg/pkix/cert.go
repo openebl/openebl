@@ -2,12 +2,36 @@ package pkix
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"time"
+
+	gopkix "crypto/x509/pkix"
 )
+
+var ErrInvalidParameter = errors.New("")
+
+type PrivateKeyType string // PrivateKeyType is the type of the private key.
+type ECDSACurveType string
+
+const (
+	PrivateKeyTypeRSA   PrivateKeyType = "RSA"
+	PrivateKeyTypeECDSA PrivateKeyType = "ECDSA"
+
+	ECDSACurveTypeP256 ECDSACurveType = "P-256"
+	ECDSACurveTypeP384 ECDSACurveType = "P-384"
+	ECDSACurveTypeP521 ECDSACurveType = "P-521"
+)
+
+type PrivateKeyOption struct {
+	KeyType   PrivateKeyType `json:"key_type"`   // Type of the private key.
+	BitLength int            `json:"bit_length"` // Bit length of the private key. Only used when KeyType is RSA.
+	CurveType ECDSACurveType `json:"curve_type"` // Curve type of the private key. Only used when KeyType is ECDSA.
+}
 
 // Verify verifies the certificate chain of trust.
 //
@@ -152,4 +176,64 @@ func MarshalCertificates(certs []x509.Certificate) (string, error) {
 		certBytes = append(certBytes, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})...)
 	}
 	return string(certBytes), nil
+}
+
+func CreateCertificateSigningRequest(privKey interface{}, country, organization, organizationalUnit []string, commonName string) ([]byte, error) {
+	certRequestTemplate := x509.CertificateRequest{
+		Subject: gopkix.Name{
+			Country:            country,
+			Organization:       organization,
+			OrganizationalUnit: organizationalUnit,
+			CommonName:         commonName,
+		},
+	}
+
+	csrRaw, err := x509.CreateCertificateRequest(rand.Reader, &certRequestTemplate, privKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrRaw}), nil
+}
+
+func CreatePrivateKey(opt PrivateKeyOption) (any, error) {
+	switch opt.KeyType {
+	case PrivateKeyTypeRSA:
+		return rsa.GenerateKey(rand.Reader, opt.BitLength)
+	case PrivateKeyTypeECDSA:
+		switch opt.CurveType {
+		case ECDSACurveTypeP256:
+			return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		case ECDSACurveTypeP384:
+			return ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+		case ECDSACurveTypeP521:
+			return ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+		default:
+			return nil, ErrInvalidParameter
+		}
+	default:
+		return nil, ErrInvalidParameter
+	}
+}
+
+func IsPublicKeyOf(privKey any, pubKey any) bool {
+	switch k := privKey.(type) {
+	case *rsa.PrivateKey:
+		return k.PublicKey.Equal(pubKey)
+	case *ecdsa.PrivateKey:
+		return k.PublicKey.Equal(pubKey)
+	default:
+		return false
+	}
+}
+
+func GetPublicKey(privKey any) any {
+	switch k := privKey.(type) {
+	case *rsa.PrivateKey:
+		return &k.PublicKey
+	case *ecdsa.PrivateKey:
+		return &k.PublicKey
+	default:
+		return nil
+	}
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/pkix"
+	eblpkix "github.com/openebl/openebl/pkg/pkix"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
 	mock_cert_authority "github.com/openebl/openebl/test/mock/bu_server/cert_authority"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
@@ -293,9 +294,9 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 		Requester:      "requester",
 		ApplicationID:  "application-id",
 		BusinessUnitID: did.MustParseDID("did:openebl:u0e2345"),
-		PrivateKeyOption: business_unit.PrivateKeyOption{
-			KeyType:   business_unit.PrivateKeyTypeECDSA,
-			CurveType: business_unit.ECDSACurveTypeP384,
+		PrivateKeyOption: eblpkix.PrivateKeyOption{
+			KeyType:   eblpkix.PrivateKeyTypeECDSA,
+			CurveType: eblpkix.ECDSACurveTypeP384,
 		},
 		ExpiredAfter: 86400 * 365,
 	}

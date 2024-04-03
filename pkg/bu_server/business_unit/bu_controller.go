@@ -95,29 +95,11 @@ type SetBusinessUnitStatusRequest struct {
 
 // AddAuthenticationRequest is the request to add an authentication to a business unit.
 type AddAuthenticationRequest struct {
-	Requester        string           `json:"requester"`          // User who makes the request.
-	ApplicationID    string           `json:"application_id"`     // The ID of the application this BusinessUnit belongs to.
-	BusinessUnitID   did.DID          `json:"id"`                 // Unique DID of a BusinessUnit.
-	PrivateKeyOption PrivateKeyOption `json:"private_key_option"` // Option of the private key.
-	ExpiredAfter     int64            `json:"expired_after"`      // How long (in second) the authentication/certificate will be valid.
-}
-
-type PrivateKeyType string // PrivateKeyType is the type of the private key.
-type ECDSACurveType string
-
-const (
-	PrivateKeyTypeRSA   PrivateKeyType = "RSA"
-	PrivateKeyTypeECDSA PrivateKeyType = "ECDSA"
-
-	ECDSACurveTypeP256 ECDSACurveType = "P-256"
-	ECDSACurveTypeP384 ECDSACurveType = "P-384"
-	ECDSACurveTypeP521 ECDSACurveType = "P-521"
-)
-
-type PrivateKeyOption struct {
-	KeyType   PrivateKeyType `json:"key_type"`   // Type of the private key.
-	BitLength int            `json:"bit_length"` // Bit length of the private key. Only used when KeyType is RSA.
-	CurveType ECDSACurveType `json:"curve_type"` // Curve type of the private key. Only used when KeyType is ECDSA.
+	Requester        string                   `json:"requester"`          // User who makes the request.
+	ApplicationID    string                   `json:"application_id"`     // The ID of the application this BusinessUnit belongs to.
+	BusinessUnitID   did.DID                  `json:"id"`                 // Unique DID of a BusinessUnit.
+	PrivateKeyOption eblpkix.PrivateKeyOption `json:"private_key_option"` // Option of the private key.
+	ExpiredAfter     int64                    `json:"expired_after"`      // How long (in second) the authentication/certificate will be valid.
 }
 
 // RevokeAuthenticationRequest is the request to revoke an authentication from a business unit.
@@ -517,17 +499,17 @@ func (m *_BusinessUnitManager) getBusinessUnit(ctx context.Context, tx storage.T
 }
 
 // createPrivateKey will return a private key. The type will be *rsa.PrivateKey or *ecdsa.PrivateKey.
-func (m *_BusinessUnitManager) createPrivateKey(ctx context.Context, opt PrivateKeyOption) (any, error) {
+func (m *_BusinessUnitManager) createPrivateKey(ctx context.Context, opt eblpkix.PrivateKeyOption) (any, error) {
 	switch opt.KeyType {
-	case PrivateKeyTypeRSA:
+	case eblpkix.PrivateKeyTypeRSA:
 		return rsa.GenerateKey(rand.Reader, opt.BitLength)
-	case PrivateKeyTypeECDSA:
+	case eblpkix.PrivateKeyTypeECDSA:
 		switch opt.CurveType {
-		case ECDSACurveTypeP256:
+		case eblpkix.ECDSACurveTypeP256:
 			return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		case ECDSACurveTypeP384:
+		case eblpkix.ECDSACurveTypeP384:
 			return ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
-		case ECDSACurveTypeP521:
+		case eblpkix.ECDSACurveTypeP521:
 			return ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 		default:
 			return nil, model.ErrInvalidParameter

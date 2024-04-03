@@ -23,3 +23,5 @@ go.work
 pkg/relay/server/storage/postgres/migrations/schema.sql
 app/relay_server/relay_server
 pkg/bu_server/storage/postgres/migrations/schema.sql
+coverage.html
+coverage.out

@@ -6,11 +6,14 @@ import (
 	"io"
 	"net/http"
 
+	otlp_util "github.com/bluexlab/otlp-util-go"
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/relay/server/storage"
 	"github.com/openebl/openebl/pkg/util"
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type ServerConfig struct {
@@ -63,7 +66,13 @@ func (c *ClientCallback) OnConnectionStatusChange(
 }
 
 func (c *ClientCallback) EventSink(ctx context.Context, event relay.Event) (string, error) {
+	ctx, span := otlp_util.Start(ctx, "relay/server/client.EventSink",
+		trace.WithAttributes(attribute.String("server_id", c.serverIdentity)),
+	)
+	defer span.End()
+
 	evtID := GetEventID(event.Data)
+	span.SetAttributes(attribute.String("event_id", evtID))
 	_, err := c.server.dataStore.StoreEventWithOffsetInfo(ctx, event.Timestamp, evtID, event.Type, event.Data, event.Offset, c.serverIdentity)
 	if err != nil && !errors.Is(err, storage.ErrDuplicateEvent) {
 		return "", err
@@ -115,7 +124,11 @@ func NewServer(options ...ServerOption) (*Server, error) {
 
 	// Prepare EventSink
 	serverEventSink := func(ctx context.Context, event relay.Event) (string, error) {
+		ctx, span := otlp_util.Start(ctx, "relay/server/server.EventSink")
+		defer span.End()
+
 		evtID := GetEventID(event.Data)
+		span.SetAttributes(attribute.String("event_id", evtID))
 		_, err := server.dataStore.StoreEventWithOffsetInfo(ctx, event.Timestamp, evtID, event.Type, event.Data, 0, "")
 		if err != nil && !errors.Is(err, storage.ErrDuplicateEvent) {
 			return "", err
@@ -154,7 +167,7 @@ func (s *Server) Run() error {
 	}
 
 	err := s.relayServer.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil

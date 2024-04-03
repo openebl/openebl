@@ -8,3 +8,4 @@ database:
   sslmode: {{ or .DATABASE_SSLMODE "disable" }}
 local_address: {{ or .LOCAL_ADDRESS ":9001" }}
 other_peers: [{{ or .OTHER_PEERS "" }}]
+otlp_endpoint: {{ or .OTLP_ENDPOINT "" }}

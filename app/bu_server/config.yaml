@@ -21,3 +21,4 @@ webhook:
   batch_size: {{ or .WEBHOOK_BATCH_SIZE 10 }}
   timeout: {{ or .WEBHOOK_TIMEOUT_SECONDS 5 }}
   max_retry: {{ or .WEBHOOK_MAX_RETRY 5 }}
+otlp_endpoint: {{ or .OTLP_ENDPOINT "" }}

@@ -51,9 +51,11 @@ type APITestSuite struct {
 }
 
 func TestAPITestSuite(t *testing.T) {
-	ts := new(APITestSuite)
-	ts.basePortNumber = 9200
-	suite.Run(t, ts)
+	suite.Run(t, new(APITestSuite))
+}
+
+func (s *APITestSuite) SetupSuite() {
+	s.basePortNumber = 9200
 }
 
 func (s *APITestSuite) SetupTest() {

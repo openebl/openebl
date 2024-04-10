@@ -209,7 +209,7 @@ d0lIKO2d1xozclOzgjXPYovJJIultzkMu34qQb9Sz/yilrbCgj8=
 		t.Fatalf("expected 3 certificates, got %d", len(certs))
 	}
 
-	certStr, err := pkix.MarshalCertificates(certs)
+	certStr, err := pkix.MarshalCertificates(certs...)
 	if err != nil {
 		t.Fatal(err)
 	}

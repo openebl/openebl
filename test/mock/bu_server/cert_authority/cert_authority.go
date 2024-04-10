@@ -54,10 +54,10 @@ func (mr *MockCertAuthorityMockRecorder) AddCertificate(ctx, ts, req interface{}
 }
 
 // IssueCertificate mocks base method.
-func (m *MockCertAuthority) IssueCertificate(ctx context.Context, ts int64, req cert_authority.IssueCertificateRequest) ([]x509.Certificate, error) {
+func (m *MockCertAuthority) IssueCertificate(ctx context.Context, ts int64, req cert_authority.IssueCertificateRequest) ([]*x509.Certificate, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IssueCertificate", ctx, ts, req)
-	ret0, _ := ret[0].([]x509.Certificate)
+	ret0, _ := ret[0].([]*x509.Certificate)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

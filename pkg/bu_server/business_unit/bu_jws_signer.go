@@ -45,12 +45,12 @@ func (_JWSSignerFactory) NewJWSSigner(authentication model.BusinessUnitAuthentic
 }
 
 type RSASigner struct {
-	cert []x509.Certificate
+	cert []*x509.Certificate
 	key  *rsa.PrivateKey
 }
 
 type ECDSASigner struct {
-	cert []x509.Certificate
+	cert []*x509.Certificate
 	key  *ecdsa.PrivateKey
 }
 
@@ -71,11 +71,7 @@ func (s *RSASigner) AvailableJWSSignAlgorithms() []envelope.SignatureAlgorithm {
 }
 
 func (s *RSASigner) Cert() []*x509.Certificate {
-	certs := make([]*x509.Certificate, len(s.cert))
-	for i := range s.cert {
-		certs[i] = &s.cert[i]
-	}
-	return certs
+	return s.cert
 }
 
 func (s *ECDSASigner) Public() crypto.PublicKey {
@@ -99,9 +95,5 @@ func (s *ECDSASigner) AvailableJWSSignAlgorithms() []envelope.SignatureAlgorithm
 }
 
 func (s *ECDSASigner) Cert() []*x509.Certificate {
-	certs := make([]*x509.Certificate, len(s.cert))
-	for i := range s.cert {
-		certs[i] = &s.cert[i]
-	}
-	return certs
+	return s.cert
 }

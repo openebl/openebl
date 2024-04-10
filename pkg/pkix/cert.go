@@ -118,8 +118,8 @@ func ParsePrivateKey(key []byte) (interface{}, error) {
 	return nil, pkcs8Err
 }
 
-func ParseCertificate(certRaw []byte) ([]x509.Certificate, error) {
-	certs := make([]x509.Certificate, 0, 4)
+func ParseCertificate(certRaw []byte) ([]*x509.Certificate, error) {
+	certs := make([]*x509.Certificate, 0, 4)
 	for {
 		pemBlock, remains := pem.Decode(certRaw)
 		if pemBlock == nil {
@@ -130,7 +130,7 @@ func ParseCertificate(certRaw []byte) ([]x509.Certificate, error) {
 		if err != nil {
 			return nil, err
 		}
-		certs = append(certs, *cert)
+		certs = append(certs, cert)
 
 		if len(remains) == 0 {
 			break
@@ -169,7 +169,7 @@ func MarshalPrivateKey(privateKey any) (string, error) {
 	}
 }
 
-func MarshalCertificates(certs []x509.Certificate) (string, error) {
+func MarshalCertificates(certs ...*x509.Certificate) (string, error) {
 	certBytes := make([]byte, 0)
 	for _, cert := range certs {
 		certBytes = append(certBytes, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})...)

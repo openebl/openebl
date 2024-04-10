@@ -241,6 +241,10 @@ func (ca *_CertAuthority) RespondCACertificateSigningRequest(ctx context.Context
 	}
 	defer tx.Rollback(ctx)
 
+	if err := ca.validateCert(ctx, tx, cert); err != nil {
+		return model.Cert{}, fmt.Errorf("failed to validate certificate: %s%w", err.Error(), model.ErrInvalidParameter)
+	}
+
 	oldCert, err := ca.getCert(ctx, tx, req.CertID, []model.CertType{model.CACert})
 	if err != nil {
 		return model.Cert{}, err
@@ -378,7 +382,7 @@ func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req Is
 		certTemplate.KeyUsage |= x509.KeyUsageCertSign | x509.KeyUsageCRLSign
 	}
 
-	rawCert, err := x509.CreateCertificate(rand.Reader, &certTemplate, &caCertCert[0], csr.PublicKey, caCertPrivKey)
+	rawCert, err := x509.CreateCertificate(rand.Reader, &certTemplate, caCertCert[0], csr.PublicKey, caCertPrivKey)
 	if err != nil {
 		return model.Cert{}, fmt.Errorf("fail to CreateCertificate: %w", err)
 	}
@@ -390,8 +394,8 @@ func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req Is
 	if err != nil {
 		return model.Cert{}, fmt.Errorf("fail to ParseCertificate: %w", err)
 	}
-	certChain := append([]x509.Certificate{*leafCert}, intermediateCerts...)
-	certPem, err := eblpkix.MarshalCertificates(certChain)
+	certChain := append([]*x509.Certificate{leafCert}, intermediateCerts...)
+	certPem, err := eblpkix.MarshalCertificates(certChain...)
 	if err != nil {
 		return model.Cert{}, fmt.Errorf("fail to MarshalCertificates: %w", err)
 	}
@@ -472,4 +476,42 @@ func (ca *_CertAuthority) getCert(ctx context.Context, tx storage.Tx, certID str
 	}
 
 	return resp.Certs[0], nil
+}
+
+func (ca *_CertAuthority) validateCert(ctx context.Context, tx storage.Tx, certs []*x509.Certificate) error {
+	// Pool all the active root certificates.
+	req := storage.ListCertificatesRequest{
+		Types:    []model.CertType{model.RootCert},
+		Statuses: []model.CertStatus{model.CertStatusActive},
+		Limit:    100,
+	}
+
+	rootCerts := make([]*x509.Certificate, 0, 100)
+	for {
+		resp, err := ca.certStorage.ListCertificates(ctx, tx, req)
+		if err != nil {
+			return err
+		}
+		if len(resp.Certs) == 0 {
+			break
+		}
+
+		for _, cert := range resp.Certs {
+			certs, err := eblpkix.ParseCertificate([]byte(cert.Certificate))
+			if err != nil {
+				return err
+			}
+			if len(certs) == 0 {
+				return fmt.Errorf("certificate %s is empty", cert.ID)
+			}
+			rootCerts = append(rootCerts, certs[0])
+		}
+
+		req.Offset += len(resp.Certs)
+		if req.Offset >= int(resp.Total) {
+			break
+		}
+	}
+
+	return eblpkix.Verify(certs, rootCerts, time.Now().Unix())
 }

@@ -27,7 +27,7 @@ type CertAuthority interface {
 	RevokeCertificate(ctx context.Context, ts int64, req RevokeCertificateRequest) (model.Cert, error)
 
 	ListCertificates(ctx context.Context, req ListCertificatesRequest) (ListCertificatesResponse, error)
-	IssueCertificate(ctx context.Context, ts int64, req IssueCertificateRequest) ([]x509.Certificate, error)
+	IssueCertificate(ctx context.Context, ts int64, req IssueCertificateRequest) ([]*x509.Certificate, error)
 }
 
 type CertStorage interface {
@@ -207,7 +207,7 @@ func (ca *_CertAuthority) ListCertificates(ctx context.Context, req ListCertific
 	return result, nil
 }
 
-func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req IssueCertificateRequest) ([]x509.Certificate, error) {
+func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req IssueCertificateRequest) ([]*x509.Certificate, error) {
 	if err := ValidateIssueCertificateRequest(req); err != nil {
 		return nil, err
 	}
@@ -242,7 +242,7 @@ func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req Is
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 	}
 
-	newCertRaw, err := x509.CreateCertificate(rand.Reader, &certTemplate, &caCert, req.CertificateRequest.PublicKey, privateKey)
+	newCertRaw, err := x509.CreateCertificate(rand.Reader, &certTemplate, caCert, req.CertificateRequest.PublicKey, privateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +252,7 @@ func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req Is
 		return nil, err
 	}
 
-	certs := []x509.Certificate{*newCert}
+	certs := []*x509.Certificate{newCert}
 	certs = append(certs, caCerts...)
 	return certs, nil
 }

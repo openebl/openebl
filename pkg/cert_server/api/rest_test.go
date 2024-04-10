@@ -13,6 +13,7 @@ import (
 	"github.com/openebl/openebl/pkg/cert_server/api"
 	"github.com/openebl/openebl/pkg/cert_server/cert_authority"
 	"github.com/openebl/openebl/pkg/cert_server/model"
+	"github.com/openebl/openebl/pkg/cert_server/storage"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
 	"github.com/openebl/openebl/pkg/util"
 	mock_cert_authority "github.com/openebl/openebl/test/mock/cert_server/cert_authority"
@@ -58,6 +59,226 @@ func (s *RestServerTestSuite) SetupTest() {
 func (s *RestServerTestSuite) TearDownTest() {
 	s.ctrl.Finish()
 	s.restServer.Close(s.ctx)
+}
+
+func (s *RestServerTestSuite) TestListRootCert() {
+	offset := 3
+	limit := 10
+
+	expectedRequest := storage.ListCertificatesRequest{
+		Offset: offset,
+		Limit:  limit,
+		Types:  []model.CertType{model.RootCert},
+	}
+
+	result := storage.ListCertificatesResponse{
+		Total: 1,
+		Certs: []model.Cert{
+			{
+				ID:      "cert id",
+				Version: 1,
+				Type:    model.RootCert,
+				Status:  model.CertStatusActive,
+			},
+		},
+	}
+
+	s.ca.EXPECT().ListCertificate(gomock.Any(), expectedRequest).Return(result, nil)
+
+	endPoint := fmt.Sprintf("http://%s/root_cert?offset=%d&limit=%d", s.privateAddress, offset, limit)
+	httpRequest, _ := http.NewRequest(http.MethodGet, endPoint, nil)
+
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	defer resp.Body.Close()
+	returnedCerts := storage.ListCertificatesResponse{}
+	s.Require().NoError(json.NewDecoder(resp.Body).Decode(&returnedCerts))
+
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.Equal(result, returnedCerts)
+}
+
+func (s *RestServerTestSuite) TestGetRootCert() {
+	certID := "cert_id"
+
+	expectedRequest := storage.ListCertificatesRequest{
+		Limit: 1,
+		IDs:   []string{certID},
+		Types: []model.CertType{model.RootCert},
+	}
+
+	result := storage.ListCertificatesResponse{
+		Total: 1,
+		Certs: []model.Cert{
+			{
+				ID:      "cert id",
+				Version: 1,
+				Type:    model.RootCert,
+				Status:  model.CertStatusActive,
+			},
+		},
+	}
+
+	s.ca.EXPECT().ListCertificate(gomock.Any(), expectedRequest).Return(result, nil)
+
+	endPoint := fmt.Sprintf("http://%s/root_cert/%s", s.privateAddress, certID)
+	httpRequest, _ := http.NewRequest(http.MethodGet, endPoint, nil)
+
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	defer resp.Body.Close()
+	returnedCert := model.Cert{}
+	s.Require().NoError(json.NewDecoder(resp.Body).Decode(&returnedCert))
+
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.Equal(result.Certs[0], returnedCert)
+}
+
+func (s *RestServerTestSuite) TestListCACert() {
+	offset := 3
+	limit := 10
+
+	expectedRequest := storage.ListCertificatesRequest{
+		Offset: offset,
+		Limit:  limit,
+		Types:  []model.CertType{model.CACert},
+	}
+
+	result := storage.ListCertificatesResponse{
+		Total: 1,
+		Certs: []model.Cert{
+			{
+				ID:      "cert id",
+				Version: 1,
+				Type:    model.CACert,
+				Status:  model.CertStatusActive,
+			},
+		},
+	}
+
+	s.ca.EXPECT().ListCertificate(gomock.Any(), expectedRequest).Return(result, nil)
+
+	endPoint := fmt.Sprintf("http://%s/ca_cert?offset=%d&limit=%d", s.privateAddress, offset, limit)
+	httpRequest, _ := http.NewRequest(http.MethodGet, endPoint, nil)
+
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	defer resp.Body.Close()
+	returnedCerts := storage.ListCertificatesResponse{}
+	s.Require().NoError(json.NewDecoder(resp.Body).Decode(&returnedCerts))
+
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.Equal(result, returnedCerts)
+}
+
+func (s *RestServerTestSuite) TestGetCACert() {
+	certID := "cert_id"
+
+	expectedRequest := storage.ListCertificatesRequest{
+		Limit: 1,
+		IDs:   []string{certID},
+		Types: []model.CertType{model.CACert},
+	}
+
+	result := storage.ListCertificatesResponse{
+		Total: 1,
+		Certs: []model.Cert{
+			{
+				ID:      "cert id",
+				Version: 1,
+				Type:    model.CACert,
+				Status:  model.CertStatusActive,
+			},
+		},
+	}
+
+	s.ca.EXPECT().ListCertificate(gomock.Any(), expectedRequest).Return(result, nil)
+
+	endPoint := fmt.Sprintf("http://%s/ca_cert/%s", s.privateAddress, certID)
+	httpRequest, _ := http.NewRequest(http.MethodGet, endPoint, nil)
+
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	defer resp.Body.Close()
+	returnedCert := model.Cert{}
+	s.Require().NoError(json.NewDecoder(resp.Body).Decode(&returnedCert))
+
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.Equal(result.Certs[0], returnedCert)
+
+}
+
+func (s *RestServerTestSuite) TestListCert() {
+	offset := 3
+	limit := 10
+
+	expectedRequest := storage.ListCertificatesRequest{
+		Offset: offset,
+		Limit:  limit,
+		Types:  []model.CertType{model.BUCert, model.ThirdPartyCACert},
+	}
+
+	result := storage.ListCertificatesResponse{
+		Total: 1,
+		Certs: []model.Cert{
+			{
+				ID:      "cert id",
+				Version: 1,
+				Type:    model.BUCert,
+				Status:  model.CertStatusActive,
+			},
+		},
+	}
+
+	s.ca.EXPECT().ListCertificate(gomock.Any(), expectedRequest).Return(result, nil)
+
+	endPoint := fmt.Sprintf("http://%s/cert?offset=%d&limit=%d", s.privateAddress, offset, limit)
+	httpRequest, _ := http.NewRequest(http.MethodGet, endPoint, nil)
+
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	defer resp.Body.Close()
+	returnedCerts := storage.ListCertificatesResponse{}
+	s.Require().NoError(json.NewDecoder(resp.Body).Decode(&returnedCerts))
+
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.Equal(result, returnedCerts)
+}
+
+func (s *RestServerTestSuite) TestGetCert() {
+	certID := "cert_id"
+
+	expectedRequest := storage.ListCertificatesRequest{
+		Limit: 1,
+		IDs:   []string{certID},
+		Types: []model.CertType{model.BUCert, model.ThirdPartyCACert},
+	}
+
+	result := storage.ListCertificatesResponse{
+		Total: 1,
+		Certs: []model.Cert{
+			{
+				ID:      "cert id",
+				Version: 1,
+				Type:    model.BUCert,
+				Status:  model.CertStatusActive,
+			},
+		},
+	}
+
+	s.ca.EXPECT().ListCertificate(gomock.Any(), expectedRequest).Return(result, nil)
+
+	endPoint := fmt.Sprintf("http://%s/cert/%s", s.privateAddress, certID)
+	httpRequest, _ := http.NewRequest(http.MethodGet, endPoint, nil)
+
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	defer resp.Body.Close()
+	returnedCert := model.Cert{}
+	s.Require().NoError(json.NewDecoder(resp.Body).Decode(&returnedCert))
+
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.Equal(result.Certs[0], returnedCert)
 }
 
 func (s *RestServerTestSuite) TestAddRootCert() {

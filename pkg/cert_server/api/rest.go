@@ -6,11 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/openebl/openebl/pkg/cert_server/cert_authority"
+	"github.com/openebl/openebl/pkg/cert_server/model"
+	"github.com/openebl/openebl/pkg/cert_server/storage"
 	"github.com/openebl/openebl/pkg/cert_server/storage/postgres"
 	"github.com/openebl/openebl/pkg/util"
 )
@@ -59,26 +62,40 @@ func NewRestServerWithController(ca cert_authority.CertAuthority, privateAddress
 		ca: ca,
 	}
 
-	r := mux.NewRouter()
-	r.Use(Log, ExtractRequester)
-	r.HandleFunc("/root_cert", restServer.addRootCert).Methods(http.MethodPost)
-	r.HandleFunc("/root_cert/{id}", restServer.revokeRootCert).Methods(http.MethodDelete)
-	r.HandleFunc("/ca_cert", restServer.createCACertificateSigningRequest).Methods(http.MethodPost)
-	r.HandleFunc("/ca_cert/{id}", restServer.respondCACertificateSigningRequest).Methods(http.MethodPost)
-	r.HandleFunc("/cert", restServer.addCertificateSigningRequest).Methods(http.MethodPost)
-	r.HandleFunc("/cert/{id}", restServer.issueCertificate).Methods(http.MethodPost)
-	r.HandleFunc("/cert/{id}/reject", restServer.rejectCertificateSigningRequest).Methods(http.MethodPost)
+	registerPublicEndpoints := func(r *mux.Router) {
+		r.HandleFunc("/root_cert", restServer.listRootCert).Methods(http.MethodGet)
+		r.HandleFunc("/root_cert/{id}", restServer.getRootCert).Methods(http.MethodGet)
+		r.HandleFunc("/ca_cert", restServer.listCACert).Methods(http.MethodGet)
+		r.HandleFunc("/ca_cert/{id}", restServer.getCACert).Methods(http.MethodGet)
+		r.HandleFunc("/cert", restServer.listCert).Methods(http.MethodGet)
+		r.HandleFunc("/cert/{id}", restServer.getCert).Methods(http.MethodGet)
+	}
+
+	privateRouter := mux.NewRouter()
+	privateRouter.Use(Log, ExtractRequester)
+	privateRouter.HandleFunc("/root_cert", restServer.addRootCert).Methods(http.MethodPost)
+	privateRouter.HandleFunc("/root_cert/{id}", restServer.revokeRootCert).Methods(http.MethodDelete)
+	privateRouter.HandleFunc("/ca_cert", restServer.createCACertificateSigningRequest).Methods(http.MethodPost)
+	privateRouter.HandleFunc("/ca_cert/{id}", restServer.respondCACertificateSigningRequest).Methods(http.MethodPost)
+	privateRouter.HandleFunc("/cert", restServer.addCertificateSigningRequest).Methods(http.MethodPost)
+	privateRouter.HandleFunc("/cert/{id}", restServer.issueCertificate).Methods(http.MethodPost)
+	privateRouter.HandleFunc("/cert/{id}/reject", restServer.rejectCertificateSigningRequest).Methods(http.MethodPost)
+	registerPublicEndpoints(privateRouter)
+
+	publicRouter := mux.NewRouter()
+	publicRouter.Use(Log, ExtractRequester)
+	registerPublicEndpoints(publicRouter)
 
 	if privateAddress != "" {
 		restServer.privateHttpServer = &http.Server{
 			Addr:    privateAddress,
-			Handler: r,
+			Handler: privateRouter,
 		}
 	}
 	if publicAddress != "" {
 		restServer.publicHttpServer = &http.Server{
 			Addr:    publicAddress,
-			Handler: r,
+			Handler: publicRouter,
 		}
 	}
 
@@ -152,6 +169,160 @@ func (s *RestServer) Close(ctx context.Context) error {
 	return serverErr
 }
 
+func (s *RestServer) listRootCert(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	r.URL.Query()
+	if limit == 0 {
+		limit = 10
+	}
+	req := storage.ListCertificatesRequest{
+		Offset: offset,
+		Limit:  limit,
+		Types:  []model.CertType{model.RootCert},
+	}
+
+	result, err := s.ca.ListCertificate(ctx, req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to list root certificates: %s", err.Error()), model.ErrToHttpStatus(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
+}
+
+func (s *RestServer) getRootCert(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	certID := mux.Vars(r)["id"]
+
+	req := storage.ListCertificatesRequest{
+		Limit: 1,
+		IDs:   []string{certID},
+		Types: []model.CertType{model.RootCert},
+	}
+
+	result, err := s.ca.ListCertificate(ctx, req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to list root certificates: %s", err.Error()), model.ErrToHttpStatus(err))
+		return
+	}
+
+	if len(result.Certs) == 0 {
+		http.Error(w, fmt.Sprintf("Root certificate not found: %s", certID), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result.Certs[0])
+}
+
+func (s *RestServer) listCACert(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit == 0 {
+		limit = 10
+	}
+	req := storage.ListCertificatesRequest{
+		Offset: offset,
+		Limit:  limit,
+		Types:  []model.CertType{model.CACert},
+	}
+
+	result, err := s.ca.ListCertificate(ctx, req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to list CA certificates: %s", err.Error()), model.ErrToHttpStatus(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
+}
+
+func (s *RestServer) getCACert(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	certID := mux.Vars(r)["id"]
+
+	req := storage.ListCertificatesRequest{
+		Limit: 1,
+		IDs:   []string{certID},
+		Types: []model.CertType{model.CACert},
+	}
+
+	result, err := s.ca.ListCertificate(ctx, req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to list CA certificates: %s", err.Error()), model.ErrToHttpStatus(err))
+		return
+	}
+
+	if len(result.Certs) == 0 {
+		http.Error(w, fmt.Sprintf("CA certificate not found: %s", certID), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result.Certs[0])
+}
+
+func (s *RestServer) listCert(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit == 0 {
+		limit = 10
+	}
+	req := storage.ListCertificatesRequest{
+		Offset: offset,
+		Limit:  limit,
+		Types:  []model.CertType{model.BUCert, model.ThirdPartyCACert},
+	}
+
+	result, err := s.ca.ListCertificate(ctx, req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to list certificates: %s", err.Error()), model.ErrToHttpStatus(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
+}
+
+func (s *RestServer) getCert(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	certID := mux.Vars(r)["id"]
+
+	req := storage.ListCertificatesRequest{
+		Limit: 1,
+		IDs:   []string{certID},
+		Types: []model.CertType{model.BUCert, model.ThirdPartyCACert},
+	}
+
+	result, err := s.ca.ListCertificate(ctx, req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to list certificates: %s", err.Error()), model.ErrToHttpStatus(err))
+		return
+	}
+
+	if len(result.Certs) == 0 {
+		http.Error(w, fmt.Sprintf("Certificate not found: %s", certID), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result.Certs[0])
+}
+
 func (s *RestServer) addRootCert(w http.ResponseWriter, r *http.Request) {
 	ts := time.Now().Unix()
 	ctx := r.Context()
@@ -166,7 +337,7 @@ func (s *RestServer) addRootCert(w http.ResponseWriter, r *http.Request) {
 
 	cert, err := s.ca.AddRootCertificate(ctx, ts, req)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to add root certificate: %s", err.Error()), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to add root certificate: %s", err.Error()), model.ErrToHttpStatus(err))
 		return
 	}
 
@@ -188,7 +359,7 @@ func (s *RestServer) revokeRootCert(w http.ResponseWriter, r *http.Request) {
 
 	cert, err := s.ca.RevokeRootCertificate(ctx, ts, req)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to revoke root certificate: %s", err.Error()), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to revoke root certificate: %s", err.Error()), model.ErrToHttpStatus(err))
 		return
 	}
 
@@ -211,7 +382,7 @@ func (s *RestServer) createCACertificateSigningRequest(w http.ResponseWriter, r 
 
 	csr, err := s.ca.CreateCACertificateSigningRequest(ctx, ts, req)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to create CA certificate signing request: %s", err.Error()), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to create CA certificate signing request: %s", err.Error()), model.ErrToHttpStatus(err))
 		return
 	}
 
@@ -236,7 +407,7 @@ func (s *RestServer) respondCACertificateSigningRequest(w http.ResponseWriter, r
 
 	cert, err := s.ca.RespondCACertificateSigningRequest(ctx, ts, req)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to respond to CA certificate signing request: %s", err.Error()), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to respond to CA certificate signing request: %s", err.Error()), model.ErrToHttpStatus(err))
 		return
 	}
 
@@ -259,7 +430,7 @@ func (s *RestServer) addCertificateSigningRequest(w http.ResponseWriter, r *http
 
 	cert, err := s.ca.AddCertificateSigningRequest(ctx, ts, req)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to add CSR: %s", err.Error()), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to add CSR: %s", err.Error()), model.ErrToHttpStatus(err))
 		return
 	}
 
@@ -284,7 +455,7 @@ func (s *RestServer) issueCertificate(w http.ResponseWriter, r *http.Request) {
 
 	cert, err := s.ca.IssueCertificate(ctx, ts, req)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to issue certificate: %s", err.Error()), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to issue certificate: %s", err.Error()), model.ErrToHttpStatus(err))
 		return
 	}
 
@@ -309,7 +480,7 @@ func (s *RestServer) rejectCertificateSigningRequest(w http.ResponseWriter, r *h
 
 	cert, err := s.ca.RejectCertificateSigningRequest(ctx, ts, req)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to reject CSR: %s", err.Error()), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to reject CSR: %s", err.Error()), model.ErrToHttpStatus(err))
 		return
 	}
 

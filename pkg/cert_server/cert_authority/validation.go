@@ -5,8 +5,20 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/openebl/openebl/pkg/cert_server/model"
+	"github.com/openebl/openebl/pkg/cert_server/storage"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
 )
+
+func ValidateListCertificatesRequest(req storage.ListCertificatesRequest) error {
+	if err := validation.ValidateStruct(&req,
+		validation.Field(&req.Offset, validation.Min(0)),
+		validation.Field(&req.Limit, validation.Min(1)),
+	); err != nil {
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
+	}
+
+	return nil
+}
 
 func ValidateAddRootCertificateRequest(req AddRootCertificateRequest) error {
 	if err := validation.ValidateStruct(&req,

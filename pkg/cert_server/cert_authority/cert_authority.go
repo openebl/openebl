@@ -18,6 +18,8 @@ import (
 )
 
 type CertAuthority interface {
+	ListCertificate(ctx context.Context, req storage.ListCertificatesRequest) (storage.ListCertificatesResponse, error)
+
 	// AddCertificate adds a root certificate into the system.
 	AddRootCertificate(ctx context.Context, ts int64, req AddRootCertificateRequest) (model.Cert, error)
 
@@ -95,6 +97,27 @@ func NewCertAuthority(certStorage storage.CertStorage) *_CertAuthority {
 	return &_CertAuthority{
 		certStorage: certStorage,
 	}
+}
+
+func (ca *_CertAuthority) ListCertificate(ctx context.Context, req storage.ListCertificatesRequest) (storage.ListCertificatesResponse, error) {
+	if err := ValidateListCertificatesRequest(req); err != nil {
+		return storage.ListCertificatesResponse{}, err
+	}
+
+	tx, ctx, err := ca.certStorage.CreateTx(ctx)
+	if err != nil {
+		return storage.ListCertificatesResponse{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	result, err := ca.certStorage.ListCertificates(ctx, tx, req)
+	if err != nil {
+		return storage.ListCertificatesResponse{}, err
+	}
+	for i := range result.Certs {
+		result.Certs[i].PrivateKey = "" // Do not return the private key.
+	}
+	return result, nil
 }
 
 func (ca *_CertAuthority) AddRootCertificate(ctx context.Context, ts int64, req AddRootCertificateRequest) (model.Cert, error) {

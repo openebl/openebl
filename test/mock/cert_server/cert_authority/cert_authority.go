@@ -11,6 +11,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	cert_authority "github.com/openebl/openebl/pkg/cert_server/cert_authority"
 	model "github.com/openebl/openebl/pkg/cert_server/model"
+	storage "github.com/openebl/openebl/pkg/cert_server/storage"
 )
 
 // MockCertAuthority is a mock of CertAuthority interface.
@@ -94,6 +95,21 @@ func (m *MockCertAuthority) IssueCertificate(ctx context.Context, ts int64, req 
 func (mr *MockCertAuthorityMockRecorder) IssueCertificate(ctx, ts, req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IssueCertificate", reflect.TypeOf((*MockCertAuthority)(nil).IssueCertificate), ctx, ts, req)
+}
+
+// ListCertificate mocks base method.
+func (m *MockCertAuthority) ListCertificate(ctx context.Context, req storage.ListCertificatesRequest) (storage.ListCertificatesResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListCertificate", ctx, req)
+	ret0, _ := ret[0].(storage.ListCertificatesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListCertificate indicates an expected call of ListCertificate.
+func (mr *MockCertAuthorityMockRecorder) ListCertificate(ctx, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListCertificate", reflect.TypeOf((*MockCertAuthority)(nil).ListCertificate), ctx, req)
 }
 
 // RejectCertificateSigningRequest mocks base method.

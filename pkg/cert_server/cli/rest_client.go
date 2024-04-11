@@ -9,6 +9,7 @@ import (
 	"github.com/openebl/openebl/pkg/cert_server/api"
 	"github.com/openebl/openebl/pkg/cert_server/cert_authority"
 	"github.com/openebl/openebl/pkg/cert_server/model"
+	"github.com/openebl/openebl/pkg/cert_server/storage"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
 	"github.com/openebl/openebl/pkg/util"
 )
@@ -23,6 +24,60 @@ func NewRestClient(server, requester string) *RestClient {
 		requester: requester,
 		server:    server,
 	}
+}
+
+func (r *RestClient) ListRootCert(offset, limit int) (storage.ListCertificatesResponse, error) {
+	path := fmt.Sprintf("/root_cert?offset=%d&limit=%d", offset, limit)
+	certs := storage.ListCertificatesResponse{}
+	if err := r.execute(http.MethodGet, path, nil, &certs); err != nil {
+		return storage.ListCertificatesResponse{}, err
+	}
+	return certs, nil
+}
+
+func (r *RestClient) GetRootCert(certID string) (model.Cert, error) {
+	path := fmt.Sprintf("/root_cert/%s", certID)
+	cert := model.Cert{}
+	if err := r.execute(http.MethodGet, path, nil, &cert); err != nil {
+		return model.Cert{}, err
+	}
+	return cert, nil
+}
+
+func (r *RestClient) ListCACert(offset, limit int) (storage.ListCertificatesResponse, error) {
+	path := fmt.Sprintf("/ca_cert?offset=%d&limit=%d", offset, limit)
+	certs := storage.ListCertificatesResponse{}
+	if err := r.execute(http.MethodGet, path, nil, &certs); err != nil {
+		return storage.ListCertificatesResponse{}, err
+	}
+	return certs, nil
+}
+
+func (r *RestClient) GetCACert(certID string) (model.Cert, error) {
+	path := fmt.Sprintf("/ca_cert/%s", certID)
+	cert := model.Cert{}
+	if err := r.execute(http.MethodGet, path, nil, &cert); err != nil {
+		return model.Cert{}, err
+	}
+	return cert, nil
+}
+
+func (r *RestClient) ListCert(offset, limit int) (storage.ListCertificatesResponse, error) {
+	path := fmt.Sprintf("/cert?offset=%d&limit=%d", offset, limit)
+	certs := storage.ListCertificatesResponse{}
+	if err := r.execute(http.MethodGet, path, nil, &certs); err != nil {
+		return storage.ListCertificatesResponse{}, err
+	}
+	return certs, nil
+}
+
+func (r *RestClient) GetCert(certID string) (model.Cert, error) {
+	path := fmt.Sprintf("/cert/%s", certID)
+	cert := model.Cert{}
+	if err := r.execute(http.MethodGet, path, nil, &cert); err != nil {
+		return model.Cert{}, err
+	}
+	return cert, nil
 }
 
 func (r *RestClient) AddRootCert(cert string) (model.Cert, error) {

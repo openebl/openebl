@@ -50,6 +50,50 @@ func (s *CertAuthorityTestSuite) TearDownTest() {
 	s.ctrl.Finish()
 }
 
+func (s *CertAuthorityTestSuite) TestListCertificate() {
+	cert := model.Cert{
+		ID:              "cert_id",
+		Version:         1,
+		Type:            model.CACert,
+		Status:          model.CertStatusActive,
+		NotBefore:       1711953471,
+		NotAfter:        4867627071,
+		CreatedAt:       time.Now().Unix(),
+		CreatedBy:       "test",
+		Certificate:     "cert",
+		CertFingerPrint: "sha1:cert",
+		PrivateKey:      "private_key",
+	}
+
+	expectedCert := cert
+	expectedCert.PrivateKey = ""
+
+	req := storage.ListCertificatesRequest{
+		Offset:   1,
+		Limit:    2,
+		IDs:      []string{"id"},
+		Statuses: []model.CertStatus{model.CertStatusActive},
+		Types:    []model.CertType{model.CACert},
+	}
+
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, s.ctx, nil),
+		s.storage.EXPECT().ListCertificates(gomock.Any(), s.tx, req).Return(
+			storage.ListCertificatesResponse{
+				Total: 1,
+				Certs: []model.Cert{cert},
+			},
+			nil,
+		),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	result, err := s.ca.ListCertificate(s.ctx, req)
+	s.Require().NoError(err)
+	s.Require().Len(result.Certs, 1)
+	s.Require().Equal(expectedCert, result.Certs[0])
+}
+
 func (s *CertAuthorityTestSuite) TestAddRootCertificate() {
 	rootCert, err := os.ReadFile("../../../testdata/cert_server/cert_authority/root_cert.crt")
 	s.Require().NoError(err)

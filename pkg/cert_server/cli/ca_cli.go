@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -29,22 +31,38 @@ type PrivateKeyOption struct {
 	CurveType eblpkix.ECDSACurveType `enum:"P-256,P-384,P-521" long:"curve" help:"Key curve type" default:"P-256"`
 }
 
-type ServerCmd struct{}
+type ServerCmd struct {
+	Config string `short:"c" long:"config" type:"existingfile" help:"Path to the configuration file"`
+}
 
 type MigrateCmd struct {
+	Config     string `short:"c" long:"config" type:"existingfile" help:"Path to the configuration file"`
 	Migrations string `short:"p" long:"path" type:"existingdir" help:"Path to the migration files" default:"migrations"`
 }
 
 type RootCertAddCmd struct {
-	Cert []byte `type:"filecontent" help:"Root certificate content" required:""`
+	Requester string `short:"r" long:"requester" help:"Requester name" required:""`
+	Cert      []byte `type:"filecontent" help:"Root certificate content" required:""`
 }
 
 type RootCertRevokeCmd struct {
+	Requester string `short:"r" long:"requester" help:"Requester name" required:""`
+	ID        string `required:""`
+}
+
+type RootCertListCmd struct {
+	Offset int `long:"offset" help:"Offset" default:"0"`
+	Limit  int `long:"limit" help:"Limit" default:"50"`
+}
+
+type RootCertGetCmd struct {
 	ID string `required:""`
 }
 
 type CACertAddCmd struct {
 	PrivateKeyOption
+	Requester string `short:"r" long:"requester" help:"Requester name" required:""`
+
 	Country    []string `long:"country" help:"Country name" required:""`
 	Org        []string `long:"org" help:"Organization name" required:""`
 	Unit       []string `long:"unit" help:"Unit name" required:""`
@@ -52,16 +70,22 @@ type CACertAddCmd struct {
 }
 
 type CACertRespondCmd struct {
-	ID   string `help:"Certificate ID" required:""`
-	Cert []byte `type:"filecontent" help:"Certificate content" required:""`
+	Requester string `short:"r" long:"requester" help:"Requester name" required:""`
+	ID        string `help:"Certificate ID" required:""`
+	Cert      []byte `type:"filecontent" help:"Certificate content" required:""`
 }
 
+type CACertListCmd RootCertListCmd
+type CACertGetCmd RootCertGetCmd
+
 type CertAddCmd struct {
-	CertType model.CertType `enum:"business_unit,third_party_ca" required:""`
-	CSR      []byte         `type:"filecontent" help:"Certificate Signing Request" required:""`
+	Requester string         `short:"r" long:"requester" help:"Requester name" required:""`
+	CertType  model.CertType `enum:"business_unit,third_party_ca" required:""`
+	CSR       []byte         `type:"filecontent" help:"Certificate Signing Request" required:""`
 }
 
 type CertIssueCmd struct {
+	Requester string         `short:"r" long:"requester" help:"Requester name" required:""`
 	ID        string         `required:""`
 	CACertID  string         `required:""`
 	CertType  model.CertType `enum:"business_unit,third_party_ca" required:""`
@@ -70,35 +94,42 @@ type CertIssueCmd struct {
 }
 
 type CertRejectCmd struct {
-	ID       string         `required:""`
-	CertType model.CertType `enum:"business_unit,third_party_ca" required:""`
-	Reason   string         `required:"" help:"Reject Reason"`
+	Requester string         `short:"r" long:"requester" help:"Requester name" required:""`
+	ID        string         `required:""`
+	CertType  model.CertType `enum:"business_unit,third_party_ca" required:""`
+	Reason    string         `required:"" help:"Reject Reason"`
 }
 
-type CertServerCli struct {
-	Config string `short:"c" long:"config" type:"existingfile" help:"Path to the configuration file"`
+type CertListCmd RootCertListCmd
+type CertGetCmd RootCertGetCmd
 
+type CertServerCli struct {
 	Server  ServerCmd  `cmd:"" help:"Run cert server."`
 	Migrate MigrateCmd `cmd:"" help:"Migrate database."`
 
 	Client struct {
-		Server    string `short:"s" long:"server" help:"Server address" required:""`
-		Requester string `short:"r" long:"requester" help:"Requester name" required:""`
+		Server string `short:"s" long:"server" help:"Server address" required:""`
 
 		RootCert struct {
 			Add    RootCertAddCmd    `cmd:""`
 			Revoke RootCertRevokeCmd `cmd:""`
+			List   RootCertListCmd   `cmd:""`
+			Get    RootCertGetCmd    `cmd:""`
 		} `cmd:""`
 
 		CACert struct {
 			Add     CACertAddCmd     `cmd:""`
 			Respond CACertRespondCmd `cmd:""`
+			List    CACertListCmd    `cmd:""`
+			Get     CACertGetCmd     `cmd:""`
 		} `cmd:""`
 
 		Cert struct {
 			Add    CertAddCmd    `cmd:""`
 			Issue  CertIssueCmd  `cmd:""`
 			Reject CertRejectCmd `cmd:""`
+			List   CertListCmd   `cmd:""`
+			Get    CertGetCmd    `cmd:""`
 		} `cmd:""`
 	} `cmd:""`
 }
@@ -121,7 +152,7 @@ func (*App) Run() {
 
 func (cmd *ServerCmd) Run(cli *CertServerCli) error {
 	cfg := api.RestServerConfig{}
-	if err := config.FromFile(cli.Config, &cfg); err != nil {
+	if err := config.FromFile(cli.Server.Config, &cfg); err != nil {
 		logrus.Errorf("failed to load config: %v", err)
 		os.Exit(1)
 	}
@@ -170,7 +201,7 @@ func (cmd *MigrateCmd) Run(cli *CertServerCli) error {
 
 	pop.SetLogger(popLogger)
 	cfg := api.RestServerConfig{}
-	if err := config.FromFile(cli.Config, &cfg); err != nil {
+	if err := config.FromFile(cli.Migrate.Config, &cfg); err != nil {
 		logrus.Errorf("failed to load config: %v", err)
 		os.Exit(1)
 	}
@@ -210,7 +241,7 @@ func (cmd *MigrateCmd) Run(cli *CertServerCli) error {
 }
 
 func (*RootCertAddCmd) Run(cli *CertServerCli) error {
-	client := NewRestClient(cli.Client.Server, cli.Client.Requester)
+	client := NewRestClient(cli.Client.Server, cli.Client.RootCert.Add.Requester)
 	cert, err := client.AddRootCert(string(cli.Client.RootCert.Add.Cert))
 	if err != nil {
 		logrus.Errorf("failed to add root certificate: %v", err)
@@ -222,7 +253,7 @@ func (*RootCertAddCmd) Run(cli *CertServerCli) error {
 }
 
 func (*RootCertRevokeCmd) Run(cli *CertServerCli) error {
-	client := NewRestClient(cli.Client.Server, cli.Client.Requester)
+	client := NewRestClient(cli.Client.Server, cli.Client.RootCert.Revoke.Requester)
 	cert, err := client.RevokeRookCert(cli.Client.RootCert.Revoke.ID)
 	if err != nil {
 		logrus.Errorf("failed to revoke root certificate: %v", err)
@@ -233,8 +264,36 @@ func (*RootCertRevokeCmd) Run(cli *CertServerCli) error {
 	return nil
 }
 
+func (*RootCertListCmd) Run(cli *CertServerCli) error {
+	client := NewRestClient(cli.Client.Server, "")
+	certs, err := client.ListRootCert(cli.Client.RootCert.List.Offset, cli.Client.RootCert.List.Limit)
+	if err != nil {
+		logrus.Errorf("failed to list root certificates: %v", err)
+		os.Exit(1)
+	}
+
+	pretty := bytes.Buffer{}
+	json.Indent(&pretty, []byte(util.StructToJSON(certs)), "", "  ")
+	fmt.Println(pretty.String())
+	return nil
+}
+
+func (*RootCertGetCmd) Run(cli *CertServerCli) error {
+	client := NewRestClient(cli.Client.Server, "")
+	cert, err := client.GetRootCert(cli.Client.RootCert.Get.ID)
+	if err != nil {
+		logrus.Errorf("failed to get root certificate: %v", err)
+		os.Exit(1)
+	}
+
+	pretty := bytes.Buffer{}
+	json.Indent(&pretty, []byte(util.StructToJSON(cert)), "", "  ")
+	fmt.Println(pretty.String())
+	return nil
+}
+
 func (*CACertAddCmd) Run(cli *CertServerCli) error {
-	client := NewRestClient(cli.Client.Server, cli.Client.Requester)
+	client := NewRestClient(cli.Client.Server, cli.Client.CACert.Add.Requester)
 
 	cert, err := client.AddCACert(&cli.Client.CACert.Add)
 	if err != nil {
@@ -247,7 +306,7 @@ func (*CACertAddCmd) Run(cli *CertServerCli) error {
 }
 
 func (*CACertRespondCmd) Run(cli *CertServerCli) error {
-	client := NewRestClient(cli.Client.Server, cli.Client.Requester)
+	client := NewRestClient(cli.Client.Server, cli.Client.CACert.Respond.Requester)
 	cert, err := client.RespondCACert(cli.Client.CACert.Respond.ID, string(cli.Client.CACert.Respond.Cert))
 	if err != nil {
 		logrus.Errorf("failed to respond CA certificate: %v", err)
@@ -258,8 +317,36 @@ func (*CACertRespondCmd) Run(cli *CertServerCli) error {
 	return nil
 }
 
+func (*CACertListCmd) Run(cli *CertServerCli) error {
+	client := NewRestClient(cli.Client.Server, "")
+	certs, err := client.ListCACert(cli.Client.CACert.List.Offset, cli.Client.CACert.List.Limit)
+	if err != nil {
+		logrus.Errorf("failed to list CA certificates: %v", err)
+		os.Exit(1)
+	}
+
+	pretty := bytes.Buffer{}
+	json.Indent(&pretty, []byte(util.StructToJSON(certs)), "", "  ")
+	fmt.Println(pretty.String())
+	return nil
+}
+
+func (*CACertGetCmd) Run(cli *CertServerCli) error {
+	client := NewRestClient(cli.Client.Server, "")
+	cert, err := client.GetCACert(cli.Client.CACert.Get.ID)
+	if err != nil {
+		logrus.Errorf("failed to get CA certificate: %v", err)
+		os.Exit(1)
+	}
+
+	pretty := bytes.Buffer{}
+	json.Indent(&pretty, []byte(util.StructToJSON(cert)), "", "  ")
+	fmt.Println(pretty.String())
+	return nil
+}
+
 func (*CertAddCmd) Run(cli *CertServerCli) error {
-	client := NewRestClient(cli.Client.Server, cli.Client.Requester)
+	client := NewRestClient(cli.Client.Server, cli.Client.Cert.Add.Requester)
 	cert, err := client.AddCert(&cli.Client.Cert.Add)
 	if err != nil {
 		logrus.Errorf("failed to add certificate: %v", err)
@@ -271,7 +358,7 @@ func (*CertAddCmd) Run(cli *CertServerCli) error {
 }
 
 func (*CertIssueCmd) Run(cli *CertServerCli) error {
-	client := NewRestClient(cli.Client.Server, cli.Client.Requester)
+	client := NewRestClient(cli.Client.Server, cli.Client.Cert.Issue.Requester)
 	cert, err := client.IssueCert(&cli.Client.Cert.Issue)
 	if err != nil {
 		logrus.Errorf("failed to issue certificate: %v", err)
@@ -283,7 +370,7 @@ func (*CertIssueCmd) Run(cli *CertServerCli) error {
 }
 
 func (*CertRejectCmd) Run(cli *CertServerCli) error {
-	client := NewRestClient(cli.Client.Server, cli.Client.Requester)
+	client := NewRestClient(cli.Client.Server, cli.Client.Cert.Reject.Requester)
 	cert, err := client.RejectCert(cli.Client.Cert.Reject.ID, cli.Client.Cert.Reject.CertType, cli.Client.Cert.Reject.Reason)
 	if err != nil {
 		logrus.Errorf("failed to reject certificate: %v", err)
@@ -291,5 +378,33 @@ func (*CertRejectCmd) Run(cli *CertServerCli) error {
 	}
 
 	logrus.Infof("Certificate rejected with ID: %s", cert.ID)
+	return nil
+}
+
+func (*CertListCmd) Run(cli *CertServerCli) error {
+	client := NewRestClient(cli.Client.Server, "")
+	certs, err := client.ListCert(cli.Client.Cert.List.Offset, cli.Client.Cert.List.Limit)
+	if err != nil {
+		logrus.Errorf("failed to list certificates: %v", err)
+		os.Exit(1)
+	}
+
+	pretty := bytes.Buffer{}
+	json.Indent(&pretty, []byte(util.StructToJSON(certs)), "", "  ")
+	fmt.Println(pretty.String())
+	return nil
+}
+
+func (*CertGetCmd) Run(cli *CertServerCli) error {
+	client := NewRestClient(cli.Client.Server, "")
+	cert, err := client.GetCert(cli.Client.Cert.Get.ID)
+	if err != nil {
+		logrus.Errorf("failed to get certificate: %v", err)
+		os.Exit(1)
+	}
+
+	pretty := bytes.Buffer{}
+	json.Indent(&pretty, []byte(util.StructToJSON(cert)), "", "  ")
+	fmt.Println(pretty.String())
 	return nil
 }

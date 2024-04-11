@@ -3,6 +3,7 @@ package pkix_test
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/x509"
 	gopkix "crypto/x509/pkix"
 	"math/big"
@@ -77,6 +78,11 @@ func TestCertVerifyTestSuite(t *testing.T) {
 }
 
 func (s *CertVerifyTestSuite) TestVerifyWithRootCertificate() {
+	pubKey := s.rootCert.PublicKey.(*rsa.PublicKey)
+	rawPubKey := x509.MarshalPKCS1PublicKey(pubKey)
+	pubKeySha1 := sha1.Sum(rawPubKey)
+	_ = pubKeySha1
+
 	// s.intermediateCert is signed by s.rootCert, it should pass.
 	err := pkix.Verify([]*x509.Certificate{s.intermediateCert}, []*x509.Certificate{s.rootCert}, 0)
 	s.Assert().NoError(err)

@@ -104,6 +104,7 @@ func (c *_WebhookController) Create(ctx context.Context, ts int64, req CreateWeb
 		return model.Webhook{}, err
 	}
 
+	// Conceal secret in the response
 	webhook.Secret = ""
 	return webhook, nil
 }
@@ -131,6 +132,7 @@ func (c *_WebhookController) List(ctx context.Context, req ListWebhookRequest) (
 		return ListWebhookResponse{}, err
 	}
 
+	// Conceal secrets in the response
 	lo.ForEach(result.Records, func(webhook model.Webhook, i int) {
 		result.Records[i].Secret = ""
 	})
@@ -172,6 +174,7 @@ func (c *_WebhookController) Get(ctx context.Context, applicationID string, id s
 		return model.Webhook{}, model.ErrWebhookNotFound
 	}
 
+	// Conceal secret in the response
 	result.Records[0].Secret = ""
 	return result.Records[0], nil
 }
@@ -217,6 +220,7 @@ func (c *_WebhookController) Update(ctx context.Context, ts int64, req UpdateWeb
 		return model.Webhook{}, err
 	}
 
+	// Conceal secret in the response
 	updatedWebhook.Secret = ""
 	return updatedWebhook, nil
 }
@@ -260,6 +264,7 @@ func (c *_WebhookController) Delete(ctx context.Context, ts int64, req DeleteWeb
 		return model.Webhook{}, err
 	}
 
+	// Conceal secret in the response
 	updatedWebhook.Secret = ""
 	return updatedWebhook, nil
 }

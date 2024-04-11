@@ -16,7 +16,7 @@ all: $(OUTFILE)
 
 $(OUTFILE): $(SOURCE_FILES)
 	@pnpm run build
-	@touch frontend.go
+	@touch embed.go
 
 .PHONY: fmt
 fmt:
@@ -28,5 +28,5 @@ lint:
 
 .PHONY: clean
 clean:
-	@rm -rf dist
-	@touch frontend.go
+	@rm -rf $(filter-out dist/vite.svg,$(wildcard dist/*))
+	@touch embed.go

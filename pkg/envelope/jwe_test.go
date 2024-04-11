@@ -96,7 +96,8 @@ func TestJWEEncryptWithRSA(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("%v\n", result)
+	data, _ := json.Marshal(result)
+	t.Logf("JWE: %s", string(data))
 
 	plainText, err := envelope.Decrypt(result, []any{privKey})
 	if err != nil {

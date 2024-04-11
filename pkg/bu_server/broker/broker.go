@@ -9,11 +9,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
 	"github.com/openebl/openebl/pkg/bu_server/trade_document"
 	"github.com/openebl/openebl/pkg/envelope"
+	"github.com/openebl/openebl/pkg/pkix"
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/relay/server"
 	"github.com/openebl/openebl/pkg/util"
@@ -163,6 +165,16 @@ func (b *Broker) eventSink(ctx context.Context, event relay.Event) (string, erro
 			if err := storeTradeDocument(ctx, td); err != nil {
 				return fmt.Errorf("failed to store trade document: %w", err)
 			}
+		case relay.EncryptedFileBasedBillOfLading:
+			td, err := b.decryptTradeDocument(ctx, event.Data)
+			if err != nil {
+				log.Warnf("Failed to decrypt trade document: %v", err)
+				return nil
+			}
+			if err := storeTradeDocument(ctx, td); err != nil {
+				return fmt.Errorf("failed to store trade document: %w", err)
+			}
+
 		default:
 			log.Debugf("Unwanted event type: %d", event.Type)
 		}
@@ -219,6 +231,136 @@ func tradeDocumentFromEvent(data []byte) (storage.TradeDocument, error) {
 		td.DocReference = bl.BillOfLading.TransportDocumentReference
 	}
 	return td, nil
+}
+
+func (b *Broker) decryptTradeDocument(ctx context.Context, data []byte) (storage.TradeDocument, error) {
+	doc := envelope.JWE{}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return storage.TradeDocument{}, fmt.Errorf("failed to unmarshal JWE: %w", err)
+	}
+
+	// Decrypt the data using multiple workers
+	const numWorkers = 10
+
+	// Fetch all authentications to decrypt the data
+	authentications := make(chan model.BusinessUnitAuthentication, numWorkers*2)
+	fetchError := make(chan error, 1)
+	defer close(fetchError)
+	go b.fetchAuthentications(ctx, authentications, fetchError)
+
+	// decryptedTradeDocument is used to store the decrypted trade document
+	decryptedTradeDocument := make(chan storage.TradeDocument, numWorkers)
+
+	stopWorkers := make(chan struct{})
+	workersDone := make(chan struct{})
+	go func() {
+		wg := &sync.WaitGroup{}
+		wg.Add(numWorkers)
+
+		for i := 0; i < numWorkers; i++ {
+			go b.decryptData(ctx, doc, authentications, decryptedTradeDocument, stopWorkers, wg)
+		}
+
+		wg.Wait()
+		close(workersDone)
+		close(decryptedTradeDocument)
+	}()
+
+	// Wait for the first successful decryption
+	select {
+	case err := <-fetchError:
+		close(stopWorkers)
+		<-workersDone
+		return storage.TradeDocument{}, fmt.Errorf("failed to fetch authentications: %w", err)
+	case td := <-decryptedTradeDocument:
+		close(stopWorkers)
+		<-workersDone
+		return td, nil
+	case <-workersDone:
+		return storage.TradeDocument{}, errors.New("no valid authentication found")
+	}
+}
+
+func (b *Broker) fetchAuthentications(
+	ctx context.Context,
+	authentications chan<- model.BusinessUnitAuthentication,
+	fetchError chan<- error,
+) {
+	defer close(authentications)
+
+	tx, ctx, err := b.inboxStore.CreateTx(ctx)
+	if err != nil {
+		fetchError <- err
+		return
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	req := storage.ListAuthenticationRequest{Offset: 0, Limit: 100}
+	for {
+		result, err := b.inboxStore.ListAuthentication(ctx, tx, req)
+		if err != nil {
+			fetchError <- err
+			return
+		}
+		for _, auth := range result.Records {
+			select {
+			case authentications <- auth:
+			case <-ctx.Done():
+				return
+			case <-b.done:
+				return
+			}
+		}
+		if len(result.Records) < req.Limit {
+			break
+		}
+		req.Offset += req.Limit
+	}
+}
+
+func (b *Broker) decryptData(
+	ctx context.Context,
+	doc envelope.JWE,
+	authentications <-chan model.BusinessUnitAuthentication,
+	decrypted chan<- storage.TradeDocument,
+	stop <-chan struct{},
+	wg *sync.WaitGroup,
+) {
+	defer wg.Done()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-b.done:
+			return
+		case <-stop:
+			return
+		case auth, ok := <-authentications:
+			if !ok {
+				return
+			}
+			privateKey, err := pkix.ParsePrivateKey([]byte(auth.PrivateKey))
+			if err != nil {
+				logrus.Warnf("Failed to decode private key %s: %v", auth.ID, err)
+				continue
+			}
+			decryptedData, err := envelope.Decrypt(doc, []any{privateKey})
+			if err != nil {
+				logrus.Tracef("Failed to decrypt data: %v", err)
+				continue
+			}
+			tradeDoc, err := tradeDocumentFromEvent(decryptedData)
+			if err != nil {
+				logrus.Debugf("Failed to parse trade document: %v", err)
+				continue
+			}
+			select {
+			case decrypted <- tradeDoc:
+			default: // channel is full or closed
+			}
+			return
+		}
+	}
 }
 
 func (b *Broker) connectionStatusCallback(ctx context.Context, cancel context.CancelCauseFunc, client relay.RelayClient, serverIdentity string, status bool) {

@@ -41,7 +41,7 @@ func TestRSASigner(t *testing.T) {
 	cert, err := x509.ParseCertificate(der)
 	require.NoError(t, err)
 	privKeyPEM, _ := eblpkix.MarshalPrivateKey(rsaKey)
-	certPEM, err := eblpkix.MarshalCertificates([]x509.Certificate{*cert})
+	certPEM, err := eblpkix.MarshalCertificates(cert)
 	require.NoError(t, err)
 
 	auth := model.BusinessUnitAuthentication{
@@ -100,7 +100,7 @@ func TestECDSASigner(t *testing.T) {
 		cert, err := x509.ParseCertificate(der)
 		require.NoError(t, err)
 		privKeyPEM, _ := eblpkix.MarshalPrivateKey(ecdsaKey)
-		certPEM, err := eblpkix.MarshalCertificates([]x509.Certificate{*cert})
+		certPEM, err := eblpkix.MarshalCertificates(cert)
 		require.NoError(t, err)
 
 		auth := model.BusinessUnitAuthentication{

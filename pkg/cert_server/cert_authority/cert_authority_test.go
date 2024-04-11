@@ -243,6 +243,16 @@ func (s *CertAuthorityTestSuite) TestRespondCACertificateSigningRequest() {
 	caCertCSR, err := os.ReadFile("../../../testdata/cert_server/cert_authority/ca_cert.csr")
 	s.Require().NoError(err)
 
+	rootCertObj := model.Cert{
+		ID:          "root_cert_id",
+		Version:     1,
+		Type:        model.RootCert,
+		Status:      model.CertStatusActive,
+		CreatedAt:   time.Now().Unix() - 1000,
+		CreatedBy:   "test",
+		Certificate: string(rootCert),
+	}
+
 	oldCert := model.Cert{
 		ID:                        "ca_cert_id",
 		Version:                   1,
@@ -272,6 +282,21 @@ func (s *CertAuthorityTestSuite) TestRespondCACertificateSigningRequest() {
 
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+		s.storage.EXPECT().ListCertificates(
+			gomock.Any(),
+			s.tx,
+			storage.ListCertificatesRequest{
+				Limit:    100,
+				Types:    []model.CertType{model.RootCert},
+				Statuses: []model.CertStatus{model.CertStatusActive},
+			},
+		).Return(
+			storage.ListCertificatesResponse{
+				Total: 1,
+				Certs: []model.Cert{rootCertObj},
+			},
+			nil,
+		),
 		s.storage.EXPECT().ListCertificates(
 			gomock.Any(),
 			s.tx,

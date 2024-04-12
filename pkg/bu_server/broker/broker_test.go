@@ -185,7 +185,7 @@ func (s *BrokerTestSuite) TestBrokerEventSinkEncrypted() {
 	)
 	s.Require().NoError(err)
 	encrypted, err := json.Marshal(result)
-	s.T().Logf("Encrypted: %s", encrypted)
+	s.T().Logf("Encrypted: %s", string(encrypted))
 	s.Require().NoError(err)
 
 	event := relay.Event{
@@ -197,8 +197,12 @@ func (s *BrokerTestSuite) TestBrokerEventSinkEncrypted() {
 	_, err = eventSink(b, s.ctx, event)
 	s.Require().NoError(err)
 
+	s.Assert().Equal(receivedTD.RawID, server.GetEventID(encrypted))
 	s.Assert().True(receivedTD.CreatedAt > 0 && receivedTD.CreatedAt <= time.Now().Unix())
+	td.RawID = receivedTD.RawID
 	td.CreatedAt = receivedTD.CreatedAt
+	td.Kind = int(relay.EncryptedFileBasedBillOfLading)
+	td.DecryptedDoc, td.Doc = td.Doc, receivedTD.Doc
 	s.Assert().EqualValues(td, receivedTD)
 }
 

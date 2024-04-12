@@ -171,6 +171,9 @@ func (b *Broker) eventSink(ctx context.Context, event relay.Event) (string, erro
 				log.Warnf("Failed to decrypt trade document: %v", err)
 				return nil
 			}
+			td.RawID = server.GetEventID(event.Data)
+			td.Kind = int(relay.EncryptedFileBasedBillOfLading)
+			td.DecryptedDoc, td.Doc = td.Doc, event.Data
 			if err := storeTradeDocument(ctx, td); err != nil {
 				return fmt.Errorf("failed to store trade document: %w", err)
 			}

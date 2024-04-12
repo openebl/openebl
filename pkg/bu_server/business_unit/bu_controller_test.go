@@ -24,14 +24,14 @@ import (
 
 type BusinessUnitManagerTestSuite struct {
 	suite.Suite
-	ctx              context.Context
-	ctrl             *gomock.Controller
-	storage          *mock_storage.MockBusinessUnitStorage
-	webhookCtrl      *mock_webhook.MockWebhookController
-	jwsSignerFactory *mock_business_unit.MockJWSSignerFactory
-	ca               *mock_cert_authority.MockCertAuthority
-	tx               *mock_storage.MockTx
-	buManager        business_unit.BusinessUnitManager
+	ctx         context.Context
+	ctrl        *gomock.Controller
+	storage     *mock_storage.MockBusinessUnitStorage
+	webhookCtrl *mock_webhook.MockWebhookController
+	jwtFactory  *mock_business_unit.MockJWTFactory
+	ca          *mock_cert_authority.MockCertAuthority
+	tx          *mock_storage.MockTx
+	buManager   business_unit.BusinessUnitManager
 }
 
 func TestBusinessUnitManager(t *testing.T) {
@@ -43,10 +43,10 @@ func (s *BusinessUnitManagerTestSuite) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
 	s.storage = mock_storage.NewMockBusinessUnitStorage(s.ctrl)
 	s.webhookCtrl = mock_webhook.NewMockWebhookController(s.ctrl)
-	s.jwsSignerFactory = mock_business_unit.NewMockJWSSignerFactory(s.ctrl)
+	s.jwtFactory = mock_business_unit.NewMockJWTFactory(s.ctrl)
 	s.ca = mock_cert_authority.NewMockCertAuthority(s.ctrl)
 	s.tx = mock_storage.NewMockTx(s.ctrl)
-	s.buManager = business_unit.NewBusinessUnitManager(s.storage, s.ca, s.webhookCtrl, s.jwsSignerFactory)
+	s.buManager = business_unit.NewBusinessUnitManager(s.storage, s.ca, s.webhookCtrl, s.jwtFactory)
 }
 
 func (s *BusinessUnitManagerTestSuite) TearDownTest() {
@@ -524,7 +524,7 @@ func (s *BusinessUnitManagerTestSuite) TestGetJWSSigner() {
 		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListAuthentication(gomock.Any(), s.tx, listAuthRequest).Return(listAuthResult, nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
-		s.jwsSignerFactory.EXPECT().NewJWSSigner(buAuth).Return(nil, nil),
+		s.jwtFactory.EXPECT().NewJWSSigner(buAuth).Return(nil, nil),
 	)
 
 	_, err := s.buManager.GetJWSSigner(s.ctx, request)

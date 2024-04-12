@@ -9,15 +9,16 @@ import (
 
 func (s *_Storage) AddTradeDocument(ctx context.Context, tx storage.Tx, tradeDoc storage.TradeDocument) error {
 	query := `
-INSERT INTO trade_document (id, kind, doc_id, doc_version, doc_reference, doc, created_at, meta) VALUES (
+INSERT INTO trade_document (id, kind, doc_id, doc_version, doc_reference, doc, decrypted_doc, created_at, meta) VALUES (
 	$1,	-- id
 	$2,	-- kind
 	$3, -- doc_id
 	$4,	-- doc_version
 	$5, -- doc_reference
 	$6,	-- doc
-	$7,	-- created_at
-	$8	-- meta
+	$7,	-- decrypted_doc
+	$8,	-- created_at
+	$9	-- meta
 ) ON CONFLICT (id) DO NOTHING`
 	_, err := tx.Exec(
 		ctx,
@@ -28,6 +29,7 @@ INSERT INTO trade_document (id, kind, doc_id, doc_version, doc_reference, doc, c
 		tradeDoc.DocVersion,
 		tradeDoc.DocReference,
 		tradeDoc.Doc,
+		tradeDoc.DecryptedDoc,
 		tradeDoc.CreatedAt,
 		tradeDoc.Meta,
 	)
@@ -67,6 +69,7 @@ WITH prefiltered_bu AS (
 		first_value(doc_version) OVER w AS doc_version,
 		first_value(doc_reference) OVER w AS doc_reference,
 		first_value(doc) OVER w AS doc,
+		first_value(decrypted_doc) OVER w AS decrypted_doc,
 		first_value(created_at) OVER w AS created_at,
 		first_value(meta) OVER w AS meta
 	FROM trade_document td
@@ -78,7 +81,7 @@ WITH prefiltered_bu AS (
 	FROM latest_visible
 	WHERE
 		NOT (meta ? 'deleted') AND
-		($3 = 0 OR $3 = kind) AND
+		(COALESCE(ARRAY_LENGTH($3::BIGINT[], 1), 0) = 0 OR kind = ANY($3)) AND
 		(COALESCE(ARRAY_LENGTH($4::TEXT[], 1), 0) = 0 OR doc_id = ANY($4)) AND
 		($5::JSONB IS NULL OR meta @> $5) AND
 		(
@@ -98,6 +101,7 @@ WITH prefiltered_bu AS (
 		doc_version,
 	    doc_reference,
 		doc,
+		decrypted_doc,
 		created_at,
 		meta
 	FROM filtered_record ORDER BY rec_id DESC OFFSET $1 LIMIT $2 
@@ -122,7 +126,7 @@ LEFT JOIN LATERAL(
 		query,
 		req.Offset,
 		req.Limit,
-		req.Kind,
+		req.Kinds,
 		req.DocIDs,
 		req.Meta,
 		req.RequestBy,
@@ -143,6 +147,7 @@ LEFT JOIN LATERAL(
 		var docVersion sql.NullInt64
 		var docReference sql.NullString
 		var doc []byte
+		var decryptedDoc []byte
 		var createdAt sql.NullInt64
 		var meta map[string]interface{}
 		err = rows.Scan(
@@ -152,6 +157,7 @@ LEFT JOIN LATERAL(
 			&docVersion,
 			&docReference,
 			&doc,
+			&decryptedDoc,
 			&createdAt,
 			&meta,
 			&result.Total,
@@ -169,6 +175,7 @@ LEFT JOIN LATERAL(
 					DocVersion:   docVersion.Int64,
 					DocReference: docReference.String,
 					Doc:          doc,
+					DecryptedDoc: decryptedDoc,
 					CreatedAt:    createdAt.Int64,
 					Meta:         meta,
 				},

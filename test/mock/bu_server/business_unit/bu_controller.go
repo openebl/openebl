@@ -71,6 +71,21 @@ func (mr *MockBusinessUnitManagerMockRecorder) CreateBusinessUnit(ctx, ts, req i
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBusinessUnit", reflect.TypeOf((*MockBusinessUnitManager)(nil).CreateBusinessUnit), ctx, ts, req)
 }
 
+// GetJWEEncryptors mocks base method.
+func (m *MockBusinessUnitManager) GetJWEEncryptors(ctx context.Context, req business_unit.GetJWEEncryptorsRequest) ([]business_unit.JWEEncryptor, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetJWEEncryptors", ctx, req)
+	ret0, _ := ret[0].([]business_unit.JWEEncryptor)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetJWEEncryptors indicates an expected call of GetJWEEncryptors.
+func (mr *MockBusinessUnitManagerMockRecorder) GetJWEEncryptors(ctx, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetJWEEncryptors", reflect.TypeOf((*MockBusinessUnitManager)(nil).GetJWEEncryptors), ctx, req)
+}
+
 // GetJWSSigner mocks base method.
 func (m *MockBusinessUnitManager) GetJWSSigner(ctx context.Context, req business_unit.GetJWSSignerRequest) (business_unit.JWSSigner, error) {
 	m.ctrl.T.Helper()
@@ -239,4 +254,55 @@ func (m *MockJWSSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOp
 func (mr *MockJWSSignerMockRecorder) Sign(rand, digest, opts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sign", reflect.TypeOf((*MockJWSSigner)(nil).Sign), rand, digest, opts)
+}
+
+// MockJWEEncryptor is a mock of JWEEncryptor interface.
+type MockJWEEncryptor struct {
+	ctrl     *gomock.Controller
+	recorder *MockJWEEncryptorMockRecorder
+}
+
+// MockJWEEncryptorMockRecorder is the mock recorder for MockJWEEncryptor.
+type MockJWEEncryptorMockRecorder struct {
+	mock *MockJWEEncryptor
+}
+
+// NewMockJWEEncryptor creates a new mock instance.
+func NewMockJWEEncryptor(ctrl *gomock.Controller) *MockJWEEncryptor {
+	mock := &MockJWEEncryptor{ctrl: ctrl}
+	mock.recorder = &MockJWEEncryptorMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockJWEEncryptor) EXPECT() *MockJWEEncryptorMockRecorder {
+	return m.recorder
+}
+
+// AvailableJWEEncryptAlgorithms mocks base method.
+func (m *MockJWEEncryptor) AvailableJWEEncryptAlgorithms() []envelope.KeyEncryptionAlgorithm {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AvailableJWEEncryptAlgorithms")
+	ret0, _ := ret[0].([]envelope.KeyEncryptionAlgorithm)
+	return ret0
+}
+
+// AvailableJWEEncryptAlgorithms indicates an expected call of AvailableJWEEncryptAlgorithms.
+func (mr *MockJWEEncryptorMockRecorder) AvailableJWEEncryptAlgorithms() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AvailableJWEEncryptAlgorithms", reflect.TypeOf((*MockJWEEncryptor)(nil).AvailableJWEEncryptAlgorithms))
+}
+
+// Public mocks base method.
+func (m *MockJWEEncryptor) Public() crypto.PublicKey {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Public")
+	ret0, _ := ret[0].(crypto.PublicKey)
+	return ret0
+}
+
+// Public indicates an expected call of Public.
+func (mr *MockJWEEncryptorMockRecorder) Public() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Public", reflect.TypeOf((*MockJWEEncryptor)(nil).Public))
 }

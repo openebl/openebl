@@ -1668,6 +1668,10 @@ components:
             draft:
               type: boolean
               description: Indicates if the eB/L is a draft
+            encrypt_content:
+              type: boolean
+              default: false
+              description: Indicates if the content of the eB/L should be encrypted
           required:
             - authentication_id
             - file

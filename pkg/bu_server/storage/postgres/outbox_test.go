@@ -43,7 +43,7 @@ func (s *OutboxStorageTestSuite) TestAddTradeDocumentOutbox() {
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	// Add trade document to outbox
-	err = s.storage.AddTradeDocumentOutbox(s.ctx, tx, tradeDoc.CreatedAt, tradeDoc.DocID, tradeDoc.Doc)
+	err = s.storage.AddTradeDocumentOutbox(s.ctx, tx, tradeDoc.CreatedAt, tradeDoc.DocID, tradeDoc.Kind, tradeDoc.Doc)
 	s.Require().NoError(err)
 
 	// Get event from outbox

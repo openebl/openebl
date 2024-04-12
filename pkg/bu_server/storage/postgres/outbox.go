@@ -6,9 +6,9 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 )
 
-func (s *_Storage) AddTradeDocumentOutbox(ctx context.Context, tx storage.Tx, ts int64, key string, payload []byte) error {
-	const query string = `INSERT INTO trade_document_outbox (key, payload, created_at) VALUES ($1, $2, $3)`
-	_, err := tx.Exec(ctx, query, key, payload, ts)
+func (s *_Storage) AddTradeDocumentOutbox(ctx context.Context, tx storage.Tx, ts int64, key string, kind int, payload []byte) error {
+	const query string = `INSERT INTO trade_document_outbox (key, kind, payload, created_at) VALUES ($1, $2, $3, $4)`
+	_, err := tx.Exec(ctx, query, key, kind, payload, ts)
 	if err != nil {
 		return err
 	}
@@ -16,7 +16,7 @@ func (s *_Storage) AddTradeDocumentOutbox(ctx context.Context, tx storage.Tx, ts
 }
 
 func (s *_Storage) GetTradeDocumentOutbox(ctx context.Context, tx storage.Tx, batchSize int) ([]storage.OutboxMsg, error) {
-	const query string = `SELECT rec_id, key, payload FROM trade_document_outbox ORDER BY rec_id ASC LIMIT $1`
+	const query string = `SELECT rec_id, key, kind, payload FROM trade_document_outbox ORDER BY rec_id ASC LIMIT $1`
 	rows, err := tx.Query(ctx, query, batchSize)
 	if err != nil {
 		return nil, err
@@ -27,13 +27,15 @@ func (s *_Storage) GetTradeDocumentOutbox(ctx context.Context, tx storage.Tx, ba
 	for rows.Next() {
 		var recID int64
 		var key string
+		var kind int
 		var payload []byte
-		if err := rows.Scan(&recID, &key, &payload); err != nil {
+		if err := rows.Scan(&recID, &key, &kind, &payload); err != nil {
 			return nil, err
 		}
 		record := storage.OutboxMsg{
 			RecID: recID,
 			Key:   key,
+			Kind:  kind,
 			Msg:   payload,
 		}
 		records = append(records, record)

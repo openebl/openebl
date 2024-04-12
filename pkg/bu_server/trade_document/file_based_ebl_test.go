@@ -14,7 +14,9 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/trade_document"
 	"github.com/openebl/openebl/pkg/envelope"
+	"github.com/openebl/openebl/pkg/pkix"
 	"github.com/openebl/openebl/pkg/relay"
+	"github.com/openebl/openebl/pkg/relay/server"
 	"github.com/openebl/openebl/pkg/util"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
@@ -46,6 +48,7 @@ type FileBasedEBLTestSuite struct {
 	releaseAgent    model.BusinessUnit
 	releaseAuth     model.BusinessUnitAuthentication
 	releaseSigner   business_unit.JWSSigner
+	encryptors      []business_unit.JWEEncryptor
 
 	draftEbl                    storage.TradeDocument
 	shipperEbl                  storage.TradeDocument
@@ -58,6 +61,7 @@ type FileBasedEBLTestSuite struct {
 }
 
 const id = "316f5f2d-eb10-4563-a0d2-45858a57ad5e"
+const kind = int(relay.FileBasedBillOfLading)
 
 func TestFileBasedEBL(t *testing.T) {
 	suite.Run(t, new(FileBasedEBLTestSuite))
@@ -83,11 +87,18 @@ func (s *FileBasedEBLTestSuite) SetupSuite() {
 	s.accomplishedEbl = s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/release_agent_accomplished_ebl_jws.json")
 	s.consigneePrintedEbl = s.loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/consignee_printed_ebl_jws.json")
 
-	s.issuerSigner, _ = business_unit.DefaultJWSSignerFactory.NewJWSSigner(s.issuerAuth)
-	s.shipperSigner, _ = business_unit.DefaultJWSSignerFactory.NewJWSSigner(s.shipperAuth)
-	s.consigneeSigner, _ = business_unit.DefaultJWSSignerFactory.NewJWSSigner(s.consigneeAuth)
-	s.releaseSigner, _ = business_unit.DefaultJWSSignerFactory.NewJWSSigner(s.releaseAuth)
+	s.issuerSigner, _ = business_unit.DefaultJWTFactory.NewJWSSigner(s.issuerAuth)
+	s.shipperSigner, _ = business_unit.DefaultJWTFactory.NewJWSSigner(s.shipperAuth)
+	s.consigneeSigner, _ = business_unit.DefaultJWTFactory.NewJWSSigner(s.consigneeAuth)
+	s.releaseSigner, _ = business_unit.DefaultJWTFactory.NewJWSSigner(s.releaseAuth)
 
+	s.encryptors = func() []business_unit.JWEEncryptor {
+		issuer, _ := business_unit.DefaultJWTFactory.NewJWEEncryptor(s.issuerAuth)
+		shipper, _ := business_unit.DefaultJWTFactory.NewJWEEncryptor(s.shipperAuth)
+		consignee, _ := business_unit.DefaultJWTFactory.NewJWEEncryptor(s.consigneeAuth)
+		releaseAgent, _ := business_unit.DefaultJWTFactory.NewJWEEncryptor(s.releaseAuth)
+		return []business_unit.JWEEncryptor{issuer, shipper, consignee, releaseAgent}
+	}()
 }
 
 func (s *FileBasedEBLTestSuite) SetupTest() {
@@ -153,12 +164,69 @@ func (s *FileBasedEBLTestSuite) loadTradeDocument(fileName string) storage.Trade
 	}
 
 	result := storage.TradeDocument{
+		Kind:       kind,
 		DocID:      blPack.ID,
 		DocVersion: blPack.Version,
 		Doc:        raw,
 	}
 
 	return result
+}
+
+func (s *FileBasedEBLTestSuite) TestExtractBLPackFromEncryptedTradeDocument() {
+	type TestCase struct {
+		Name string
+		Doc  storage.TradeDocument
+	}
+
+	encryptedEBL := func(td storage.TradeDocument) storage.TradeDocument {
+		encryptedEBL := td
+		encryptedEBL.Kind = int(relay.EncryptedFileBasedBillOfLading)
+		encryptedEBL.DecryptedDoc, encryptedEBL.Doc = encryptedEBL.Doc, []byte("dont care")
+		return encryptedEBL
+	}
+
+	testCases := []TestCase{
+		{
+			Name: "Normal EBL",
+			Doc:  encryptedEBL(s.draftEbl),
+		},
+		{
+			Name: "Shipper EBL",
+			Doc:  encryptedEBL(s.shipperEbl),
+		},
+		{
+			Name: "Consignee EBL",
+			Doc:  encryptedEBL(s.consigneeEbl),
+		},
+		{
+			Name: "Release Agent EBL",
+			Doc:  encryptedEBL(s.releaseAgentEbl),
+		},
+		{
+			Name: "Issuer EBL Amendment Requested",
+			Doc:  encryptedEBL(s.issuerEblAmendmentRequested),
+		},
+		{
+			Name: "Issuer Returned EBL by Shipper",
+			Doc:  encryptedEBL(s.issuerReturnedEbl),
+		},
+		{
+			Name: "Accomplished EBL",
+			Doc:  encryptedEBL(s.accomplishedEbl),
+		},
+		{
+			Name: "Printed EBL",
+			Doc:  encryptedEBL(s.consigneePrintedEbl),
+		},
+	}
+
+	for _, tc := range testCases {
+		blPack, err := trade_document.ExtractBLPackFromTradeDocument(tc.Doc)
+		s.Require().NoError(err)
+		s.Assert().Equal(tc.Doc.DocID, blPack.ID, tc.Name)
+		s.Assert().Equal(tc.Doc.DocVersion, blPack.Version, tc.Name)
+	}
 }
 
 func (s *FileBasedEBLTestSuite) TestEBLAllowActions() {
@@ -310,6 +378,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 	var tdOnDB storage.TradeDocument
 	var receivedOutboxPayload []byte
 	var receivedOutboxKey string
+	var receivedOutboxKind int
 	gomock.InOrder(
 		s.buMgr.EXPECT().ListBusinessUnits(
 			gomock.Any(),
@@ -373,9 +442,10 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 				return nil
 			},
 		).Return(nil),
-		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Any(), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, kind int, payload []byte) error {
 				receivedOutboxKey = docID
+				receivedOutboxKind = kind
 				receivedOutboxPayload = payload
 				return nil
 			}),
@@ -415,6 +485,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 	s.Assert().NotEmpty(result.BL.ID)
 	s.Assert().Equal(util.StructToJSON(expectedBLPack), util.StructToJSON(result.BL))
 	s.Assert().EqualValues(tdOnDB.DocID, receivedOutboxKey)
+	s.Assert().EqualValues(tdOnDB.Kind, receivedOutboxKind)
 	s.Assert().EqualValues(tdOnDB.Doc, receivedOutboxPayload)
 }
 
@@ -610,8 +681,8 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBLToNonDraftEBL() {
 				return nil
 			},
 		),
-		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Eq(kind), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, kind int, payload []byte) error {
 				receivedOutboxPayload = payload
 				return nil
 			}),
@@ -944,8 +1015,8 @@ func (s *FileBasedEBLTestSuite) TestShipperTransferEBL() {
 				return nil
 			},
 		),
-		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Eq(kind), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, kind int, payload []byte) error {
 				receivedOutboxPayload = payload
 				return nil
 			}),
@@ -1033,8 +1104,8 @@ func (s *FileBasedEBLTestSuite) TestIssuerTransferEBL() {
 				return nil
 			},
 		),
-		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Eq(kind), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, kind int, payload []byte) error {
 				receivedOutboxPayload = payload
 				return nil
 			}),
@@ -1171,8 +1242,8 @@ func (s *FileBasedEBLTestSuite) TestAmendmentRequestEBL() {
 				return nil
 			},
 		),
-		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Eq(kind), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, kind int, payload []byte) error {
 				receivedOutboxPayload = payload
 				return nil
 			}),
@@ -1295,8 +1366,8 @@ func (s *FileBasedEBLTestSuite) TestReturn() {
 				return nil
 			},
 		),
-		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Eq(kind), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, kind int, payload []byte) error {
 				receivedOutboxPayload = payload
 				return nil
 			}),
@@ -1370,8 +1441,8 @@ func (s *FileBasedEBLTestSuite) TestReturnAmendmentRequest() {
 				return nil
 			},
 		),
-		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Eq(kind), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, kind int, payload []byte) error {
 				receivedOutboxPayload = payload
 				return nil
 			}),
@@ -1478,8 +1549,8 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL() {
 				return nil
 			},
 		),
-		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Eq(kind), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, kind int, payload []byte) error {
 				receivedOutboxPayload = payload
 				return nil
 			}),
@@ -1590,8 +1661,8 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL_FileNotChange() {
 				return nil
 			},
 		),
-		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Eq(kind), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, kind int, payload []byte) error {
 				receivedOutboxPayload = payload
 				return nil
 			}),
@@ -1698,8 +1769,8 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL_ReturnedByShipper() {
 				return nil
 			},
 		),
-		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Eq(kind), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, kind int, payload []byte) error {
 				receivedOutboxPayload = payload
 				return nil
 			}),
@@ -1778,8 +1849,8 @@ func (s *FileBasedEBLTestSuite) TestSurrender() {
 				return nil
 			},
 		),
-		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Eq(kind), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, kind int, payload []byte) error {
 				receivedOutboxPayload = payload
 				return nil
 			}),
@@ -1853,8 +1924,8 @@ func (s *FileBasedEBLTestSuite) TestPrintToPaper() {
 				return nil
 			},
 		),
-		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Eq(kind), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, kind int, payload []byte) error {
 				receivedOutboxPayload = payload
 				return nil
 			}),
@@ -1928,8 +1999,8 @@ func (s *FileBasedEBLTestSuite) TestAccomplishEBL() {
 				return nil
 			},
 		),
-		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, tx storage.Tx, ts int64, docID string, payload []byte) error {
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Eq(id), gomock.Eq(kind), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, kind int, payload []byte) error {
 				receivedOutboxPayload = payload
 				return nil
 			}),
@@ -2140,4 +2211,174 @@ func (s *FileBasedEBLTestSuite) TestGetEBLDocument() {
 	result, err := s.eblCtrl.GetDocument(s.ctx, req)
 	s.Require().NoError(err)
 	s.Assert().EqualValues(util.StructToJSON(expectedFile), util.StructToJSON(result))
+}
+
+func (s *FileBasedEBLTestSuite) TestCreateEncryptedEBL() {
+	ts := int64(1708676399)
+	eta, err := model.NewDateTimeFromString("2022-01-01T00:00:00Z")
+	s.Require().NoError(err)
+
+	req := trade_document.IssueFileBasedEBLRequest{
+		MetaData:         bill_of_lading.ApplicationMetaData{"requester": json.RawMessage(`"application user"`)},
+		Application:      "appid",
+		Issuer:           "did:openebl:issuer",
+		AuthenticationID: "bu_auth_id",
+		File: trade_document.File{
+			Name:    "test.txt",
+			Type:    "text/plain",
+			Content: []byte("test content"),
+		},
+		BLNumber:  "bl_number",
+		BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
+		ToOrder:   false,
+		POL: trade_document.Location{
+			LocationName: "Port of Loading",
+			UNLocCode:    "POL",
+		},
+		POD: trade_document.Location{
+			LocationName: "Port of Discharge",
+			UNLocCode:    "POD",
+		},
+		ETA:            &eta,
+		Shipper:        "did:openebl:shipper",
+		Consignee:      "did:openebl:consignee",
+		ReleaseAgent:   "did:openebl:release_agent",
+		Note:           "note",
+		Draft:          util.Ptr(false),
+		EncryptContent: true,
+	}
+
+	var tdOnDB storage.TradeDocument
+	var receivedOutboxPayload []byte
+	var receivedOutboxKey string
+	var receivedOutboxKind int
+	gomock.InOrder(
+		s.buMgr.EXPECT().ListBusinessUnits(
+			gomock.Any(),
+			storage.ListBusinessUnitsRequest{
+				Limit:           4,
+				ApplicationID:   "appid",
+				BusinessUnitIDs: []string{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"},
+			},
+		).Return(
+			storage.ListBusinessUnitsResult{
+				Total: 4,
+				Records: []storage.ListBusinessUnitsRecord{
+					{
+						BusinessUnit: model.BusinessUnit{
+							ID:            did.MustParseDID("did:openebl:issuer"),
+							Version:       1,
+							ApplicationID: "appid",
+							Status:        model.BusinessUnitStatusActive,
+						},
+					},
+					{
+						BusinessUnit: model.BusinessUnit{
+							ID:            did.MustParseDID("did:openebl:shipper"),
+							Version:       1,
+							ApplicationID: "appid",
+							Status:        model.BusinessUnitStatusActive,
+						},
+					},
+					{
+						BusinessUnit: model.BusinessUnit{
+							ID:            did.MustParseDID("did:openebl:consignee"),
+							Version:       1,
+							ApplicationID: "appid",
+							Status:        model.BusinessUnitStatusActive,
+						},
+					},
+					{
+						BusinessUnit: model.BusinessUnit{
+							ID:            did.MustParseDID("did:openebl:release_agent"),
+							Version:       1,
+							ApplicationID: "appid",
+							Status:        model.BusinessUnitStatusActive,
+						},
+					},
+				},
+			},
+			nil,
+		),
+		s.buMgr.EXPECT().GetJWSSigner(
+			gomock.Any(),
+			business_unit.GetJWSSignerRequest{
+				ApplicationID:    "appid",
+				BusinessUnitID:   did.MustParseDID("did:openebl:issuer"),
+				AuthenticationID: "bu_auth_id",
+			},
+		).Return(s.issuerSigner, nil),
+		s.buMgr.EXPECT().GetJWEEncryptors(
+			gomock.Any(),
+			business_unit.GetJWEEncryptorsRequest{
+				BusinessUnitIDs: []string{
+					"did:openebl:issuer",
+					"did:openebl:shipper",
+					"did:openebl:consignee",
+					"did:openebl:release_agent",
+				},
+			},
+		).Return(s.encryptors, nil),
+		s.tdStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+		s.tdStorage.EXPECT().AddTradeDocument(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, tdoc storage.TradeDocument) error {
+				tdOnDB = tdoc
+				return nil
+			},
+		).Return(nil),
+		s.tdStorage.EXPECT().AddTradeDocumentOutbox(gomock.Any(), s.tx, gomock.Eq(ts), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, docID string, kind int, payload []byte) error {
+				receivedOutboxKey = docID
+				receivedOutboxKind = kind
+				receivedOutboxPayload = payload
+				return nil
+			}),
+		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "appid", gomock.Any(), model.WebhookEventBLIssued).Return(nil),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	result, err := s.eblCtrl.Create(s.ctx, ts, req)
+	s.Require().NoError(err)
+	s.Assert().Equal(tdOnDB.DocID, result.BL.ID)
+	s.Assert().Equal(server.GetEventID(tdOnDB.Doc), tdOnDB.RawID)
+	s.Assert().EqualValues(relay.EncryptedFileBasedBillOfLading, tdOnDB.Kind)
+	s.Assert().EqualValues(tdOnDB.DocVersion, result.BL.Version)
+	s.Assert().EqualValues([]string{"did:openebl:issuer", "did:openebl:shipper", "did:openebl:consignee", "did:openebl:release_agent"}, tdOnDB.Meta["visible_to_bu"])
+	s.Assert().EqualValues([]string{"did:openebl:shipper"}, tdOnDB.Meta["action_needed"])
+	s.Assert().EqualValues([]string{"did:openebl:issuer"}, tdOnDB.Meta["sent"])
+	s.Assert().EqualValues([]string{"did:openebl:consignee", "did:openebl:release_agent"}, tdOnDB.Meta["upcoming"])
+	s.Assert().Empty(tdOnDB.Meta["archive"])
+
+	// Validate the content (encrypted) can be decrypted properly.
+	jwe := envelope.JWE{}
+	s.Require().NoError(json.Unmarshal(tdOnDB.Doc, &jwe))
+	privateKey, err := pkix.ParsePrivateKey([]byte(s.issuerAuth.PrivateKey))
+	s.Require().NoError(err)
+	decrypted, err := envelope.Decrypt(jwe, []any{privateKey})
+	s.Require().NoError(err)
+	s.Assert().Equal(tdOnDB.DecryptedDoc, decrypted)
+
+	// Validate if tdOnDB and result are the same except the file content of result is empty.
+	jws := envelope.JWS{}
+	s.Require().NoError(json.Unmarshal(tdOnDB.DecryptedDoc, &jws))
+	payload, err := jws.GetPayload()
+	s.Require().NoError(err)
+	blPackOnDB := bill_of_lading.BillOfLadingPack{}
+	s.Require().NoError(json.Unmarshal(payload, &blPackOnDB))
+
+	s.Assert().Empty(result.BL.Events[0].BillOfLading.File.Content)
+	result.BL.Events[0].BillOfLading.File.Content = blPackOnDB.Events[0].BillOfLading.File.Content
+	s.Assert().Equal(util.StructToJSON(result.BL), util.StructToJSON(blPackOnDB))
+
+	// Validate the content of result (BillOfLadingPack).
+	expectedBLPackJson := `{"id":"316f5f2d-eb10-4563-a0d2-45858a57ad5e","version":1,"parent_hash":"","events":[{"bill_of_lading":{"bill_of_lading":{"transportDocumentReference":"bl_number","carrierCode":"","carrierCodeListProvider":"","issuingParty":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:issuer"}]},"shipmentLocations":[{"location":{"locationName":"Port of Loading","address":null,"UNLocationCode":"POL","facilityCode":"","facilityCodeListProvider":""},"shipmentLocationTypeCode":"POL"},{"location":{"locationName":"Port of Discharge","address":null,"UNLocationCode":"POD","facilityCode":"","facilityCodeListProvider":""},"shipmentLocationTypeCode":"POD","eventDateTime":"2022-01-01T00:00:00Z"}],"shippingInstruction":{"shippingInstructionReference":"","documentStatus":"ISSU","transportDocumentTypeCode":"","consignmentItems":null,"utilizedTransportEquipments":null,"documentParties":[{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:issuer"}]},"partyFunction":"DDR","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:shipper"}]},"partyFunction":"OS","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:consignee"}]},"partyFunction":"CN","isToBeNotified":false},{"party":{"partyContactDetails":null,"identifyingCodes":[{"DCSAResponsibleAgencyCode":"DID","partyCode":"did:openebl:release_agent"}]},"partyFunction":"DDS","isToBeNotified":false}]}},"file":{"name":"test.txt","file_type":"text/plain","content":"dGVzdCBjb250ZW50","created_date":"2024-02-23T08:19:59Z"},"doc_type":"HouseBillOfLading","created_by":"did:openebl:issuer","created_at":"2024-02-23T08:19:59Z","note":"note", "metadata":{"requester":"application user"}}},{"transfer":{"transfer_by":"did:openebl:issuer","transfer_to":"did:openebl:shipper","transfer_at":"2024-02-23T08:19:59Z","metadata":{"requester":"application user"}}}],"current_owner":"did:openebl:shipper"}`
+	expectedBLPack := bill_of_lading.BillOfLadingPack{}
+	json.Unmarshal([]byte(expectedBLPackJson), &expectedBLPack)
+	expectedBLPack.ID = result.BL.ID
+	s.Assert().NotEmpty(result.BL.ID)
+	s.Assert().Equal(util.StructToJSON(expectedBLPack), util.StructToJSON(result.BL))
+	s.Assert().EqualValues(tdOnDB.DocID, receivedOutboxKey)
+	s.Assert().EqualValues(tdOnDB.Kind, receivedOutboxKind)
+	s.Assert().EqualValues(tdOnDB.Doc, receivedOutboxPayload)
 }

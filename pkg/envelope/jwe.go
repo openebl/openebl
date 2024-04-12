@@ -1,10 +1,13 @@
 package envelope
 
 import (
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"encoding/json"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwe"
+	"github.com/samber/lo"
 )
 
 type KeyEncryptionSetting struct {
@@ -33,15 +36,28 @@ func Encrypt(payload []byte, enc ContentEncryptionAlgorithm, keySettings []KeyEn
 }
 
 func Decrypt(in JWE, keys []any) ([]byte, error) {
-	options := make([]jwe.DecryptOption, 0, len(keys)*(len(in.Recipients)+1))
+	encryptionAlgorithms := lo.Uniq(
+		lo.Map(in.Recipients, func(i JWERecipient, _ int) jwa.KeyEncryptionAlgorithm {
+			return jwa.KeyEncryptionAlgorithm(i.Header.Alg)
+		}),
+	)
+	if len(encryptionAlgorithms) == 0 {
+		encryptionAlgorithms = append(encryptionAlgorithms, jwa.KeyEncryptionAlgorithm(in.Header.Alg))
+	}
 
-	// TODO: Generate WithKey options based on the compatibility between the keys and the key encryption algorithm.
+	options := make([]jwe.DecryptOption, 0, len(keys)*len(encryptionAlgorithms))
 	for _, key := range keys {
-		for _, r := range in.Recipients {
-			options = append(options, jwe.WithKey(jwa.KeyEncryptionAlgorithm(r.Header.Alg), key))
-		}
-		if len(in.Recipients) == 0 {
-			options = append(options, jwe.WithKey(jwa.KeyEncryptionAlgorithm(in.Header.Alg), key))
+		for _, alg := range encryptionAlgorithms {
+			switch alg {
+			case jwa.ECDH_ES_A128KW, jwa.ECDH_ES_A192KW, jwa.ECDH_ES_A256KW:
+				if _, ok := key.(*ecdsa.PrivateKey); ok {
+					options = append(options, jwe.WithKey(alg, key))
+				}
+			case jwa.RSA1_5, jwa.RSA_OAEP, jwa.RSA_OAEP_256:
+				if _, ok := key.(*rsa.PrivateKey); ok {
+					options = append(options, jwe.WithKey(alg, key))
+				}
+			}
 		}
 	}
 

@@ -37,7 +37,7 @@ func TimeTrace(next http.Handler) http.Handler {
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, span := otlp_util.Start(r.Context(), "bu_server/middleware/TimeTrace")
+		ctx, span := otlp_util.Start(r.Context(), "bu_server/middleware/TimeTrace")
 		defer span.End()
 
 		clientIP := r.RemoteAddr
@@ -60,7 +60,7 @@ func TimeTrace(next http.Handler) http.Handler {
 
 		start := time.Now()
 		rw := NewResponseWriter(w)
-		next.ServeHTTP(rw, r)
+		next.ServeHTTP(rw, r.WithContext(ctx))
 		elapsed := time.Since(start).Milliseconds()
 
 		statusCode := rw.Status()

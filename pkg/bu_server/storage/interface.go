@@ -194,6 +194,7 @@ type OffsetStorage interface {
 
 type TradeDocumentInboxStorage interface {
 	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
+	ListAuthentication(ctx context.Context, tx Tx, req ListAuthenticationRequest) (ListAuthenticationResult, error)
 	AddTradeDocument(ctx context.Context, tx Tx, tradeDoc TradeDocument) error
 	GetRelayServerOffset(ctx context.Context, tx Tx, serverID string) (int64, error)
 	UpdateRelayServerOffset(ctx context.Context, tx Tx, serverID string, offset int64) error

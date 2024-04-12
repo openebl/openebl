@@ -2,6 +2,8 @@ package broker_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -11,11 +13,14 @@ import (
 	_ "unsafe"
 
 	"github.com/golang/mock/gomock"
+	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/openebl/openebl/pkg/bu_server/broker"
+	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/trade_document"
 	"github.com/openebl/openebl/pkg/envelope"
+	"github.com/openebl/openebl/pkg/pkix"
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/relay/server"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
@@ -78,7 +83,7 @@ func (s *BrokerTestSuite) TestBrokerConnectionStatusCallback() {
 	connectionStatusCallback(b, s.ctx, nil, s.relayClient, "serverIdentity", true)
 }
 
-func (s *BrokerTestSuite) TestBrokerEventSink() {
+func (s *BrokerTestSuite) TestBrokerEventSinkPlain() {
 	receivedTD := storage.TradeDocument{}
 	gomock.InOrder(
 		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
@@ -111,6 +116,83 @@ func (s *BrokerTestSuite) TestBrokerEventSink() {
 		Offset:    101,
 		Type:      int(relay.FileBasedBillOfLading),
 		Data:      td.Doc,
+	}
+	_, err = eventSink(b, s.ctx, event)
+	s.Require().NoError(err)
+
+	s.Assert().True(receivedTD.CreatedAt > 0 && receivedTD.CreatedAt <= time.Now().Unix())
+	td.CreatedAt = receivedTD.CreatedAt
+	s.Assert().EqualValues(td, receivedTD)
+}
+
+func (s *BrokerTestSuite) TestBrokerEventSinkEncrypted() {
+	aliceCred := loadPrivateKey("../../../credential/alice_ecc.pem")
+	aliceAuth, _ := pkix.MarshalPrivateKey(aliceCred)
+	clairCred := loadPrivateKey("../../../credential/claire_rsa.pem")
+	clairAuth, _ := pkix.MarshalPrivateKey(clairCred)
+	listAuthenticationRequest := storage.ListAuthenticationRequest{Limit: 100}
+	listAuthenticationResult := storage.ListAuthenticationResult{
+		Total: 2,
+		Records: []model.BusinessUnitAuthentication{
+			{PrivateKey: aliceAuth},
+			{PrivateKey: clairAuth},
+		},
+	}
+	receivedTD := storage.TradeDocument{}
+	gomock.InOrder(
+		s.inboxStorage.EXPECT().CreateTx(gomock.Any()).Return(s.tx, s.ctx, nil),
+		s.inboxStorage.EXPECT().ListAuthentication(gomock.Any(), s.tx, listAuthenticationRequest).Return(listAuthenticationResult, nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+
+		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+		s.inboxStorage.EXPECT().AddTradeDocument(gomock.Any(), s.tx, gomock.Any()).
+			DoAndReturn(func(ctx context.Context, tx storage.Tx, tradeDoc storage.TradeDocument) error {
+				receivedTD = tradeDoc
+				return nil
+			}),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+
+		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+		s.inboxStorage.EXPECT().UpdateRelayServerOffset(gomock.Any(), s.tx, "", int64(101)).Return(nil),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	config := broker.Config{}
+	b, err := broker.NewFromConfig(
+		config,
+		broker.WithRelayClient(s.relayClient),
+		broker.WithInboxStore(s.inboxStorage),
+		broker.WithOutboxStore(s.outboxStorage),
+	)
+	s.Require().NoError(err)
+
+	td := loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_issued_ebl_jws.json")
+	result, err := envelope.Encrypt(
+		td.Doc,
+		envelope.ContentEncryptionAlgorithm(jwa.A256GCM),
+		[]envelope.KeyEncryptionSetting{
+			{
+				PublicKey: &aliceCred.(*ecdsa.PrivateKey).PublicKey,
+				Algorithm: envelope.KeyEncryptionAlgorithm(jwa.ECDH_ES_A256KW),
+			},
+			{
+				PublicKey: &clairCred.(*rsa.PrivateKey).PublicKey,
+				Algorithm: envelope.KeyEncryptionAlgorithm(jwa.RSA_OAEP_256),
+			},
+		},
+	)
+	s.Require().NoError(err)
+	encrypted, err := json.Marshal(result)
+	s.T().Logf("Encrypted: %s", encrypted)
+	s.Require().NoError(err)
+
+	event := relay.Event{
+		Timestamp: 1234567890,
+		Offset:    101,
+		Type:      int(relay.EncryptedFileBasedBillOfLading),
+		Data:      encrypted,
 	}
 	_, err = eventSink(b, s.ctx, event)
 	s.Require().NoError(err)
@@ -205,4 +287,17 @@ func loadTradeDocument(datafile string) storage.TradeDocument {
 		CreatedAt:    1234567890,
 		Meta:         meta,
 	}
+}
+
+func loadPrivateKey(datafile string) any {
+	_, file, _, _ := runtime.Caller(1)
+	content, err := os.ReadFile(filepath.Clean(filepath.Join(filepath.Dir(file), datafile)))
+	if err != nil {
+		panic(err)
+	}
+	key, err := pkix.ParsePrivateKey(content)
+	if err != nil {
+		panic(err)
+	}
+	return key
 }

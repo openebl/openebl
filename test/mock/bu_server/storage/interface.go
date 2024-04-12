@@ -783,6 +783,21 @@ func (mr *MockTradeDocumentInboxStorageMockRecorder) GetRelayServerOffset(ctx, t
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRelayServerOffset", reflect.TypeOf((*MockTradeDocumentInboxStorage)(nil).GetRelayServerOffset), ctx, tx, serverID)
 }
 
+// ListAuthentication mocks base method.
+func (m *MockTradeDocumentInboxStorage) ListAuthentication(ctx context.Context, tx storage.Tx, req storage.ListAuthenticationRequest) (storage.ListAuthenticationResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListAuthentication", ctx, tx, req)
+	ret0, _ := ret[0].(storage.ListAuthenticationResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListAuthentication indicates an expected call of ListAuthentication.
+func (mr *MockTradeDocumentInboxStorageMockRecorder) ListAuthentication(ctx, tx, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAuthentication", reflect.TypeOf((*MockTradeDocumentInboxStorage)(nil).ListAuthentication), ctx, tx, req)
+}
+
 // UpdateRelayServerOffset mocks base method.
 func (m *MockTradeDocumentInboxStorage) UpdateRelayServerOffset(ctx context.Context, tx storage.Tx, serverID string, offset int64) error {
 	m.ctrl.T.Helper()

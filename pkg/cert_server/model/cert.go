@@ -44,3 +44,12 @@ type Cert struct {
 	CertFingerPrint           string `json:"cert_fingerprint"`            // Fingerprint of the leaf certificate. The format is [HASH_ALGORITHM]:[FINGERPRINT_HEX_ENCODED].
 	RejectReason              string `json:"reject_reason"`               // Reason for rejecting the certificate signing request.
 }
+
+type CertRevocationList struct {
+	ID          string `json:"id"`            // Unique ID of the CRL.
+	IssuerKeyID string `json:"issuer_key_id"` // Issuer public key ID.
+	Number      string `json:"number"`        // CRL number.
+	CreatedAt   int64  `json:"created_at"`    // Unix Time (in second) when the CRL was created.
+	CreatedBy   string `json:"created_by"`    // User who created the CRL.
+	CRL         string `json:"crl"`           // PEM encoded CRL.
+}

@@ -64,9 +64,13 @@ func TxOptionWithIsolationLevel(level sql.IsolationLevel) CreateTxOption {
 
 type CertStorage interface {
 	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
+
 	AddCertificate(ctx context.Context, tx Tx, cert model.Cert) error
 	ListCertificates(ctx context.Context, tx Tx, req ListCertificatesRequest) (ListCertificatesResponse, error)
+
+	AddCertificateRevocationList(ctx context.Context, tx Tx, crl model.CertRevocationList) error
 }
+
 type ListCertificatesRequest struct {
 	Offset int `json:"offset"` // Offset of the list.
 	Limit  int `json:"limit"`  // Limit of the list.

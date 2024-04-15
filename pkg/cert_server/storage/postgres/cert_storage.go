@@ -96,3 +96,23 @@ SELECT total, "cert" FROM paged FULL JOIN total ON FALSE
 
 	return result, nil
 }
+
+func (s *_Storage) AddCertificateRevocationList(ctx context.Context, tx storage.Tx, crl model.CertRevocationList) error {
+	query := `
+INSERT INTO cert_revocation_list (id, issuer_key_id, number, created_at, cert_revocation_list)
+VALUES ($1, $2, $3, $4, $5)
+`
+	_, err := tx.Exec(
+		ctx,
+		query,
+		crl.ID,
+		crl.IssuerKeyID,
+		crl.Number,
+		crl.CreatedAt,
+		crl,
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -34,6 +34,8 @@ type CertAuthority interface {
 	// The certificate will be used in issuing certificates for business units or immediate CAs.
 	RespondCACertificateSigningRequest(ctx context.Context, ts int64, req RespondCACertificateSigningRequestRequest) (model.Cert, error)
 
+	RevokeCACertificate(ctx context.Context, ts int64, req RevokeCACertificateRequest) (model.Cert, error)
+
 	// Certificate Signing Request (CSR) operations.
 	AddCertificateSigningRequest(ctx context.Context, ts int64, req AddCertificateSigningRequestRequest) (model.Cert, error)
 	IssueCertificate(ctx context.Context, ts int64, req IssueCertificateRequest) (model.Cert, error)
@@ -66,6 +68,12 @@ type RespondCACertificateSigningRequestRequest struct {
 	Requester string `json:"requester"` // Who makes the request.
 	CertID    string `json:"cert_id"`   // ID of the certificate to be responded.
 	Cert      string `json:"cert"`      // PEM encoded certificate. It may contains multiple certificates. The first certificate is the leaf certificate. Others are intermediate certificates.
+}
+
+type RevokeCACertificateRequest struct {
+	Requester string `json:"requester"` // Who makes the request.
+	CertID    string `json:"cert_id"`   // ID of the certificate to be revoked.
+	CRL       string `json:"crl"`       // PEM encoded CRL.
 }
 
 type AddCertificateSigningRequestRequest struct {
@@ -313,6 +321,74 @@ func (ca *_CertAuthority) RespondCACertificateSigningRequest(ctx context.Context
 
 	newCert.PrivateKey = "" // Do not return the private key.
 	return newCert, nil
+}
+
+func (ca *_CertAuthority) RevokeCACertificate(ctx context.Context, ts int64, req RevokeCACertificateRequest) (model.Cert, error) {
+	if err := ValidateRevokeCACertificateRequest(req); err != nil {
+		return model.Cert{}, err
+	}
+
+	crl, err := eblpkix.ParseCertificateRevocationList([]byte(req.CRL))
+	if err != nil {
+		return model.Cert{}, fmt.Errorf("failed to parse CRL: %s%w", err.Error(), model.ErrInvalidParameter)
+	}
+
+	tx, ctx, err := ca.certStorage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return model.Cert{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	cert, err := ca.getCert(ctx, tx, req.CertID, []model.CertType{model.CACert})
+	if err != nil {
+		return model.Cert{}, err
+	}
+
+	if cert.Status != model.CertStatusActive {
+		return model.Cert{}, fmt.Errorf("certificate %s is not active%w", req.CertID, model.ErrWrongStatus)
+	}
+
+	cert.Status = model.CertStatusRevoked
+	cert.Version += 1
+	cert.RevokedAt = ts
+	cert.RevokedBy = req.Requester
+
+	if eblpkix.GetAuthorityKeyIDFromCertificateRevocationList(crl) != cert.IssuerKeyID {
+		return model.Cert{}, fmt.Errorf("CRL AuthorityKeyId is not matched with the certificate %w", model.ErrInvalidParameter)
+	}
+	isCertInCRL := false
+	for _, entry := range crl.RevokedCertificateEntries {
+		if entry.SerialNumber == nil || entry.SerialNumber.String() != cert.CertificateSerialNumber {
+			continue
+		}
+		isCertInCRL = true
+		break
+	}
+	if !isCertInCRL {
+		return model.Cert{}, fmt.Errorf("certificate %s is not in the CRL %w", req.CertID, model.ErrInvalidParameter)
+	}
+
+	certRevocationList := model.CertRevocationList{
+		ID:          uuid.NewString(),
+		IssuerKeyID: eblpkix.GetAuthorityKeyIDFromCertificateRevocationList(crl),
+		Number:      crl.Number.String(),
+		CreatedAt:   ts,
+		CreatedBy:   req.Requester,
+		CRL:         req.CRL,
+	}
+
+	if err := ca.certStorage.AddCertificate(ctx, tx, cert); err != nil {
+		return model.Cert{}, err
+	}
+	if err := ca.certStorage.AddCertificateRevocationList(ctx, tx, certRevocationList); err != nil {
+		return model.Cert{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return model.Cert{}, err
+	}
+
+	cert.PrivateKey = "" // Do not return the private key.
+	return cert, nil
 }
 
 func (ca *_CertAuthority) AddCertificateSigningRequest(ctx context.Context, ts int64, req AddCertificateSigningRequestRequest) (model.Cert, error) {

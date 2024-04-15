@@ -142,6 +142,21 @@ func (mr *MockCertAuthorityMockRecorder) RespondCACertificateSigningRequest(ctx,
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RespondCACertificateSigningRequest", reflect.TypeOf((*MockCertAuthority)(nil).RespondCACertificateSigningRequest), ctx, ts, req)
 }
 
+// RevokeCACertificate mocks base method.
+func (m *MockCertAuthority) RevokeCACertificate(ctx context.Context, ts int64, req cert_authority.RevokeCACertificateRequest) (model.Cert, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RevokeCACertificate", ctx, ts, req)
+	ret0, _ := ret[0].(model.Cert)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RevokeCACertificate indicates an expected call of RevokeCACertificate.
+func (mr *MockCertAuthorityMockRecorder) RevokeCACertificate(ctx, ts, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeCACertificate", reflect.TypeOf((*MockCertAuthority)(nil).RevokeCACertificate), ctx, ts, req)
+}
+
 // RevokeRootCertificate mocks base method.
 func (m *MockCertAuthority) RevokeRootCertificate(ctx context.Context, ts int64, req cert_authority.RevokeCertificateRequest) (model.Cert, error) {
 	m.ctrl.T.Helper()

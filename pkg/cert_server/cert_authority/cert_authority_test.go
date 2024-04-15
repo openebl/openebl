@@ -104,15 +104,17 @@ func (s *CertAuthorityTestSuite) TestAddRootCertificate() {
 	}
 
 	expectedCert := model.Cert{
-		Version:         1,
-		Type:            model.RootCert,
-		Status:          model.CertStatusActive,
-		NotBefore:       1711953471,
-		NotAfter:        4867627071,
-		CreatedAt:       ts,
-		CreatedBy:       "test",
-		Certificate:     string(rootCert),
-		CertFingerPrint: "sha1:eec87a02f48e6a6654886d74e64619c97850110d",
+		Version:                 1,
+		Type:                    model.RootCert,
+		Status:                  model.CertStatusActive,
+		NotBefore:               1711953471,
+		NotAfter:                4867627071,
+		CreatedAt:               ts,
+		CreatedBy:               "test",
+		PublicKeyID:             "13166e296631defe531d0b57648e9a54d2c2dab1",
+		Certificate:             string(rootCert),
+		CertFingerPrint:         "sha1:eec87a02f48e6a6654886d74e64619c97850110d",
+		CertificateSerialNumber: "1",
 	}
 
 	var receivedCert model.Cert
@@ -319,8 +321,11 @@ func (s *CertAuthorityTestSuite) TestRespondCACertificateSigningRequest() {
 	expectedCert.Status = model.CertStatusActive
 	expectedCert.IssuedAt = ts
 	expectedCert.IssuedBy = "admin"
+	expectedCert.PublicKeyID = "f26941eb9d1623ea39111102cca949acac883ddf"
+	expectedCert.IssuerKeyID = "13166e296631defe531d0b57648e9a54d2c2dab1"
 	expectedCert.Certificate = string(caCert)
 	expectedCert.CertFingerPrint = "sha1:4f5e1200492e23d85b77f73d67133fe64298948a"
+	expectedCert.CertificateSerialNumber = "647840420638654771235247765924303228213807950539"
 	expectedCert.NotBefore = 1711960293
 	expectedCert.NotAfter = 4865560293
 
@@ -467,6 +472,9 @@ func (s *CertAuthorityTestSuite) TestIssueCertificate() {
 		expectedCert.IssuedBy = req.Requester
 		expectedCert.NotBefore = req.NotBefore
 		expectedCert.NotAfter = req.NotAfter
+		expectedCert.PublicKeyID = "33b967c63a01cd744fc8f815b1aad7a3f51bc3af"
+		expectedCert.IssuerKeyID = "f26941eb9d1623ea39111102cca949acac883ddf"
+		expectedCert.CertificateSerialNumber = "1"
 
 		var receivedCert model.Cert
 		gomock.InOrder(

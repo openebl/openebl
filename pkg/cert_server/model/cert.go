@@ -36,7 +36,10 @@ type Cert struct {
 	RejectedBy string `json:"rejected_by"` // User who rejected the certificate.
 
 	PrivateKey                string `json:"private_key"`                 // PEM encoded private key.
+	PublicKeyID               string `json:"public_key_id"`               // Certificate Public key ID.
+	IssuerKeyID               string `json:"issuer_key_id"`               // Issuer public key ID.
 	Certificate               string `json:"certificate"`                 // PEM encoded certificate. It may contains multiple certificates. The first certificate is the leaf certificate. Others are intermediate certificates.
+	CertificateSerialNumber   string `json:"certificate_serial_number"`   // Serial number of the certificate.
 	CertificateSigningRequest string `json:"certificate_signing_request"` // PEM encoded certificate signing request (CSR).
 	CertFingerPrint           string `json:"cert_fingerprint"`            // Fingerprint of the leaf certificate. The format is [HASH_ALGORITHM]:[FINGERPRINT_HEX_ENCODED].
 	RejectReason              string `json:"reject_reason"`               // Reason for rejecting the certificate signing request.

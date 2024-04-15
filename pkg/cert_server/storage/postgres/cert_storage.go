@@ -10,8 +10,8 @@ import (
 func (s *_Storage) AddCertificate(ctx context.Context, tx storage.Tx, cert model.Cert) error {
 	query := `
 WITH ins AS (
-	INSERT INTO cert (id, version, type, status, created_at, updated_at, cert)
-	VALUES ($1, $2, $3, $4, $5, $5, $6)
+	INSERT INTO cert (id, version, type, status, created_at, updated_at, cert, cert_fingerprint, cert_public_key_id, cert_issuer_key_id, cert_serial)
+	VALUES ($1, $2, $3, $4, $5, $5, $6, $7, $8, $9, $10)
 	ON CONFLICT (id) DO UPDATE SET
 		version = excluded.version,
 		type = excluded.type,
@@ -32,6 +32,10 @@ SELECT * FROM ins
 		cert.Status,
 		max(cert.CreatedAt, cert.RejectedAt, cert.IssuedAt, cert.RevokedAt),
 		cert,
+		cert.CertFingerPrint,
+		cert.PublicKeyID,
+		cert.IssuerKeyID,
+		cert.CertificateSerialNumber,
 	)
 	if err != nil {
 		return err

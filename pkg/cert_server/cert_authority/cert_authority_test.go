@@ -377,13 +377,22 @@ func (s *CertAuthorityTestSuite) TestRevokeCACertificate() {
 	ts := time.Now().Unix()
 	requester := "admin"
 
-	rootCert, err := os.ReadFile("../../../testdata/cert_server/cert_authority/root_cert.crt")
+	rootCertRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/root_cert.crt")
 	s.Require().NoError(err)
-	// rootPrivKey, err := os.ReadFile("../../../testdata/cert_server/cert_authority/root_cert.pem")
+	rootCert, err := eblpkix.ParseCertificate(rootCertRaw)
+	s.Require().NoError(err)
+	rootCertObj := model.Cert{
+		ID:          "root_cert_id",
+		Version:     1,
+		Type:        model.RootCert,
+		Status:      model.CertStatusActive,
+		Certificate: string(rootCertRaw),
+		PublicKeyID: eblpkix.GetSubjectKeyIDFromCertificate(rootCert[0]),
+	}
 
 	caCertRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/ca_cert.crt")
 	s.Require().NoError(err)
-	caCertRaw = append(caCertRaw, rootCert...)
+	caCertRaw = append(caCertRaw, rootCertRaw...)
 	crlRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/ca_cert.crl")
 	s.Require().NoError(err)
 	crl, err := eblpkix.ParseCertificateRevocationList(crlRaw)
@@ -424,6 +433,20 @@ func (s *CertAuthorityTestSuite) TestRevokeCACertificate() {
 	var receivedCRL model.CertRevocationList
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+		s.storage.EXPECT().ListCertificates(
+			gomock.Any(),
+			s.tx,
+			storage.ListCertificatesRequest{
+				Limit:        1,
+				PublicKeyIDs: []string{rootCertObj.PublicKeyID},
+			},
+		).Return(
+			storage.ListCertificatesResponse{
+				Total: 1,
+				Certs: []model.Cert{rootCertObj},
+			},
+			nil,
+		),
 		s.storage.EXPECT().ListCertificates(
 			gomock.Any(),
 			s.tx,

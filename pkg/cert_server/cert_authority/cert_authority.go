@@ -332,12 +332,30 @@ func (ca *_CertAuthority) RevokeCACertificate(ctx context.Context, ts int64, req
 	if err != nil {
 		return model.Cert{}, fmt.Errorf("failed to parse CRL: %s%w", err.Error(), model.ErrInvalidParameter)
 	}
+	crlAuthorityKeyId := eblpkix.GetAuthorityKeyIDFromCertificateRevocationList(crl)
 
 	tx, ctx, err := ca.certStorage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	if err != nil {
 		return model.Cert{}, err
 	}
 	defer tx.Rollback(ctx)
+
+	issuerCert, err := ca.getCertByPublicKeyID(ctx, tx, crlAuthorityKeyId)
+	if errors.Is(err, model.ErrCertNotFound) {
+		return model.Cert{}, fmt.Errorf("issuer certificate of CRL is not found %w", model.ErrInvalidParameter)
+	} else if err != nil {
+		return model.Cert{}, err
+	}
+	xIssuerCerts, err := eblpkix.ParseCertificate([]byte(issuerCert.Certificate))
+	if err != nil {
+		return model.Cert{}, err
+	}
+	if len(xIssuerCerts) == 0 {
+		return model.Cert{}, errors.New("issuer certificate of CRL is empty")
+	}
+	if err := crl.CheckSignatureFrom(xIssuerCerts[0]); err != nil {
+		return model.Cert{}, fmt.Errorf("CRL signature is not matched with the issuer certificate %w", model.ErrInvalidParameter)
+	}
 
 	cert, err := ca.getCert(ctx, tx, req.CertID, []model.CertType{model.CACert})
 	if err != nil {
@@ -347,13 +365,7 @@ func (ca *_CertAuthority) RevokeCACertificate(ctx context.Context, ts int64, req
 	if cert.Status != model.CertStatusActive {
 		return model.Cert{}, fmt.Errorf("certificate %s is not active%w", req.CertID, model.ErrWrongStatus)
 	}
-
-	cert.Status = model.CertStatusRevoked
-	cert.Version += 1
-	cert.RevokedAt = ts
-	cert.RevokedBy = req.Requester
-
-	if eblpkix.GetAuthorityKeyIDFromCertificateRevocationList(crl) != cert.IssuerKeyID {
+	if crlAuthorityKeyId != cert.IssuerKeyID {
 		return model.Cert{}, fmt.Errorf("CRL AuthorityKeyId is not matched with the certificate %w", model.ErrInvalidParameter)
 	}
 	isCertInCRL := false
@@ -367,6 +379,11 @@ func (ca *_CertAuthority) RevokeCACertificate(ctx context.Context, ts int64, req
 	if !isCertInCRL {
 		return model.Cert{}, fmt.Errorf("certificate %s is not in the CRL %w", req.CertID, model.ErrInvalidParameter)
 	}
+
+	cert.Status = model.CertStatusRevoked
+	cert.Version += 1
+	cert.RevokedAt = ts
+	cert.RevokedBy = req.Requester
 
 	certRevocationList := model.CertRevocationList{
 		ID:          uuid.NewString(),
@@ -584,6 +601,22 @@ func (ca *_CertAuthority) getCert(ctx context.Context, tx storage.Tx, certID str
 		return model.Cert{}, model.ErrCertNotFound
 	}
 
+	return resp.Certs[0], nil
+}
+
+func (ca *_CertAuthority) getCertByPublicKeyID(ctx context.Context, tx storage.Tx, publicKeyID string) (model.Cert, error) {
+	req := storage.ListCertificatesRequest{
+		PublicKeyIDs: []string{publicKeyID},
+		Limit:        1,
+	}
+
+	resp, err := ca.certStorage.ListCertificates(ctx, tx, req)
+	if err != nil {
+		return model.Cert{}, err
+	}
+	if len(resp.Certs) == 0 {
+		return model.Cert{}, model.ErrCertNotFound
+	}
 	return resp.Certs[0], nil
 }
 

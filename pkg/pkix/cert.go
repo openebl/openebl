@@ -295,7 +295,7 @@ func GetAuthorityKeyIDFromCertificateRevocationList(crl *x509.RevocationList) st
 	var keyId authKeyId
 	_, err := asn1.Unmarshal(crl.AuthorityKeyId, &keyId)
 	if err != nil {
-		return ""
+		return hex.EncodeToString(crl.AuthorityKeyId)
 	}
 	return hex.EncodeToString(keyId.Id)
 }

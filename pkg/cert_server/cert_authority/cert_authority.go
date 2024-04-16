@@ -33,13 +33,14 @@ type CertAuthority interface {
 	// RespondCACertificateSigningRequest responds to a CSR for the CA certificate of the cert server. The response is the CA certificate.
 	// The certificate will be used in issuing certificates for business units or immediate CAs.
 	RespondCACertificateSigningRequest(ctx context.Context, ts int64, req RespondCACertificateSigningRequestRequest) (model.Cert, error)
-
+	// RevokeCACertificate revokes a CA certificate with a CRL signed with the issuer's private key and certificate.
 	RevokeCACertificate(ctx context.Context, ts int64, req RevokeCACertificateRequest) (model.Cert, error)
 
 	// Certificate Signing Request (CSR) operations.
 	AddCertificateSigningRequest(ctx context.Context, ts int64, req AddCertificateSigningRequestRequest) (model.Cert, error)
 	IssueCertificate(ctx context.Context, ts int64, req IssueCertificateRequest) (model.Cert, error)
 	RejectCertificateSigningRequest(ctx context.Context, ts int64, req RejectCertificateSigningRequestRequest) (model.Cert, error)
+	RevokeCertificate(ctx context.Context, ts int64, req RevokeCertificateRequest) (model.Cert, error)
 }
 
 type AddRootCertificateRequest struct {
@@ -582,6 +583,98 @@ func (ca *_CertAuthority) RejectCertificateSigningRequest(ctx context.Context, t
 	}
 
 	cert.PrivateKey = "" // Do not return the private key.
+	return cert, nil
+}
+
+func (ca *_CertAuthority) RevokeCertificate(ctx context.Context, ts int64, req RevokeCertificateRequest) (model.Cert, error) {
+	if err := ValidateRevokeCertificateRequest(req); err != nil {
+		return model.Cert{}, err
+	}
+
+	tx, ctx, err := ca.certStorage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return model.Cert{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	cert, err := ca.getCert(ctx, tx, req.CertID, []model.CertType{model.ThirdPartyCACert, model.BUCert})
+	if err != nil {
+		return model.Cert{}, err
+	}
+	if cert.Status == model.CertStatusRevoked {
+		return model.Cert{}, fmt.Errorf("certificate %s is already revoked %w", req.CertID, model.ErrWrongStatus)
+	}
+	if cert.IssuerKeyID == "" {
+		return model.Cert{}, fmt.Errorf("issuer key ID of certificate %s is empty", req.CertID)
+	}
+
+	certSerialNumber := &big.Int{}
+	if _, ok := certSerialNumber.SetString(cert.CertificateSerialNumber, 10); !ok {
+		return model.Cert{}, fmt.Errorf("invalid serial number of certificate %s", cert.ID)
+	}
+
+	caCert, err := ca.getCertByPublicKeyID(ctx, tx, cert.IssuerKeyID)
+	if errors.Is(err, model.ErrCertNotFound) {
+		return model.Cert{}, fmt.Errorf("issuer certificate of certificate %s is not found", req.CertID)
+	} else if err != nil {
+		return model.Cert{}, err
+	}
+	if caCert.Type != model.CACert {
+		return model.Cert{}, fmt.Errorf("issuer certificate of certificate %s is not a CA certificate", req.CertID)
+	}
+	caCertPrivKey, err := eblpkix.ParsePrivateKey([]byte(caCert.PrivateKey))
+	if err != nil {
+		return model.Cert{}, fmt.Errorf("CA certificate has invalid private key: %w", err)
+	}
+	caCertSigner := eblpkix.GetSignerFromPrivateKey(caCertPrivKey)
+	if caCertSigner == nil {
+		return model.Cert{}, errors.New("CA certificate has invalid signer")
+	}
+
+	caCertX509, err := eblpkix.ParseCertificate([]byte(caCert.Certificate))
+	if err != nil {
+		return model.Cert{}, fmt.Errorf("CA certificate has invalid certificate: %w", err)
+	}
+
+	caCert.Version += 1
+	caCert.IssuedCRLSerialNumber += 1
+	template := x509.RevocationList{
+		Number: big.NewInt(caCert.IssuedCRLSerialNumber),
+		RevokedCertificateEntries: []x509.RevocationListEntry{
+			{
+				SerialNumber:   certSerialNumber,
+				RevocationTime: time.Unix(ts, 0),
+			},
+		},
+	}
+	crl, err := eblpkix.CreateCertificateRevocationList(&template, caCertX509[0], caCertSigner)
+	if err != nil {
+		return model.Cert{}, fmt.Errorf("fail to CreateCertificateRevocationList: %w", err)
+	}
+
+	cert.Status = model.CertStatusRevoked
+	cert.Version += 1
+	cert.RevokedAt = ts
+	cert.RevokedBy = req.Requester
+
+	certRevocationList := model.CertRevocationList{
+		ID:          uuid.NewString(),
+		IssuerKeyID: caCert.PublicKeyID,
+		Number:      template.Number.String(),
+		CreatedAt:   ts,
+		CreatedBy:   req.Requester,
+		CRL:         string(crl),
+	}
+
+	if err := ca.certStorage.AddCertificate(ctx, tx, cert); err != nil {
+		return model.Cert{}, err
+	}
+	if err := ca.certStorage.AddCertificateRevocationList(ctx, tx, certRevocationList); err != nil {
+		return model.Cert{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return model.Cert{}, err
+	}
 	return cert, nil
 }
 

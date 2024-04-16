@@ -1,6 +1,7 @@
 package pkix
 
 import (
+	"crypto"
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -208,6 +209,15 @@ func CreateCertificateSigningRequest(privKey interface{}, country, organization,
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrRaw}), nil
 }
 
+func CreateCertificateRevocationList(template *x509.RevocationList, issuer *x509.Certificate, priv crypto.Signer) ([]byte, error) {
+	crlRaw, err := x509.CreateRevocationList(rand.Reader, template, issuer, priv)
+	if err != nil {
+		return nil, err
+	}
+
+	return pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: crlRaw}), nil
+}
+
 func CreatePrivateKey(opt PrivateKeyOption) (any, error) {
 	switch opt.KeyType {
 	case PrivateKeyTypeRSA:
@@ -298,4 +308,18 @@ func GetAuthorityKeyIDFromCertificateRevocationList(crl *x509.RevocationList) st
 		return hex.EncodeToString(crl.AuthorityKeyId)
 	}
 	return hex.EncodeToString(keyId.Id)
+}
+
+func GetSignerFromPrivateKey(key any) crypto.Signer {
+	rsaPrivateKey, _ := key.(*rsa.PrivateKey)
+	if rsaPrivateKey != nil {
+		return rsaPrivateKey
+	}
+
+	ecdsaPrivateKey, _ := key.(*ecdsa.PrivateKey)
+	if ecdsaPrivateKey != nil {
+		return ecdsaPrivateKey
+	}
+
+	return nil
 }

@@ -24,7 +24,8 @@ type Cert struct {
 	NotBefore int64 `json:"not_before"` // Unix Time (in second) when the certificate becomes valid.
 	NotAfter  int64 `json:"not_after"`  // Unix Time (in second) when the certificate becomes invalid.
 
-	IssuedSerialNumber int64 `json:"issued_serial_number"` // Serial number of the issued certificate by the CA cert.
+	IssuedSerialNumber    int64 `json:"issued_serial_number"`     // Serial number of the issued certificate by the CA cert.
+	IssuedCRLSerialNumber int64 `json:"issued_crl_serial_number"` // Serial number of the issued CRL by the CA cert.
 
 	CreatedAt  int64  `json:"created_at"`  // Unix Time (in second) when the certificate was created.
 	CreatedBy  string `json:"created_by"`  // User who created the certificate.

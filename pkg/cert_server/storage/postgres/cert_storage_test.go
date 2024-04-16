@@ -192,6 +192,16 @@ func (s *CertStorageSuite) TestListCertificates() {
 		s.EqualValues(2, result.Total)
 		s.EqualValues(append(make([]model.Cert, 0, 2), certsOnDB[0], certsOnDB[2]), result.Certs)
 	}()
+
+	// Test filter by PublicKeyID
+	func() {
+		req := baseReq
+		req.PublicKeyIDs = []string{certsOnDB[0].PublicKeyID, certsOnDB[1].PublicKeyID}
+		result, err := s.storage.ListCertificates(ctx, tx, req)
+		s.Require().NoError(err)
+		s.EqualValues(2, result.Total)
+		s.EqualValues(certsOnDB[:2], result.Certs)
+	}()
 }
 
 func (s *CertStorageSuite) TestAddCertificateRevocationList() {

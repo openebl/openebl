@@ -76,9 +76,10 @@ type ListCertificatesRequest struct {
 	Limit  int `json:"limit"`  // Limit of the list.
 
 	// Filter by type of the certificate.
-	IDs      []string           `json:"ids"`      // List of IDs of the certificates to be listed.
-	Statuses []model.CertStatus `json:"statuses"` // List of statuses of the certificates to be listed.
-	Types    []model.CertType   `json:"types"`    // List of types of the certificates to be listed.
+	IDs          []string           `json:"ids"`            // List of IDs of the certificates to be listed.
+	Statuses     []model.CertStatus `json:"statuses"`       // List of statuses of the certificates to be listed.
+	Types        []model.CertType   `json:"types"`          // List of types of the certificates to be listed.
+	PublicKeyIDs []string           `json:"public_key_ids"` // List of public key IDs of the certificates to be listed.
 }
 
 type ListCertificatesResponse struct {

@@ -77,9 +77,11 @@ func NewRestServerWithController(ca cert_authority.CertAuthority, privateAddress
 	privateRouter.HandleFunc("/root_cert/{id}", restServer.revokeRootCert).Methods(http.MethodDelete)
 	privateRouter.HandleFunc("/ca_cert", restServer.createCACertificateSigningRequest).Methods(http.MethodPost)
 	privateRouter.HandleFunc("/ca_cert/{id}", restServer.respondCACertificateSigningRequest).Methods(http.MethodPost)
+	privateRouter.HandleFunc("/ca_cert/{id}/revoke", restServer.revokeCACert).Methods(http.MethodPost)
 	privateRouter.HandleFunc("/cert", restServer.addCertificateSigningRequest).Methods(http.MethodPost)
 	privateRouter.HandleFunc("/cert/{id}", restServer.issueCertificate).Methods(http.MethodPost)
 	privateRouter.HandleFunc("/cert/{id}/reject", restServer.rejectCertificateSigningRequest).Methods(http.MethodPost)
+	privateRouter.HandleFunc("/cert/{id}", restServer.revokeCert).Methods(http.MethodDelete)
 	registerPublicEndpoints(privateRouter)
 
 	publicRouter := mux.NewRouter()
@@ -416,6 +418,31 @@ func (s *RestServer) respondCACertificateSigningRequest(w http.ResponseWriter, r
 	json.NewEncoder(w).Encode(cert)
 }
 
+func (s *RestServer) revokeCACert(w http.ResponseWriter, r *http.Request) {
+	ts := time.Now().Unix()
+	ctx := r.Context()
+	requester := ctx.Value(REQUESTER_CONTEXT_KEY).(string)
+	certID := mux.Vars(r)["id"]
+
+	req := cert_authority.RevokeCACertificateRequest{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	req.Requester = requester
+	req.CertID = certID
+
+	cert, err := s.ca.RevokeCACertificate(ctx, ts, req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to revoke CA certificate: %s", err.Error()), model.ErrToHttpStatus(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(cert)
+}
+
 func (s *RestServer) addCertificateSigningRequest(w http.ResponseWriter, r *http.Request) {
 	ts := time.Now().Unix()
 	ctx := r.Context()
@@ -481,6 +508,28 @@ func (s *RestServer) rejectCertificateSigningRequest(w http.ResponseWriter, r *h
 	cert, err := s.ca.RejectCertificateSigningRequest(ctx, ts, req)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to reject CSR: %s", err.Error()), model.ErrToHttpStatus(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(cert)
+}
+
+func (s *RestServer) revokeCert(w http.ResponseWriter, r *http.Request) {
+	ts := time.Now().Unix()
+	ctx := r.Context()
+	requester := ctx.Value(REQUESTER_CONTEXT_KEY).(string)
+	certID := mux.Vars(r)["id"]
+
+	req := cert_authority.RevokeCertificateRequest{
+		Requester: requester,
+		CertID:    certID,
+	}
+
+	cert, err := s.ca.RevokeCertificate(ctx, ts, req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to revoke certificate: %s", err.Error()), model.ErrToHttpStatus(err))
 		return
 	}
 

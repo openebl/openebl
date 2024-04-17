@@ -254,7 +254,7 @@ func (*RootCertAddCmd) Run(cli *CertServerCli) error {
 
 func (*RootCertRevokeCmd) Run(cli *CertServerCli) error {
 	client := NewRestClient(cli.Client.Server, cli.Client.RootCert.Revoke.Requester)
-	cert, err := client.RevokeRookCert(cli.Client.RootCert.Revoke.ID)
+	cert, err := client.RevokeRootCert(cli.Client.RootCert.Revoke.ID)
 	if err != nil {
 		logrus.Errorf("failed to revoke root certificate: %v", err)
 		os.Exit(1)

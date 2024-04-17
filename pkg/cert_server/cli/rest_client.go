@@ -93,7 +93,7 @@ func (r *RestClient) AddRootCert(cert string) (model.Cert, error) {
 	return returnedCert, nil
 }
 
-func (r *RestClient) RevokeRookCert(certID string) (model.Cert, error) {
+func (r *RestClient) RevokeRootCert(certID string) (model.Cert, error) {
 	path := fmt.Sprintf("/root_cert/%s", certID)
 	returnedCert := model.Cert{}
 	if err := r.execute(http.MethodDelete, path, nil, &returnedCert); err != nil {

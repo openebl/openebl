@@ -6,43 +6,11 @@ import (
 	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/x509"
-	"fmt"
 	"io"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/envelope"
-	"github.com/openebl/openebl/pkg/pkix"
 )
-
-type JWSSignerFactory interface {
-	NewJWSSigner(authentication model.BusinessUnitAuthentication) (JWSSigner, error)
-}
-
-type _JWSSignerFactory struct{}
-
-var DefaultJWSSignerFactory = _JWSSignerFactory{}
-
-func (_JWSSignerFactory) NewJWSSigner(authentication model.BusinessUnitAuthentication) (JWSSigner, error) {
-	privateKey, err := pkix.ParsePrivateKey([]byte(authentication.PrivateKey))
-	if err != nil {
-		return nil, err
-	}
-
-	certs, err := pkix.ParseCertificate([]byte(authentication.Certificate))
-	if err != nil {
-		return nil, err
-	}
-
-	switch pk := privateKey.(type) {
-	case *rsa.PrivateKey:
-		return &RSASigner{key: pk, cert: certs}, nil
-	case *ecdsa.PrivateKey:
-		return &ECDSASigner{key: pk, cert: certs}, nil
-	default:
-		return nil, fmt.Errorf("invalid private key type for JWS Signer")
-	}
-}
 
 type RSASigner struct {
 	cert []*x509.Certificate

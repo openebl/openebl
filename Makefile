@@ -44,7 +44,7 @@ MOCK_SOURCES := \
 	pkg/bu_server/auth/application.go \
 	pkg/bu_server/auth/user.go \
 	pkg/bu_server/business_unit/bu_controller.go \
-	pkg/bu_server/business_unit/bu_jws_signer.go \
+	pkg/bu_server/business_unit/bu_jwt_factory.go \
 	pkg/bu_server/trade_document/file_based_ebl.go \
 	pkg/bu_server/cert_authority/cert_authority.go \
 	pkg/bu_server/webhook/webhook_controller.go \

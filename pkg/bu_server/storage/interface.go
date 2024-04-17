@@ -116,6 +116,7 @@ type TradeDocument struct {
 	DocVersion   int64          // The version of the trade document.
 	DocReference string         // The reference identifier(e.g., bl_number) of the trade document.
 	Doc          []byte         // The trade document to be stored.
+	DecryptedDoc []byte         // The decrypted trade document to be stored.
 	CreatedAt    int64          // When the trade document is created.
 	Meta         map[string]any // Indexing Data for search or list operations.
 }
@@ -125,7 +126,7 @@ type ListTradeDocumentRequest struct {
 	Limit  int
 
 	// The filter of the trade document.
-	Kind         int
+	Kinds        []int
 	DocReference string
 	From         string
 	DocIDs       []string
@@ -153,7 +154,7 @@ type TradeDocumentStorage interface {
 	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
 	AddTradeDocument(ctx context.Context, tx Tx, tradeDoc TradeDocument) error
 	ListTradeDocument(ctx context.Context, tx Tx, req ListTradeDocumentRequest) (ListTradeDocumentResponse, error)
-	AddTradeDocumentOutbox(ctx context.Context, tx Tx, ts int64, key string, payload []byte) error
+	AddTradeDocumentOutbox(ctx context.Context, tx Tx, ts int64, key string, kind int, payload []byte) error
 }
 
 type ListWebhookRequest struct {
@@ -174,6 +175,7 @@ type ListWebhookResult struct {
 type OutboxMsg struct {
 	RecID int64
 	Key   string
+	Kind  int
 	Msg   []byte
 }
 
@@ -202,7 +204,7 @@ type TradeDocumentInboxStorage interface {
 
 type TradeDocumentOutboxStorage interface {
 	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
-	AddTradeDocumentOutbox(ctx context.Context, tx Tx, ts int64, key string, payload []byte) error
+	AddTradeDocumentOutbox(ctx context.Context, tx Tx, ts int64, key string, kind int, payload []byte) error
 	GetTradeDocumentOutbox(ctx context.Context, tx Tx, batchSize int) ([]OutboxMsg, error)
 	DeleteTradeDocumentOutbox(ctx context.Context, tx Tx, recIDs ...int64) error
 }

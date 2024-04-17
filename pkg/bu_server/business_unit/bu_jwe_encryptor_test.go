@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRSASigner(t *testing.T) {
+func TestRSAEncryptor(t *testing.T) {
 	rsaKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	notBefore := time.Now()
 	notAfter := notBefore.Add(365 * 24 * time.Hour) // 1 year
@@ -40,42 +40,30 @@ func TestRSASigner(t *testing.T) {
 	require.NoError(t, err)
 	cert, err := x509.ParseCertificate(der)
 	require.NoError(t, err)
-	privKeyPEM, _ := eblpkix.MarshalPrivateKey(rsaKey)
 	certPEM, err := eblpkix.MarshalCertificates(cert)
 	require.NoError(t, err)
 
 	auth := model.BusinessUnitAuthentication{
-		PrivateKey:  string(privKeyPEM),
-		Certificate: string(certPEM),
+		Certificate: certPEM,
 	}
-	signer, err := business_unit.DefaultJWTFactory.NewJWSSigner(auth)
+	encryptor, err := business_unit.DefaultJWTFactory.NewJWEEncryptor(auth)
 	require.NoError(t, err)
-	require.NotNil(t, signer)
+	require.NotNil(t, encryptor)
 
-	pubKey := signer.Public()
+	pubKey := encryptor.Public()
 	require.True(t, rsaKey.PublicKey.Equal(pubKey))
 	require.Equal(t,
-		[]envelope.SignatureAlgorithm{
-			envelope.SignatureAlgorithm(jwa.RS256),
-			envelope.SignatureAlgorithm(jwa.RS384),
-			envelope.SignatureAlgorithm(jwa.RS512),
+		[]envelope.KeyEncryptionAlgorithm{
+			envelope.KeyEncryptionAlgorithm(jwa.RSA_OAEP),
+			envelope.KeyEncryptionAlgorithm(jwa.RSA_OAEP_256),
+			envelope.KeyEncryptionAlgorithm(jwa.RSA1_5),
 		},
-		signer.AvailableJWSSignAlgorithms(),
+		encryptor.AvailableJWEEncryptAlgorithms(),
 	)
-
-	payload := []byte("hahahahaha")
-
-	for i := range signer.AvailableJWSSignAlgorithms() {
-		signedEnvelope, err := envelope.Sign(payload, signer.AvailableJWSSignAlgorithms()[i], signer, signer.Cert())
-		require.NoError(t, err)
-		require.NoError(t, signedEnvelope.VerifySignature())
-	}
 }
 
-func TestECDSASigner(t *testing.T) {
+func TestECDSAEncryptor(t *testing.T) {
 	curves := []elliptic.Curve{elliptic.P256(), elliptic.P384(), elliptic.P521()}
-	payload := []byte("hahahahaha")
-
 	for _, curve := range curves {
 		ecdsaKey, err := ecdsa.GenerateKey(curve, rand.Reader)
 		require.NoError(t, err)
@@ -99,47 +87,25 @@ func TestECDSASigner(t *testing.T) {
 		require.NoError(t, err)
 		cert, err := x509.ParseCertificate(der)
 		require.NoError(t, err)
-		privKeyPEM, _ := eblpkix.MarshalPrivateKey(ecdsaKey)
 		certPEM, err := eblpkix.MarshalCertificates(cert)
 		require.NoError(t, err)
 
 		auth := model.BusinessUnitAuthentication{
-			PrivateKey:  string(privKeyPEM),
-			Certificate: string(certPEM),
+			Certificate: certPEM,
 		}
-		signer, err := business_unit.DefaultJWTFactory.NewJWSSigner(auth)
+		encryptor, err := business_unit.DefaultJWTFactory.NewJWEEncryptor(auth)
 		require.NoError(t, err)
-		require.NotNil(t, signer)
+		require.NotNil(t, encryptor)
 
-		pubKey := signer.Public()
+		pubKey := encryptor.Public()
 		require.True(t, ecdsaKey.PublicKey.Equal(pubKey))
-		if curve == elliptic.P256() {
-			require.Equal(t,
-				[]envelope.SignatureAlgorithm{
-					envelope.SignatureAlgorithm(jwa.ES256),
-				},
-				signer.AvailableJWSSignAlgorithms(),
-			)
-		} else if curve == elliptic.P384() {
-			require.Equal(t,
-				[]envelope.SignatureAlgorithm{
-					envelope.SignatureAlgorithm(jwa.ES384),
-				},
-				signer.AvailableJWSSignAlgorithms(),
-			)
-		} else if curve == elliptic.P521() {
-			require.Equal(t,
-				[]envelope.SignatureAlgorithm{
-					envelope.SignatureAlgorithm(jwa.ES512),
-				},
-				signer.AvailableJWSSignAlgorithms(),
-			)
-		}
-
-		for i := range signer.AvailableJWSSignAlgorithms() {
-			signedEnvelope, err := envelope.Sign(payload, signer.AvailableJWSSignAlgorithms()[i], signer, signer.Cert())
-			require.NoError(t, err)
-			require.NoError(t, signedEnvelope.VerifySignature())
-		}
+		require.Equal(t,
+			[]envelope.KeyEncryptionAlgorithm{
+				envelope.KeyEncryptionAlgorithm(jwa.ECDH_ES_A128KW),
+				envelope.KeyEncryptionAlgorithm(jwa.ECDH_ES_A192KW),
+				envelope.KeyEncryptionAlgorithm(jwa.ECDH_ES_A256KW),
+			},
+			encryptor.AvailableJWEEncryptAlgorithms(),
+		)
 	}
 }

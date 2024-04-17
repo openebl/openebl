@@ -34,6 +34,7 @@ type BusinessUnitManager interface {
 	RevokeAuthentication(ctx context.Context, ts int64, req RevokeAuthenticationRequest) (model.BusinessUnitAuthentication, error)
 	ListAuthentication(ctx context.Context, req storage.ListAuthenticationRequest) (storage.ListAuthenticationResult, error)
 	GetJWSSigner(ctx context.Context, req GetJWSSignerRequest) (JWSSigner, error)
+	GetJWEEncryptors(ctx context.Context, req GetJWEEncryptorsRequest) ([]JWEEncryptor, error)
 }
 
 type JWSSigner interface {
@@ -58,6 +59,11 @@ type JWSSigner interface {
 
 	AvailableJWSSignAlgorithms() []envelope.SignatureAlgorithm
 	Cert() []*x509.Certificate
+}
+
+type JWEEncryptor interface {
+	Public() crypto.PublicKey
+	AvailableJWEEncryptAlgorithms() []envelope.KeyEncryptionAlgorithm
 }
 
 // CreateBusinessUnitRequest is the request to create a business unit.
@@ -116,19 +122,23 @@ type GetJWSSignerRequest struct {
 	AuthenticationID string  `json:"authentication_id"` // Unique ID of the authentication.
 }
 
-type _BusinessUnitManager struct {
-	ca               cert_authority.CertAuthority
-	storage          storage.BusinessUnitStorage
-	webhookCtrl      webhook.WebhookController
-	jwsSignerFactory JWSSignerFactory
+type GetJWEEncryptorsRequest struct {
+	BusinessUnitIDs []string `json:"ids"` // Unique DID of a BusinessUnit.
 }
 
-func NewBusinessUnitManager(storage storage.BusinessUnitStorage, ca cert_authority.CertAuthority, webhookCtrl webhook.WebhookController, jwsSignerFactory JWSSignerFactory) BusinessUnitManager {
+type _BusinessUnitManager struct {
+	ca          cert_authority.CertAuthority
+	storage     storage.BusinessUnitStorage
+	webhookCtrl webhook.WebhookController
+	jwtFactory  JWTFactory
+}
+
+func NewBusinessUnitManager(storage storage.BusinessUnitStorage, ca cert_authority.CertAuthority, webhookCtrl webhook.WebhookController, jwtFactory JWTFactory) BusinessUnitManager {
 	return &_BusinessUnitManager{
-		ca:               ca,
-		storage:          storage,
-		webhookCtrl:      webhookCtrl,
-		jwsSignerFactory: jwsSignerFactory,
+		ca:          ca,
+		storage:     storage,
+		webhookCtrl: webhookCtrl,
+		jwtFactory:  jwtFactory,
 	}
 }
 
@@ -431,7 +441,7 @@ func (m *_BusinessUnitManager) ListAuthentication(ctx context.Context, req stora
 	return result, nil
 }
 
-func (m _BusinessUnitManager) GetJWSSigner(ctx context.Context, req GetJWSSignerRequest) (JWSSigner, error) {
+func (m *_BusinessUnitManager) GetJWSSigner(ctx context.Context, req GetJWSSignerRequest) (JWSSigner, error) {
 	auth, err := func() (model.BusinessUnitAuthentication, error) {
 		tx, ctx, err := m.storage.CreateTx(ctx)
 		if err != nil {
@@ -466,10 +476,66 @@ func (m _BusinessUnitManager) GetJWSSigner(ctx context.Context, req GetJWSSigner
 		return nil, model.ErrAuthenticationNotActive
 	}
 
-	if m.jwsSignerFactory == nil {
-		return DefaultJWSSignerFactory.NewJWSSigner(auth)
+	if m.jwtFactory == nil {
+		return DefaultJWTFactory.NewJWSSigner(auth)
 	}
-	return m.jwsSignerFactory.NewJWSSigner(auth)
+	return m.jwtFactory.NewJWSSigner(auth)
+}
+
+func (m *_BusinessUnitManager) GetJWEEncryptors(ctx context.Context, req GetJWEEncryptorsRequest) ([]JWEEncryptor, error) {
+	getAuthentications := func(ctx context.Context, businessUnitIDs []string) (map[string]model.BusinessUnitAuthentication, error) {
+		tx, ctx, err := m.storage.CreateTx(ctx)
+		if err != nil {
+			return nil, err
+		}
+		defer tx.Rollback(ctx)
+
+		listReq := storage.ListBusinessUnitsRequest{
+			Limit:           len(businessUnitIDs),
+			BusinessUnitIDs: businessUnitIDs,
+		}
+		result, err := m.storage.ListBusinessUnits(ctx, tx, listReq)
+		if err != nil {
+			return nil, err
+		}
+
+		// find latest active authentications
+		var authenticates map[string]model.BusinessUnitAuthentication
+		for _, record := range result.Records {
+			for i := len(record.Authentications) - 1; i >= 0; i-- {
+				if record.Authentications[i].Status == model.BusinessUnitAuthenticationStatusActive {
+					authenticates[record.BusinessUnit.ID.String()] = record.Authentications[i]
+					break
+				}
+			}
+		}
+		return authenticates, nil
+	}
+
+	authenticates, err := getAuthentications(ctx, req.BusinessUnitIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(authenticates) == 0 {
+		return nil, model.ErrAuthenticationNotFound
+	}
+	if len(authenticates) != len(req.BusinessUnitIDs) {
+		return nil, model.ErrAuthenticationNotActive
+	}
+
+	factory := m.jwtFactory
+	if factory == nil {
+		factory = DefaultJWTFactory
+	}
+	encryptors := make([]JWEEncryptor, 0, len(authenticates))
+	for _, auth := range authenticates {
+		encryptor, err := factory.NewJWEEncryptor(auth)
+		if err != nil {
+			return nil, err
+		}
+		encryptors = append(encryptors, encryptor)
+	}
+	return encryptors, nil
 }
 
 func (m *_BusinessUnitManager) getBusinessUnit(ctx context.Context, tx storage.Tx, appID string, id did.DID) (model.BusinessUnit, error) {

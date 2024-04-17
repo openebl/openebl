@@ -467,17 +467,17 @@ func (mr *MockTradeDocumentStorageMockRecorder) AddTradeDocument(ctx, tx, tradeD
 }
 
 // AddTradeDocumentOutbox mocks base method.
-func (m *MockTradeDocumentStorage) AddTradeDocumentOutbox(ctx context.Context, tx storage.Tx, ts int64, key string, payload []byte) error {
+func (m *MockTradeDocumentStorage) AddTradeDocumentOutbox(ctx context.Context, tx storage.Tx, ts int64, key string, kind int, payload []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddTradeDocumentOutbox", ctx, tx, ts, key, payload)
+	ret := m.ctrl.Call(m, "AddTradeDocumentOutbox", ctx, tx, ts, key, kind, payload)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // AddTradeDocumentOutbox indicates an expected call of AddTradeDocumentOutbox.
-func (mr *MockTradeDocumentStorageMockRecorder) AddTradeDocumentOutbox(ctx, tx, ts, key, payload interface{}) *gomock.Call {
+func (mr *MockTradeDocumentStorageMockRecorder) AddTradeDocumentOutbox(ctx, tx, ts, key, kind, payload interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTradeDocumentOutbox", reflect.TypeOf((*MockTradeDocumentStorage)(nil).AddTradeDocumentOutbox), ctx, tx, ts, key, payload)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTradeDocumentOutbox", reflect.TypeOf((*MockTradeDocumentStorage)(nil).AddTradeDocumentOutbox), ctx, tx, ts, key, kind, payload)
 }
 
 // CreateTx mocks base method.
@@ -836,17 +836,17 @@ func (m *MockTradeDocumentOutboxStorage) EXPECT() *MockTradeDocumentOutboxStorag
 }
 
 // AddTradeDocumentOutbox mocks base method.
-func (m *MockTradeDocumentOutboxStorage) AddTradeDocumentOutbox(ctx context.Context, tx storage.Tx, ts int64, key string, payload []byte) error {
+func (m *MockTradeDocumentOutboxStorage) AddTradeDocumentOutbox(ctx context.Context, tx storage.Tx, ts int64, key string, kind int, payload []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddTradeDocumentOutbox", ctx, tx, ts, key, payload)
+	ret := m.ctrl.Call(m, "AddTradeDocumentOutbox", ctx, tx, ts, key, kind, payload)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // AddTradeDocumentOutbox indicates an expected call of AddTradeDocumentOutbox.
-func (mr *MockTradeDocumentOutboxStorageMockRecorder) AddTradeDocumentOutbox(ctx, tx, ts, key, payload interface{}) *gomock.Call {
+func (mr *MockTradeDocumentOutboxStorageMockRecorder) AddTradeDocumentOutbox(ctx, tx, ts, key, kind, payload interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTradeDocumentOutbox", reflect.TypeOf((*MockTradeDocumentOutboxStorage)(nil).AddTradeDocumentOutbox), ctx, tx, ts, key, payload)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTradeDocumentOutbox", reflect.TypeOf((*MockTradeDocumentOutboxStorage)(nil).AddTradeDocumentOutbox), ctx, tx, ts, key, kind, payload)
 }
 
 // CreateTx mocks base method.

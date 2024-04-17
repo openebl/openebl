@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
 	"github.com/openebl/openebl/pkg/bu_server/model"
@@ -39,18 +40,19 @@ type IssueFileBasedEBLRequest struct {
 	AuthenticationID string                             `json:"authentication_id"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	File         File                                    `json:"file"`
-	BLNumber     string                                  `json:"bl_number"`
-	BLDocType    bill_of_lading.BillOfLadingDocumentType `json:"bl_doc_type"`
-	ToOrder      bool                                    `json:"to_order"`
-	POL          Location                                `json:"pol"`
-	POD          Location                                `json:"pod"`
-	ETA          *model.DateTime                         `json:"eta,omitempty"`
-	Shipper      string                                  `json:"shipper"`
-	Consignee    string                                  `json:"consignee"`
-	ReleaseAgent string                                  `json:"release_agent"`
-	Note         string                                  `json:"note"`
-	Draft        *bool                                   `json:"draft"`
+	File           File                                    `json:"file"`
+	BLNumber       string                                  `json:"bl_number"`
+	BLDocType      bill_of_lading.BillOfLadingDocumentType `json:"bl_doc_type"`
+	ToOrder        bool                                    `json:"to_order"`
+	POL            Location                                `json:"pol"`
+	POD            Location                                `json:"pod"`
+	ETA            *model.DateTime                         `json:"eta,omitempty"`
+	Shipper        string                                  `json:"shipper"`
+	Consignee      string                                  `json:"consignee"`
+	ReleaseAgent   string                                  `json:"release_agent"`
+	Note           string                                  `json:"note"`
+	Draft          *bool                                   `json:"draft"`
+	EncryptContent bool                                    `json:"encrypt_content"`
 }
 
 type UpdateFileBasedEBLDraftRequest struct {
@@ -256,7 +258,12 @@ func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request I
 		blPack.Events = append(blPack.Events, transfer)
 	}
 
-	td, err := c.signBillOfLadingPack(ctx, ts, blPack, request.Application, request.Issuer, request.AuthenticationID)
+	// Draft should always be unencrypted.
+	kind := int(relay.FileBasedBillOfLading)
+	if !*request.Draft && request.EncryptContent {
+		kind = int(relay.EncryptedFileBasedBillOfLading)
+	}
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, request.Application, request.Issuer, request.AuthenticationID, kind)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -312,7 +319,7 @@ func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, requ
 	}
 	defer tx.Rollback(ctx)
 
-	oldPack, oldHash, err := c.getEBL(ctx, tx, request.ID)
+	oldPack, oldHash, oldKind, err := c.getEBL(ctx, tx, request.ID)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -354,7 +361,12 @@ func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, requ
 		blPack.Events = append(blPack.Events, transfer)
 	}
 
-	td, err := c.signBillOfLadingPack(ctx, ts, blPack, request.Application, request.Issuer, request.AuthenticationID)
+	// Draft should always be unencrypted.
+	kind := oldKind
+	if !*request.Draft && request.EncryptContent {
+		kind = int(relay.EncryptedFileBasedBillOfLading)
+	}
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, request.Application, request.Issuer, request.AuthenticationID, kind)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -395,7 +407,7 @@ func (c *_FileBaseEBLController) Return(ctx context.Context, ts int64, req Retur
 	}
 	defer tx.Rollback(ctx)
 
-	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
+	oldPack, oldHash, oldKind, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -426,7 +438,7 @@ func (c *_FileBaseEBLController) Return(ctx context.Context, ts int64, req Retur
 	}
 	blPack.Events = append(blPack.Events, returnEvent)
 
-	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.BusinessUnit, req.AuthenticationID)
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.BusinessUnit, req.AuthenticationID, oldKind)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -556,7 +568,7 @@ func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLR
 		Offset:       req.Offset,
 		Limit:        req.Limit,
 		RequestBy:    req.RequestBy,
-		Kind:         int(relay.FileBasedBillOfLading),
+		Kinds:        []int{int(relay.FileBasedBillOfLading), int(relay.EncryptedFileBasedBillOfLading)},
 		Report:       req.Report,
 		From:         req.Keyword,
 		DocReference: strings.ReplaceAll(req.Keyword, "%", "\\%"), // escape '%' character for ILIKE query
@@ -607,7 +619,7 @@ func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req Tra
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
+	oldPack, oldHash, oldKind, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -638,7 +650,7 @@ func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req Tra
 	}
 	blPack.Events = append(blPack.Events, transfer)
 
-	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.TransferBy, req.AuthenticationID)
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.TransferBy, req.AuthenticationID, oldKind)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -680,7 +692,7 @@ func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64,
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
+	oldPack, oldHash, oldKind, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -711,7 +723,7 @@ func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64,
 	}
 	blPack.Events = append(blPack.Events, amendmentRequest)
 
-	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID)
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID, oldKind)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -753,7 +765,7 @@ func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendF
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
+	oldPack, oldHash, oldKind, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -783,7 +795,7 @@ func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendF
 	}}
 	blPack.Events = append(blPack.Events, amendedBL, transfer)
 
-	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.Issuer, req.AuthenticationID)
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.Issuer, req.AuthenticationID, oldKind)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -820,7 +832,7 @@ func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req Su
 		return FileBasedBillOfLadingRecord{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
+	oldPack, oldHash, oldKind, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -851,7 +863,7 @@ func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req Su
 	}
 	blPack.Events = append(blPack.Events, surrender)
 
-	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID)
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID, oldKind)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -889,7 +901,7 @@ func (c *_FileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, req
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
+	oldPack, oldHash, oldKind, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -914,7 +926,7 @@ func (c *_FileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, req
 	}
 	blPack.Events = append(blPack.Events, print)
 
-	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID)
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID, oldKind)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -951,7 +963,7 @@ func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req A
 		return FileBasedBillOfLadingRecord{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
+	oldPack, oldHash, oldKind, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -976,7 +988,7 @@ func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req A
 	}
 	blPack.Events = append(blPack.Events, accomplish)
 
-	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID)
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID, oldKind)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -1013,7 +1025,7 @@ func (c *_FileBaseEBLController) Delete(ctx context.Context, ts int64, req Delet
 		return FileBasedBillOfLadingRecord{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	oldPack, oldHash, err := c.getEBL(ctx, tx, req.ID)
+	oldPack, oldHash, oldKind, err := c.getEBL(ctx, tx, req.ID)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -1037,7 +1049,7 @@ func (c *_FileBaseEBLController) Delete(ctx context.Context, ts int64, req Delet
 	}
 	blPack.Events = append(blPack.Events, del)
 
-	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID)
+	td, err := c.signBillOfLadingPack(ctx, ts, blPack, req.Application, req.RequestBy, req.AuthenticationID, oldKind)
 	if err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -1174,7 +1186,7 @@ func (c *_FileBaseEBLController) checkBUExistence(ctx context.Context, appID str
 	return nil
 }
 
-func (c *_FileBaseEBLController) signBillOfLadingPack(ctx context.Context, ts int64, blPack bill_of_lading.BillOfLadingPack, appID, signer, authID string) (storage.TradeDocument, error) {
+func (c *_FileBaseEBLController) signBillOfLadingPack(ctx context.Context, ts int64, blPack bill_of_lading.BillOfLadingPack, appID, signer, authID string, kind int) (storage.TradeDocument, error) {
 	getSignerReq := business_unit.GetJWSSignerRequest{
 		ApplicationID:    appID,
 		BusinessUnitID:   did.MustParseDID(signer),
@@ -1212,8 +1224,7 @@ func (c *_FileBaseEBLController) signBillOfLadingPack(ctx context.Context, ts in
 	blNumber := bl.BillOfLading.TransportDocumentReference
 
 	td := storage.TradeDocument{
-		RawID:        server.GetEventID([]byte(rawDoc)),
-		Kind:         int(relay.FileBasedBillOfLading),
+		Kind:         kind,
 		DocID:        blPack.ID,
 		DocVersion:   blPack.Version,
 		Doc:          []byte(rawDoc),
@@ -1222,10 +1233,53 @@ func (c *_FileBaseEBLController) signBillOfLadingPack(ctx context.Context, ts in
 		Meta:         meta,
 	}
 
+	if td.Kind == int(relay.EncryptedFileBasedBillOfLading) {
+		encryptedDoc, err := c.encryptBillOfLadingPack(ctx, td.Doc, meta["visible_to_bu"])
+		if err != nil {
+			return storage.TradeDocument{}, err
+		}
+		td.Doc, td.DecryptedDoc = encryptedDoc, td.Doc
+	}
+	td.RawID = server.GetEventID(td.Doc)
+
 	return td, nil
 }
 
-func (c *_FileBaseEBLController) getEBL(ctx context.Context, tx storage.Tx, id string) (bill_of_lading.BillOfLadingPack, string, error) {
+func (c *_FileBaseEBLController) encryptBillOfLadingPack(ctx context.Context, doc []byte, visibleTo any) ([]byte, error) {
+	recipients, ok := visibleTo.([]string)
+	if !ok {
+		return nil, errors.New("invalid visible_to_bu metadata")
+	}
+	if len(recipients) == 0 {
+		return nil, errors.New("no recipient to encrypt")
+	}
+	req := business_unit.GetJWEEncryptorsRequest{
+		BusinessUnitIDs: recipients,
+	}
+	encryptors, err := c.buCtrl.GetJWEEncryptors(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	keySettings := lo.Map(encryptors, func(e business_unit.JWEEncryptor, _ int) envelope.KeyEncryptionSetting {
+		return envelope.KeyEncryptionSetting{
+			PublicKey: e.Public(),
+			Algorithm: e.AvailableJWEEncryptAlgorithms()[0],
+		}
+	})
+
+	encrypted, err := envelope.Encrypt(doc, envelope.ContentEncryptionAlgorithm(jwa.A256GCM), keySettings)
+	if err != nil {
+		return nil, err
+	}
+	encryptedDoc, err := json.Marshal(encrypted)
+	if err != nil {
+		return nil, err
+	}
+
+	return encryptedDoc, nil
+}
+
+func (c *_FileBaseEBLController) getEBL(ctx context.Context, tx storage.Tx, id string) (bill_of_lading.BillOfLadingPack, string, int, error) {
 	req := storage.ListTradeDocumentRequest{
 		Limit:  1,
 		DocIDs: []string{id},
@@ -1233,20 +1287,21 @@ func (c *_FileBaseEBLController) getEBL(ctx context.Context, tx storage.Tx, id s
 
 	resp, err := c.storage.ListTradeDocument(ctx, tx, req)
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, "", err
+		return bill_of_lading.BillOfLadingPack{}, "", 0, err
 	}
 
 	if len(resp.Docs) == 0 {
-		return bill_of_lading.BillOfLadingPack{}, "", model.ErrEBLNotFound
+		return bill_of_lading.BillOfLadingPack{}, "", 0, model.ErrEBLNotFound
 	}
 
 	pack, err := ExtractBLPackFromTradeDocument(resp.Docs[0])
 	if err != nil {
-		return bill_of_lading.BillOfLadingPack{}, "", err
+		return bill_of_lading.BillOfLadingPack{}, "", 0, err
 	}
 
+	kind := resp.Docs[0].Kind
 	hash := envelope.SHA512(resp.Docs[0].Doc)
-	return pack, hash, nil
+	return pack, hash, kind, nil
 }
 
 func (c *_FileBaseEBLController) storeTradeDocument(ctx context.Context, tx storage.Tx, tradeDoc storage.TradeDocument) error {
@@ -1257,14 +1312,24 @@ func (c *_FileBaseEBLController) storeAndPublishTradeDocument(ctx context.Contex
 	if err := c.storage.AddTradeDocument(ctx, tx, tradeDoc); err != nil {
 		return err
 	}
-	return c.storage.AddTradeDocumentOutbox(ctx, tx, tradeDoc.CreatedAt, tradeDoc.DocID, tradeDoc.Doc)
+	return c.storage.AddTradeDocumentOutbox(ctx, tx, tradeDoc.CreatedAt, tradeDoc.DocID, tradeDoc.Kind, tradeDoc.Doc)
 }
 
 func ExtractBLPackFromTradeDocument(td storage.TradeDocument) (bill_of_lading.BillOfLadingPack, error) {
 	doc := envelope.JWS{}
-	if err := json.Unmarshal(td.Doc, &doc); err != nil {
-		return bill_of_lading.BillOfLadingPack{}, err
+	switch td.Kind {
+	case int(relay.FileBasedBillOfLading):
+		if err := json.Unmarshal(td.Doc, &doc); err != nil {
+			return bill_of_lading.BillOfLadingPack{}, err
+		}
+	case int(relay.EncryptedFileBasedBillOfLading):
+		if err := json.Unmarshal(td.DecryptedDoc, &doc); err != nil {
+			return bill_of_lading.BillOfLadingPack{}, err
+		}
+	default:
+		return bill_of_lading.BillOfLadingPack{}, fmt.Errorf("unsupported trade document kind %d", td.Kind)
 	}
+
 	rawPack, err := doc.GetPayload()
 	if err != nil {
 		return bill_of_lading.BillOfLadingPack{}, err

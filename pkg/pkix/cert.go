@@ -1,12 +1,15 @@
 package pkix
 
 import (
+	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/x509"
 	gopkix "crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"time"
@@ -235,4 +238,37 @@ func GetPublicKey(privKey any) any {
 	default:
 		return nil
 	}
+}
+
+func GetSubjectKeyIDFromCertificate(cert *x509.Certificate) string {
+	if len(cert.SubjectKeyId) != 0 {
+		return hex.EncodeToString(cert.SubjectKeyId)
+	}
+
+	getBytes := func() []byte {
+		rsaPubKey, _ := cert.PublicKey.(*rsa.PublicKey)
+		if rsaPubKey != nil {
+			return x509.MarshalPKCS1PublicKey(rsaPubKey)
+		}
+
+		ecdsaPubKey, _ := cert.PublicKey.(*ecdsa.PublicKey)
+		if ecdsaPubKey != nil {
+			ecdhPubKey, err := ecdsaPubKey.ECDH()
+			if err != nil {
+				return nil
+			}
+			return ecdhPubKey.Bytes()
+		}
+
+		ecdhPubKey, _ := cert.PublicKey.(*ecdh.PublicKey)
+		if ecdhPubKey != nil {
+			return ecdhPubKey.Bytes()
+		}
+
+		return nil
+	}
+
+	keyBytes := getBytes()
+	hashResult := sha1.Sum(keyBytes)
+	return hex.EncodeToString(hashResult[:])
 }

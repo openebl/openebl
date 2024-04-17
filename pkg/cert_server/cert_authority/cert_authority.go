@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"crypto/x509"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -131,16 +132,19 @@ func (ca *_CertAuthority) AddRootCertificate(ctx context.Context, ts int64, req 
 	}
 
 	cert := model.Cert{
-		ID:              uuid.NewString(),
-		Version:         1,
-		Type:            model.RootCert,
-		CreatedBy:       req.Requester,
-		CreatedAt:       ts,
-		Status:          model.CertStatusActive,
-		NotBefore:       certs[0].NotBefore.Unix(),
-		NotAfter:        certs[0].NotAfter.Unix(),
-		Certificate:     req.Cert,
-		CertFingerPrint: fmt.Sprintf("sha1:%x", sha1.Sum(certs[0].Raw)),
+		ID:                      uuid.NewString(),
+		Version:                 1,
+		Type:                    model.RootCert,
+		CreatedBy:               req.Requester,
+		CreatedAt:               ts,
+		Status:                  model.CertStatusActive,
+		NotBefore:               certs[0].NotBefore.Unix(),
+		NotAfter:                certs[0].NotAfter.Unix(),
+		PublicKeyID:             eblpkix.GetSubjectKeyIDFromCertificate(certs[0]),
+		IssuerKeyID:             hex.EncodeToString(certs[0].AuthorityKeyId),
+		Certificate:             req.Cert,
+		CertFingerPrint:         fmt.Sprintf("sha1:%x", sha1.Sum(certs[0].Raw)),
+		CertificateSerialNumber: certs[0].SerialNumber.String(),
 	}
 
 	tx, ctx, err := ca.certStorage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
@@ -292,10 +296,13 @@ func (ca *_CertAuthority) RespondCACertificateSigningRequest(ctx context.Context
 	newCert.Status = model.CertStatusActive
 	newCert.IssuedAt = ts
 	newCert.IssuedBy = req.Requester
+	newCert.PublicKeyID = eblpkix.GetSubjectKeyIDFromCertificate(cert[0])
+	newCert.IssuerKeyID = hex.EncodeToString(cert[0].AuthorityKeyId)
 	newCert.Certificate = req.Cert
 	newCert.NotBefore = cert[0].NotBefore.Unix()
 	newCert.NotAfter = cert[0].NotAfter.Unix()
 	newCert.CertFingerPrint = fmt.Sprintf("sha1:%x", hashValue)
+	newCert.CertificateSerialNumber = cert[0].SerialNumber.String()
 
 	if err := ca.certStorage.AddCertificate(ctx, tx, newCert); err != nil {
 		return model.Cert{}, err
@@ -427,10 +434,13 @@ func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req Is
 	cert.IssuedAt = ts
 	cert.IssuedBy = req.Requester
 	cert.Status = model.CertStatusActive
+	cert.PublicKeyID = eblpkix.GetSubjectKeyIDFromCertificate(leafCert)
+	cert.IssuerKeyID = hex.EncodeToString(leafCert.AuthorityKeyId)
 	cert.Certificate = string(certPem)
 	cert.NotBefore = leafCert.NotBefore.Unix()
 	cert.NotAfter = leafCert.NotAfter.Unix()
 	cert.CertFingerPrint = fmt.Sprintf("sha1:%x", sha1.Sum(leafCert.Raw))
+	cert.CertificateSerialNumber = leafCert.SerialNumber.String()
 
 	if err := ca.certStorage.AddCertificate(ctx, tx, caCert); err != nil {
 		return model.Cert{}, err

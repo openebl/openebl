@@ -3,10 +3,12 @@ package cert_authority_test
 import (
 	"context"
 	"crypto/x509"
+	"fmt"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/gobuffalo/packr/v2/file/resolver/encoding/hex"
 	"github.com/golang/mock/gomock"
 	"github.com/openebl/openebl/pkg/cert_server/cert_authority"
 	"github.com/openebl/openebl/pkg/cert_server/model"
@@ -372,6 +374,122 @@ func (s *CertAuthorityTestSuite) TestRespondCACertificateSigningRequest() {
 	s.Assert().Equal(expectedCert, cert)
 }
 
+func (s *CertAuthorityTestSuite) TestRevokeCACertificate() {
+	ts := time.Now().Unix()
+	requester := "admin"
+
+	rootCertRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/root_cert.crt")
+	s.Require().NoError(err)
+	rootCert, err := eblpkix.ParseCertificate(rootCertRaw)
+	s.Require().NoError(err)
+	rootCertObj := model.Cert{
+		ID:          "root_cert_id",
+		Version:     1,
+		Type:        model.RootCert,
+		Status:      model.CertStatusActive,
+		Certificate: string(rootCertRaw),
+		PublicKeyID: eblpkix.GetSubjectKeyIDFromCertificate(rootCert[0]),
+	}
+
+	caCertRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/ca_cert.crt")
+	s.Require().NoError(err)
+	caCertRaw = append(caCertRaw, rootCertRaw...)
+	crlRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/ca_cert.crl")
+	s.Require().NoError(err)
+	crl, err := eblpkix.ParseCertificateRevocationList(crlRaw)
+	s.Require().NoError(err)
+
+	caCert, err := eblpkix.ParseCertificate(caCertRaw)
+	s.Require().NoError(err)
+
+	cert := model.Cert{
+		ID:                      "ca_cert_id",
+		Version:                 1,
+		Type:                    model.CACert,
+		Status:                  model.CertStatusActive,
+		CreatedAt:               time.Now().Unix() - 1000,
+		CreatedBy:               "test",
+		Certificate:             string(caCertRaw),
+		CertFingerPrint:         "sha1:4f5e1200492e23d85b77f73d67133fe64298948a",
+		CertificateSerialNumber: caCert[0].SerialNumber.String(),
+		IssuerKeyID:             hex.EncodeToString(caCert[0].AuthorityKeyId),
+		PublicKeyID:             eblpkix.GetSubjectKeyIDFromCertificate(caCert[0]),
+		PrivateKey:              "private_key",
+	}
+
+	newCert := cert
+	newCert.Version += 1
+	newCert.Status = model.CertStatusRevoked
+	newCert.RevokedAt = ts
+	newCert.RevokedBy = requester
+
+	expectedCRL := model.CertRevocationList{
+		IssuerKeyID: eblpkix.GetAuthorityKeyIDFromCertificateRevocationList(crl),
+		Number:      crl.Number.String(),
+		CreatedAt:   ts,
+		CreatedBy:   requester,
+		CRL:         string(crlRaw),
+	}
+
+	var receivedCRL model.CertRevocationList
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+		s.storage.EXPECT().ListCertificates(
+			gomock.Any(),
+			s.tx,
+			storage.ListCertificatesRequest{
+				Limit:        1,
+				PublicKeyIDs: []string{rootCertObj.PublicKeyID},
+			},
+		).Return(
+			storage.ListCertificatesResponse{
+				Total: 1,
+				Certs: []model.Cert{rootCertObj},
+			},
+			nil,
+		),
+		s.storage.EXPECT().ListCertificates(
+			gomock.Any(),
+			s.tx,
+			storage.ListCertificatesRequest{
+				Limit: 1,
+				IDs:   []string{"ca_cert_id"},
+				Types: []model.CertType{model.CACert},
+			},
+		).Return(
+			storage.ListCertificatesResponse{
+				Total: 1,
+				Certs: []model.Cert{cert},
+			},
+			nil,
+		),
+		s.storage.EXPECT().AddCertificate(gomock.Any(), s.tx, newCert).Return(nil),
+		s.storage.EXPECT().AddCertificateRevocationList(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, crl model.CertRevocationList) error {
+				s.Require().NotEmpty(crl.ID)
+				expectedCRL.ID = crl.ID
+				receivedCRL = crl
+				return nil
+			},
+		),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	req := cert_authority.RevokeCACertificateRequest{
+		Requester: requester,
+		CertID:    "ca_cert_id",
+		CRL:       string(crlRaw),
+	}
+
+	result, err := s.ca.RevokeCACertificate(s.ctx, ts, req)
+	s.Require().NoError(err)
+	s.Require().Equal(expectedCRL, receivedCRL)
+	s.Assert().Empty(result.PrivateKey)
+	result.PrivateKey = newCert.PrivateKey
+	s.Require().Equal(newCert, result)
+}
+
 func (s *CertAuthorityTestSuite) TestAddCertificateSigningRequest() {
 	ts := time.Now().Unix()
 
@@ -590,4 +708,126 @@ func (s *CertAuthorityTestSuite) TestRejectCertificateSigningRequest() {
 	cert, err := s.ca.RejectCertificateSigningRequest(s.ctx, ts, req)
 	s.Assert().NoError(err)
 	s.Assert().Equal(expectedCert, cert)
+}
+
+func (s *CertAuthorityTestSuite) TestRevokeCertificate() {
+	ts := time.Now().Unix()
+
+	caPrivKeyRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/ca_cert_priv_key.pem")
+	s.Require().NoError(err)
+	caCert, err := os.ReadFile("../../../testdata/cert_server/cert_authority/ca_cert.crt")
+	s.Require().NoError(err)
+	caCertX509, err := eblpkix.ParseCertificate(caCert)
+	s.Require().NoError(err)
+
+	cert, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert.crt")
+	s.Require().NoError(err)
+	certX509, err := eblpkix.ParseCertificate(cert)
+	s.Require().NoError(err)
+
+	caCertObj := model.Cert{
+		ID:          "ca_cert_id",
+		Version:     1,
+		Type:        model.CACert,
+		Status:      model.CertStatusActive,
+		CreatedAt:   time.Now().Unix() - 1000,
+		CreatedBy:   "test",
+		Certificate: string(caCert),
+		PublicKeyID: eblpkix.GetSubjectKeyIDFromCertificate(caCertX509[0]),
+		PrivateKey:  string(caPrivKeyRaw),
+	}
+
+	oldCert := model.Cert{
+		ID:                      "bu_cert_id",
+		Version:                 1,
+		Type:                    model.BUCert,
+		Status:                  model.CertStatusActive,
+		CreatedAt:               time.Now().Unix() - 1000,
+		CreatedBy:               "test",
+		CertificateSerialNumber: certX509[0].SerialNumber.String(),
+		Certificate:             string(cert),
+		CertFingerPrint:         "sha1:4f5e1200492e23d85b77f73d67133fe64298948a",
+		NotBefore:               1711960293,
+		NotAfter:                4865560293,
+		PublicKeyID:             eblpkix.GetSubjectKeyIDFromCertificate(certX509[0]),
+		IssuerKeyID:             hex.EncodeToString(certX509[0].AuthorityKeyId),
+	}
+
+	req := cert_authority.RevokeCertificateRequest{
+		Requester: "admin",
+		CertID:    "bu_cert_id",
+	}
+
+	expectedCert := oldCert
+	expectedCert.Version += 1
+	expectedCert.Status = model.CertStatusRevoked
+	expectedCert.RevokedAt = ts
+	expectedCert.RevokedBy = req.Requester
+
+	expectedCertRevocationList := model.CertRevocationList{
+		IssuerKeyID: hex.EncodeToString(caCertX509[0].SubjectKeyId),
+		Number:      fmt.Sprintf("%d", caCertObj.IssuedCRLSerialNumber+1),
+		CreatedAt:   ts,
+		CreatedBy:   req.Requester,
+	}
+
+	receivedCRL := model.CertRevocationList{}
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+		s.storage.EXPECT().ListCertificates(
+			gomock.Any(),
+			s.tx,
+			storage.ListCertificatesRequest{
+				Limit: 1,
+				IDs:   []string{req.CertID},
+				Types: []model.CertType{model.ThirdPartyCACert, model.BUCert},
+			},
+		).Return(
+			storage.ListCertificatesResponse{
+				Total: 1,
+				Certs: []model.Cert{oldCert},
+			},
+			nil,
+		),
+		s.storage.EXPECT().ListCertificates(
+			gomock.Any(),
+			s.tx,
+			storage.ListCertificatesRequest{
+				Limit:        1,
+				PublicKeyIDs: []string{caCertObj.PublicKeyID},
+			},
+		).Return(
+			storage.ListCertificatesResponse{
+				Total: 1,
+				Certs: []model.Cert{caCertObj},
+			},
+			nil,
+		),
+		s.storage.EXPECT().AddCertificate(gomock.Any(), s.tx, expectedCert).Return(nil),
+		s.storage.EXPECT().AddCertificateRevocationList(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, crl model.CertRevocationList) error {
+				s.Assert().NotEmpty(crl.ID)
+				s.Assert().NotEmpty(crl.CRL)
+				receivedCRL = crl
+				return nil
+			},
+		),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	returnedCert, err := s.ca.RevokeCertificate(s.ctx, ts, req)
+	s.Require().NoError(err)
+	s.Assert().Equal(expectedCert, returnedCert)
+
+	expectedCertRevocationList.ID = receivedCRL.ID
+	expectedCertRevocationList.CRL = receivedCRL.CRL
+	s.Assert().Equal(expectedCertRevocationList, receivedCRL)
+
+	// Additional check if receivedCRL.CRL is a valid CRL.
+	crlX509, err := eblpkix.ParseCertificateRevocationList([]byte(receivedCRL.CRL))
+	s.Require().NoError(err)
+	s.Require().NotEmpty(crlX509)
+	s.Assert().Equal(expectedCertRevocationList.Number, crlX509.Number.String())
+	s.Assert().Equal(expectedCertRevocationList.IssuerKeyID, eblpkix.GetAuthorityKeyIDFromCertificateRevocationList(crlX509))
 }

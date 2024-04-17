@@ -59,6 +59,7 @@ func (s *CertStorageSuite) SetupTest() {
 	tableNames := []string{
 		"cert",
 		"cert_history",
+		"cert_revocation_list",
 	}
 	for _, tableName := range tableNames {
 		_, err := pool.Exec(context.Background(), fmt.Sprintf(`DELETE FROM %q`, tableName))
@@ -191,4 +192,38 @@ func (s *CertStorageSuite) TestListCertificates() {
 		s.EqualValues(2, result.Total)
 		s.EqualValues(append(make([]model.Cert, 0, 2), certsOnDB[0], certsOnDB[2]), result.Certs)
 	}()
+
+	// Test filter by PublicKeyID
+	func() {
+		req := baseReq
+		req.PublicKeyIDs = []string{certsOnDB[0].PublicKeyID, certsOnDB[1].PublicKeyID}
+		result, err := s.storage.ListCertificates(ctx, tx, req)
+		s.Require().NoError(err)
+		s.EqualValues(2, result.Total)
+		s.EqualValues(certsOnDB[:2], result.Certs)
+	}()
+}
+
+func (s *CertStorageSuite) TestAddCertificateRevocationList() {
+	tx, ctx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true))
+	s.Require().NoError(err)
+	defer tx.Rollback(ctx)
+
+	crl := model.CertRevocationList{
+		ID:          "test-id",
+		IssuerKeyID: "test-issuer-key-id",
+		Number:      "1234567",
+		CreatedAt:   12345,
+		CreatedBy:   "test-user",
+		CRL:         "CRL PEM",
+	}
+
+	err = s.storage.AddCertificateRevocationList(ctx, tx, crl)
+	s.Require().NoError(err)
+
+	crlOnDB := model.CertRevocationList{}
+	row := tx.QueryRow(ctx, "SELECT cert_revocation_list FROM cert_revocation_list WHERE id = $1", crl.ID)
+	s.Require().NoError(row.Scan(&crlOnDB))
+	s.Equal(crl, crlOnDB)
+	s.Require().NoError(tx.Commit(ctx))
 }

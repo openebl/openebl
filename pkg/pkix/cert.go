@@ -1,6 +1,7 @@
 package pkix
 
 import (
+	"crypto"
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -9,6 +10,7 @@ import (
 	"crypto/sha1"
 	"crypto/x509"
 	gopkix "crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
@@ -153,6 +155,15 @@ func ParseCertificateRequest(certRequest []byte) (*x509.CertificateRequest, erro
 	return x509.ParseCertificateRequest(pemBlock.Bytes)
 }
 
+func ParseCertificateRevocationList(crl []byte) (*x509.RevocationList, error) {
+	pemBlock, _ := pem.Decode(crl)
+	if pemBlock == nil {
+		return nil, errors.New("invalid certificate revocation list")
+	}
+
+	return x509.ParseRevocationList(pemBlock.Bytes)
+}
+
 func MarshalPrivateKey(privateKey any) (string, error) {
 	switch k := privateKey.(type) {
 	case *rsa.PrivateKey:
@@ -196,6 +207,15 @@ func CreateCertificateSigningRequest(privKey interface{}, country, organization,
 	}
 
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrRaw}), nil
+}
+
+func CreateCertificateRevocationList(template *x509.RevocationList, issuer *x509.Certificate, priv crypto.Signer) ([]byte, error) {
+	crlRaw, err := x509.CreateRevocationList(rand.Reader, template, issuer, priv)
+	if err != nil {
+		return nil, err
+	}
+
+	return pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: crlRaw}), nil
 }
 
 func CreatePrivateKey(opt PrivateKeyOption) (any, error) {
@@ -271,4 +291,35 @@ func GetSubjectKeyIDFromCertificate(cert *x509.Certificate) string {
 	keyBytes := getBytes()
 	hashResult := sha1.Sum(keyBytes)
 	return hex.EncodeToString(hashResult[:])
+}
+
+func GetAuthorityKeyIDFromCertificateRevocationList(crl *x509.RevocationList) string {
+	type authKeyId struct {
+		Id []byte `asn1:"optional,tag:0"`
+	}
+
+	if len(crl.AuthorityKeyId) == 0 {
+		return ""
+	}
+
+	var keyId authKeyId
+	_, err := asn1.Unmarshal(crl.AuthorityKeyId, &keyId)
+	if err != nil {
+		return hex.EncodeToString(crl.AuthorityKeyId)
+	}
+	return hex.EncodeToString(keyId.Id)
+}
+
+func GetSignerFromPrivateKey(key any) crypto.Signer {
+	rsaPrivateKey, _ := key.(*rsa.PrivateKey)
+	if rsaPrivateKey != nil {
+		return rsaPrivateKey
+	}
+
+	ecdsaPrivateKey, _ := key.(*ecdsa.PrivateKey)
+	if ecdsaPrivateKey != nil {
+		return ecdsaPrivateKey
+	}
+
+	return nil
 }

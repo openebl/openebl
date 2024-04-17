@@ -364,6 +364,20 @@ func (mr *MockCertStorageMockRecorder) AddCertificate(ctx, tx, cert interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCertificate", reflect.TypeOf((*MockCertStorage)(nil).AddCertificate), ctx, tx, cert)
 }
 
+// AddCertificateRevocationList mocks base method.
+func (m *MockCertStorage) AddCertificateRevocationList(ctx context.Context, tx storage.Tx, crl model.CertRevocationList) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddCertificateRevocationList", ctx, tx, crl)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddCertificateRevocationList indicates an expected call of AddCertificateRevocationList.
+func (mr *MockCertStorageMockRecorder) AddCertificateRevocationList(ctx, tx, crl interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCertificateRevocationList", reflect.TypeOf((*MockCertStorage)(nil).AddCertificateRevocationList), ctx, tx, crl)
+}
+
 // CreateTx mocks base method.
 func (m *MockCertStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
 	m.ctrl.T.Helper()

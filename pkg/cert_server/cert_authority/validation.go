@@ -78,6 +78,18 @@ func ValidateRespondCACertificateSigningRequestRequest(req RespondCACertificateS
 	return nil
 }
 
+func ValidateRevokeCACertificateRequest(req RevokeCACertificateRequest) error {
+	if err := validation.ValidateStruct(&req,
+		validation.Field(&req.Requester, validation.Required),
+		validation.Field(&req.CertID, validation.Required),
+		validation.Field(&req.CRL, validation.Required),
+	); err != nil {
+		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
+	}
+
+	return nil
+}
+
 func ValidateAddCertificateSigningRequestRequest(req AddCertificateSigningRequestRequest) error {
 	if err := validation.ValidateStruct(&req,
 		validation.Field(&req.Requester, validation.Required),

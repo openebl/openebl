@@ -10,8 +10,9 @@
     version: 1
     type: "root"
     status: "active"
+    public_key_id: "cert1_pub_key_id"
   cert_fingerprint: ""
-  cert_public_key_id: ""
+  cert_public_key_id: "cert1_pub_key_id"
   cert_issuer_key_id: ""
   cert_serial: ""
 - rec_id: 2
@@ -26,8 +27,9 @@
     version: 2
     type: "ca"
     status: "revoked"
+    public_key_id: "cert2_pub_key_id"
   cert_fingerprint: ""
-  cert_public_key_id: ""
+  cert_public_key_id: "cert2_pub_key_id"
   cert_issuer_key_id: ""
   cert_serial: ""
 - rec_id: 3
@@ -42,7 +44,8 @@
     version: 3
     type: "third_party_ca"
     status: "rejected"
+    public_key_id: "cert3_pub_key_id"
   cert_fingerprint: ""
-  cert_public_key_id: ""
+  cert_public_key_id: "cert3_pub_key_id"
   cert_issuer_key_id: ""
   cert_serial: ""

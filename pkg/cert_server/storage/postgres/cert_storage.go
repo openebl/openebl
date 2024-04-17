@@ -50,7 +50,8 @@ WITH filtered AS (
 	WHERE
 		(COALESCE(ARRAY_LENGTH($3::TEXT[], 1), 0) = 0 OR id = ANY($3)) AND
 		(COALESCE(ARRAY_LENGTH($4::TEXT[], 1), 0) = 0 OR status = ANY($4)) AND
-		(COALESCE(ARRAY_LENGTH($5::TEXT[], 1), 0) = 0 OR type = ANY($5))
+		(COALESCE(ARRAY_LENGTH($5::TEXT[], 1), 0) = 0 OR type = ANY($5)) AND
+		(COALESCE(ARRAY_LENGTH($6::TEXT[], 1), 0) = 0 OR cert_public_key_id = ANY($6))
 )
 , paged AS (
 	SELECT "cert" FROM filtered
@@ -70,6 +71,7 @@ SELECT total, "cert" FROM paged FULL JOIN total ON FALSE
 		req.IDs,
 		req.Statuses,
 		req.Types,
+		req.PublicKeyIDs,
 	)
 	if err != nil {
 		return storage.ListCertificatesResponse{}, err
@@ -95,4 +97,24 @@ SELECT total, "cert" FROM paged FULL JOIN total ON FALSE
 	}
 
 	return result, nil
+}
+
+func (s *_Storage) AddCertificateRevocationList(ctx context.Context, tx storage.Tx, crl model.CertRevocationList) error {
+	query := `
+INSERT INTO cert_revocation_list (id, issuer_key_id, number, created_at, cert_revocation_list)
+VALUES ($1, $2, $3, $4, $5)
+`
+	_, err := tx.Exec(
+		ctx,
+		query,
+		crl.ID,
+		crl.IssuerKeyID,
+		crl.Number,
+		crl.CreatedAt,
+		crl,
+	)
+	if err != nil {
+		return err
+	}
+	return nil
 }

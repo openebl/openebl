@@ -25,3 +25,13 @@ CREATE TABLE cert_history (
     "cert" JSONB NOT NULL,
     PRIMARY KEY (id, version)
 );
+
+CREATE TABLE cert_revocation_list (
+    rec_id BIGSERIAL,
+    id TEXT PRIMARY KEY,
+    issuer_key_id TEXT NOT NULL,
+    "number" TEXT NOT NULL,
+    created_at BIGINT NOT NULL,
+    "cert_revocation_list" JSONB NOT NULL
+);
+CREATE INDEX cert_revocation_list_issuer_key_id_number_idx ON cert_revocation_list("issuer_key_id", "number");

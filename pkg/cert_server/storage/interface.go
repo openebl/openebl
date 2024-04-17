@@ -64,17 +64,22 @@ func TxOptionWithIsolationLevel(level sql.IsolationLevel) CreateTxOption {
 
 type CertStorage interface {
 	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
+
 	AddCertificate(ctx context.Context, tx Tx, cert model.Cert) error
 	ListCertificates(ctx context.Context, tx Tx, req ListCertificatesRequest) (ListCertificatesResponse, error)
+
+	AddCertificateRevocationList(ctx context.Context, tx Tx, crl model.CertRevocationList) error
 }
+
 type ListCertificatesRequest struct {
 	Offset int `json:"offset"` // Offset of the list.
 	Limit  int `json:"limit"`  // Limit of the list.
 
 	// Filter by type of the certificate.
-	IDs      []string           `json:"ids"`      // List of IDs of the certificates to be listed.
-	Statuses []model.CertStatus `json:"statuses"` // List of statuses of the certificates to be listed.
-	Types    []model.CertType   `json:"types"`    // List of types of the certificates to be listed.
+	IDs          []string           `json:"ids"`            // List of IDs of the certificates to be listed.
+	Statuses     []model.CertStatus `json:"statuses"`       // List of statuses of the certificates to be listed.
+	Types        []model.CertType   `json:"types"`          // List of types of the certificates to be listed.
+	PublicKeyIDs []string           `json:"public_key_ids"` // List of public key IDs of the certificates to be listed.
 }
 
 type ListCertificatesResponse struct {

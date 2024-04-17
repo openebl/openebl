@@ -79,11 +79,13 @@ func (s *CertStorageSuite) TestAddCertificate() {
 	defer tx.Rollback(ctx)
 
 	cert := model.Cert{
-		ID:        "test-id",
-		Version:   1,
-		Type:      model.RootCert,
-		Status:    model.CertStatusActive,
-		CreatedAt: 12345,
+		ID:          "test-id",
+		Version:     1,
+		Type:        model.RootCert,
+		Status:      model.CertStatusActive,
+		CreatedAt:   12345,
+		PublicKeyID: "test-public-key-id",
+		IssuerKeyID: "test-issuer-key-id",
 	}
 
 	err = s.storage.AddCertificate(ctx, tx, cert)

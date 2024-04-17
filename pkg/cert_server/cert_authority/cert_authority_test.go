@@ -758,6 +758,10 @@ func (s *CertAuthorityTestSuite) TestRevokeCertificate() {
 		CertID:    "bu_cert_id",
 	}
 
+	expectedCACert := caCertObj
+	expectedCACert.Version += 1
+	expectedCACert.IssuedCRLSerialNumber += 1
+
 	expectedCert := oldCert
 	expectedCert.Version += 1
 	expectedCert.Status = model.CertStatusRevoked
@@ -803,6 +807,7 @@ func (s *CertAuthorityTestSuite) TestRevokeCertificate() {
 			},
 			nil,
 		),
+		s.storage.EXPECT().AddCertificate(gomock.Any(), s.tx, expectedCACert).Return(nil),
 		s.storage.EXPECT().AddCertificate(gomock.Any(), s.tx, expectedCert).Return(nil),
 		s.storage.EXPECT().AddCertificateRevocationList(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, crl model.CertRevocationList) error {

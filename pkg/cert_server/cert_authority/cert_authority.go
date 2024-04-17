@@ -414,9 +414,14 @@ func (ca *_CertAuthority) AddCertificateSigningRequest(ctx context.Context, ts i
 		return model.Cert{}, err
 	}
 
-	_, err := eblpkix.ParseCertificateRequest([]byte(req.CertSigningRequest))
+	crl, err := eblpkix.ParseCertificateRequest([]byte(req.CertSigningRequest))
 	if err != nil {
 		return model.Cert{}, err
+	}
+
+	// Validate if the public key of CRL is supported.
+	if err := eblpkix.IsPublicKeySupported(crl.PublicKey); err != nil {
+		return model.Cert{}, fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
 	}
 
 	cert := model.Cert{
@@ -638,6 +643,7 @@ func (ca *_CertAuthority) RevokeCertificate(ctx context.Context, ts int64, req R
 
 	caCert.Version += 1
 	caCert.IssuedCRLSerialNumber += 1
+
 	template := x509.RevocationList{
 		Number: big.NewInt(caCert.IssuedCRLSerialNumber),
 		RevokedCertificateEntries: []x509.RevocationListEntry{
@@ -665,7 +671,9 @@ func (ca *_CertAuthority) RevokeCertificate(ctx context.Context, ts int64, req R
 		CreatedBy:   req.Requester,
 		CRL:         string(crl),
 	}
-
+	if err := ca.certStorage.AddCertificate(ctx, tx, caCert); err != nil {
+		return model.Cert{}, err
+	}
 	if err := ca.certStorage.AddCertificate(ctx, tx, cert); err != nil {
 		return model.Cert{}, err
 	}

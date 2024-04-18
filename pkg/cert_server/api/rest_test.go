@@ -422,6 +422,40 @@ func (s *RestServerTestSuite) TestRespondCACertificateSigningRequest() {
 	s.Equal(cert, returnedCert)
 }
 
+func (s *RestServerTestSuite) TestRevokeCACertificate() {
+	requester := "administrator"
+	certID := "cert_id"
+
+	req := cert_authority.RevokeCACertificateRequest{
+		CRL: "crl pem file",
+	}
+	expectReq := req
+	expectReq.Requester = requester
+	expectReq.CertID = certID
+
+	cert := model.Cert{
+		ID:      certID,
+		Version: 1,
+		Type:    model.CACert,
+		Status:  model.CertStatusRevoked,
+	}
+
+	s.ca.EXPECT().RevokeCACertificate(gomock.Any(), gomock.Any(), expectReq).Return(cert, nil)
+
+	endPoint := fmt.Sprintf("http://%s/ca_cert/%s/revoke", s.privateAddress, certID)
+	httpRequest, _ := http.NewRequest(http.MethodPost, endPoint, util.StructToJSONReader(req))
+	httpRequest.Header.Set(api.REQUESTER_HEADER, requester)
+
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	defer resp.Body.Close()
+	returnedCert := model.Cert{}
+	s.Require().NoError(json.NewDecoder(resp.Body).Decode(&returnedCert))
+
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.Equal(cert, returnedCert)
+}
+
 func (s *RestServerTestSuite) TestAddCertificateSigningRequest() {
 	requester := "administrator"
 	req := cert_authority.AddCertificateSigningRequestRequest{
@@ -519,6 +553,38 @@ func (s *RestServerTestSuite) TestRejectCertificateSigningRequest() {
 
 	endPoint := fmt.Sprintf("http://%s/cert/%s/reject", s.privateAddress, certID)
 	httpRequest, _ := http.NewRequest(http.MethodPost, endPoint, util.StructToJSONReader(req))
+	httpRequest.Header.Set(api.REQUESTER_HEADER, requester)
+
+	resp, err := http.DefaultClient.Do(httpRequest)
+	s.Require().NoError(err)
+	defer resp.Body.Close()
+	returnedCert := model.Cert{}
+	s.Require().NoError(json.NewDecoder(resp.Body).Decode(&returnedCert))
+
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.Equal(cert, returnedCert)
+}
+
+func (s *RestServerTestSuite) TestRevokeCertificate() {
+	requester := "administrator"
+	certID := "cert_id"
+
+	expectedReq := cert_authority.RevokeCertificateRequest{
+		Requester: requester,
+		CertID:    certID,
+	}
+
+	cert := model.Cert{
+		ID:      certID,
+		Version: 1,
+		Type:    model.BUCert,
+		Status:  model.CertStatusRevoked,
+	}
+
+	s.ca.EXPECT().RevokeCertificate(gomock.Any(), gomock.Any(), expectedReq).Return(cert, nil)
+
+	endPoint := fmt.Sprintf("http://%s/cert/%s", s.privateAddress, certID)
+	httpRequest, _ := http.NewRequest(http.MethodDelete, endPoint, nil)
 	httpRequest.Header.Set(api.REQUESTER_HEADER, requester)
 
 	resp, err := http.DefaultClient.Do(httpRequest)

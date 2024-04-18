@@ -93,7 +93,7 @@ func (r *RestClient) AddRootCert(cert string) (model.Cert, error) {
 	return returnedCert, nil
 }
 
-func (r *RestClient) RevokeRookCert(certID string) (model.Cert, error) {
+func (r *RestClient) RevokeRootCert(certID string) (model.Cert, error) {
 	path := fmt.Sprintf("/root_cert/%s", certID)
 	returnedCert := model.Cert{}
 	if err := r.execute(http.MethodDelete, path, nil, &returnedCert); err != nil {
@@ -130,6 +130,18 @@ func (r *RestClient) RespondCACert(certID string, cert string) (model.Cert, erro
 		Cert: cert,
 	}
 
+	returnedCert := model.Cert{}
+	if err := r.execute(http.MethodPost, path, util.StructToJSONReader(req), &returnedCert); err != nil {
+		return returnedCert, err
+	}
+	return returnedCert, nil
+}
+
+func (r *RestClient) RevokeCACert(certID string, crl string) (model.Cert, error) {
+	path := fmt.Sprintf("/ca_cert/%s/revoke", certID)
+	req := cert_authority.RevokeCACertificateRequest{
+		CRL: crl,
+	}
 	returnedCert := model.Cert{}
 	if err := r.execute(http.MethodPost, path, util.StructToJSONReader(req), &returnedCert); err != nil {
 		return returnedCert, err
@@ -177,6 +189,15 @@ func (r *RestClient) RejectCert(certID string, certType model.CertType, reason s
 
 	returnedCert := model.Cert{}
 	if err := r.execute(http.MethodPost, path, util.StructToJSONReader(req), &returnedCert); err != nil {
+		return returnedCert, err
+	}
+	return returnedCert, nil
+}
+
+func (r *RestClient) RevokeCert(certID string) (model.Cert, error) {
+	path := fmt.Sprintf("/cert/%s", certID)
+	returnedCert := model.Cert{}
+	if err := r.execute(http.MethodDelete, path, nil, &returnedCert); err != nil {
 		return returnedCert, err
 	}
 	return returnedCert, nil

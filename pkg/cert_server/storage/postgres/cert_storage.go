@@ -17,7 +17,11 @@ WITH ins AS (
 		type = excluded.type,
 		status = excluded.status,
 		updated_at = excluded.updated_at,
-		cert = excluded.cert
+		cert = excluded.cert,
+		cert_fingerprint = excluded.cert_fingerprint,
+		cert_public_key_id = excluded.cert_public_key_id,
+		cert_issuer_key_id = excluded.cert_issuer_key_id,
+		cert_serial = excluded.cert_serial
 	RETURNING id, version, updated_at, cert
 )
 INSERT INTO cert_history (id, version, created_at, cert)

@@ -260,6 +260,28 @@ func GetPublicKey(privKey any) any {
 	}
 }
 
+func IsPublicKeySupported(pubKey any) error {
+	rsaPublicKey, _ := pubKey.(*rsa.PublicKey)
+	ecdsaPublicKey, _ := pubKey.(*ecdsa.PublicKey)
+	if rsaPublicKey != nil {
+		bitLen := rsaPublicKey.Size() * 8
+		if bitLen < 2048 {
+			return errors.New("RSA public key bit length is less than 2048")
+		}
+		return nil
+	} else if ecdsaPublicKey != nil {
+		switch ecdsaPublicKey.Curve {
+		case elliptic.P256():
+		case elliptic.P384():
+		case elliptic.P521():
+		default:
+			return errors.New("only P-256, P-384, and P-521 ECDSA public keys are supported")
+		}
+		return nil
+	}
+	return errors.New("only RSA and ECDSA public keys are supported")
+}
+
 func GetSubjectKeyIDFromCertificate(cert *x509.Certificate) string {
 	if len(cert.SubjectKeyId) != 0 {
 		return hex.EncodeToString(cert.SubjectKeyId)

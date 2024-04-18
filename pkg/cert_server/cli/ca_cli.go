@@ -75,6 +75,12 @@ type CACertRespondCmd struct {
 	Cert      []byte `type:"filecontent" help:"Certificate content" required:""`
 }
 
+type CACertRevokeCmd struct {
+	Requester string `short:"r" long:"requester" help:"Requester name" required:""`
+	ID        string `required:""`
+	CRL       []byte `type:"filecontent" help:"Certificate Revocation List" required:""`
+}
+
 type CACertListCmd RootCertListCmd
 type CACertGetCmd RootCertGetCmd
 
@@ -100,6 +106,8 @@ type CertRejectCmd struct {
 	Reason    string         `required:"" help:"Reject Reason"`
 }
 
+type CertRevokeCmd RootCertRevokeCmd
+
 type CertListCmd RootCertListCmd
 type CertGetCmd RootCertGetCmd
 
@@ -122,6 +130,7 @@ type CertServerCli struct {
 			Respond CACertRespondCmd `cmd:""`
 			List    CACertListCmd    `cmd:""`
 			Get     CACertGetCmd     `cmd:""`
+			Revoke  CACertRevokeCmd  `cmd:""`
 		} `cmd:""`
 
 		Cert struct {
@@ -130,6 +139,7 @@ type CertServerCli struct {
 			Reject CertRejectCmd `cmd:""`
 			List   CertListCmd   `cmd:""`
 			Get    CertGetCmd    `cmd:""`
+			Revoke CertRevokeCmd `cmd:""`
 		} `cmd:""`
 	} `cmd:""`
 }
@@ -254,7 +264,7 @@ func (*RootCertAddCmd) Run(cli *CertServerCli) error {
 
 func (*RootCertRevokeCmd) Run(cli *CertServerCli) error {
 	client := NewRestClient(cli.Client.Server, cli.Client.RootCert.Revoke.Requester)
-	cert, err := client.RevokeRookCert(cli.Client.RootCert.Revoke.ID)
+	cert, err := client.RevokeRootCert(cli.Client.RootCert.Revoke.ID)
 	if err != nil {
 		logrus.Errorf("failed to revoke root certificate: %v", err)
 		os.Exit(1)
@@ -314,6 +324,18 @@ func (*CACertRespondCmd) Run(cli *CertServerCli) error {
 	}
 
 	logrus.Infof("CA certificate responded with ID: %s", cert.ID)
+	return nil
+}
+
+func (*CACertRevokeCmd) Run(cli *CertServerCli) error {
+	client := NewRestClient(cli.Client.Server, cli.Client.CACert.Revoke.Requester)
+	cert, err := client.RevokeCACert(cli.Client.CACert.Revoke.ID, string(cli.Client.CACert.Revoke.CRL))
+	if err != nil {
+		logrus.Errorf("failed to revoke CA certificate: %v", err)
+		os.Exit(1)
+	}
+
+	logrus.Infof("CA certificate revoked with ID: %s", cert.ID)
 	return nil
 }
 
@@ -378,6 +400,18 @@ func (*CertRejectCmd) Run(cli *CertServerCli) error {
 	}
 
 	logrus.Infof("Certificate rejected with ID: %s", cert.ID)
+	return nil
+}
+
+func (*CertRevokeCmd) Run(cli *CertServerCli) error {
+	client := NewRestClient(cli.Client.Server, cli.Client.Cert.Revoke.Requester)
+	cert, err := client.RevokeCert(cli.Client.Cert.Revoke.ID)
+	if err != nil {
+		logrus.Errorf("failed to revoke certificate: %v", err)
+		os.Exit(1)
+	}
+
+	logrus.Infof("Certificate revoked with ID: %s", cert.ID)
 	return nil
 }
 

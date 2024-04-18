@@ -364,6 +364,20 @@ func (mr *MockCertStorageMockRecorder) AddCertificate(ctx, tx, cert interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCertificate", reflect.TypeOf((*MockCertStorage)(nil).AddCertificate), ctx, tx, cert)
 }
 
+// AddCertificateOutboxMsg mocks base method.
+func (m *MockCertStorage) AddCertificateOutboxMsg(ctx context.Context, tx storage.Tx, ts int64, key string, kind int, payload []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddCertificateOutboxMsg", ctx, tx, ts, key, kind, payload)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddCertificateOutboxMsg indicates an expected call of AddCertificateOutboxMsg.
+func (mr *MockCertStorageMockRecorder) AddCertificateOutboxMsg(ctx, tx, ts, key, kind, payload interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCertificateOutboxMsg", reflect.TypeOf((*MockCertStorage)(nil).AddCertificateOutboxMsg), ctx, tx, ts, key, kind, payload)
+}
+
 // AddCertificateRevocationList mocks base method.
 func (m *MockCertStorage) AddCertificateRevocationList(ctx context.Context, tx storage.Tx, crl model.CertRevocationList) error {
 	m.ctrl.T.Helper()
@@ -397,6 +411,40 @@ func (mr *MockCertStorageMockRecorder) CreateTx(ctx interface{}, options ...inte
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx}, options...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTx", reflect.TypeOf((*MockCertStorage)(nil).CreateTx), varargs...)
+}
+
+// DeleteCertificateOutboxMsg mocks base method.
+func (m *MockCertStorage) DeleteCertificateOutboxMsg(ctx context.Context, tx storage.Tx, recIDs ...int64) error {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, tx}
+	for _, a := range recIDs {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "DeleteCertificateOutboxMsg", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteCertificateOutboxMsg indicates an expected call of DeleteCertificateOutboxMsg.
+func (mr *MockCertStorageMockRecorder) DeleteCertificateOutboxMsg(ctx, tx interface{}, recIDs ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, tx}, recIDs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteCertificateOutboxMsg", reflect.TypeOf((*MockCertStorage)(nil).DeleteCertificateOutboxMsg), varargs...)
+}
+
+// GetCertificateOutboxMsg mocks base method.
+func (m *MockCertStorage) GetCertificateOutboxMsg(ctx context.Context, tx storage.Tx, batchSize int) ([]storage.CertificateOutboxMsg, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCertificateOutboxMsg", ctx, tx, batchSize)
+	ret0, _ := ret[0].([]storage.CertificateOutboxMsg)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCertificateOutboxMsg indicates an expected call of GetCertificateOutboxMsg.
+func (mr *MockCertStorageMockRecorder) GetCertificateOutboxMsg(ctx, tx, batchSize interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCertificateOutboxMsg", reflect.TypeOf((*MockCertStorage)(nil).GetCertificateOutboxMsg), ctx, tx, batchSize)
 }
 
 // ListCertificates mocks base method.

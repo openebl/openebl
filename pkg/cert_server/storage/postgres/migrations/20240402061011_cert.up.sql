@@ -35,3 +35,12 @@ CREATE TABLE cert_revocation_list (
     "cert_revocation_list" JSONB NOT NULL
 );
 CREATE INDEX cert_revocation_list_issuer_key_id_number_idx ON cert_revocation_list("issuer_key_id", "number");
+
+CREATE TABLE cert_outbox (
+    rec_id BIGSERIAL,
+    "key" TEXT NOT NULL,
+    kind BIGINT NOT NULL,
+    created_at BIGINT NOT NULL,
+    payload BYTEA NOT NULL
+);
+CREATE INDEX cert_outbox_rec_id_idx ON cert_outbox("rec_id");

@@ -14,6 +14,7 @@ import (
 	"github.com/openebl/openebl/pkg/cert_server/model"
 	"github.com/openebl/openebl/pkg/cert_server/storage"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
+	"github.com/openebl/openebl/pkg/relay"
 	mock_storage "github.com/openebl/openebl/test/mock/cert_server/storage"
 	"github.com/stretchr/testify/suite"
 )
@@ -364,6 +365,14 @@ func (s *CertAuthorityTestSuite) TestRespondCACertificateSigningRequest() {
 			nil,
 		),
 		s.storage.EXPECT().AddCertificate(gomock.Any(), s.tx, expectedCert).Return(nil),
+		s.storage.EXPECT().AddCertificateOutboxMsg(
+			gomock.Any(),
+			s.tx,
+			ts,
+			expectedCert.IssuerKeyID,
+			int(relay.X509Certificate),
+			[]byte(expectedCert.Certificate),
+		).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -472,6 +481,14 @@ func (s *CertAuthorityTestSuite) TestRevokeCACertificate() {
 				return nil
 			},
 		),
+		s.storage.EXPECT().AddCertificateOutboxMsg(
+			gomock.Any(),
+			s.tx,
+			ts,
+			expectedCRL.IssuerKeyID,
+			int(relay.X509CertificateRevocationList),
+			[]byte(expectedCRL.CRL),
+		).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -595,6 +612,7 @@ func (s *CertAuthorityTestSuite) TestIssueCertificate() {
 		expectedCert.CertificateSerialNumber = "1"
 
 		var receivedCert model.Cert
+		var receivedCertPayload []byte
 		gomock.InOrder(
 			s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 			s.storage.EXPECT().ListCertificates(
@@ -634,6 +652,19 @@ func (s *CertAuthorityTestSuite) TestIssueCertificate() {
 				s.Assert().NotEmpty(cert.CertFingerPrint)
 				return nil
 			}),
+			s.storage.EXPECT().AddCertificateOutboxMsg(
+				gomock.Any(),
+				s.tx,
+				ts,
+				expectedCert.IssuerKeyID,
+				int(relay.X509Certificate),
+				gomock.Any(),
+			).DoAndReturn(
+				func(ctx context.Context, tx storage.Tx, ts int64, key string, kind int, payload []byte) error {
+					receivedCertPayload = payload
+					return nil
+				},
+			),
 			s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 		)
@@ -643,6 +674,7 @@ func (s *CertAuthorityTestSuite) TestIssueCertificate() {
 		expectedCert.Certificate = receivedCert.Certificate
 		expectedCert.CertFingerPrint = receivedCert.CertFingerPrint
 		s.Assert().Equal(expectedCert, cert)
+		s.Assert().Equal(expectedCert.Certificate, string(receivedCertPayload))
 
 		if certType == model.ThirdPartyCACert {
 			certs, err := eblpkix.ParseCertificate([]byte(cert.Certificate))
@@ -776,6 +808,7 @@ func (s *CertAuthorityTestSuite) TestRevokeCertificate() {
 	}
 
 	receivedCRL := model.CertRevocationList{}
+	receivedCRLPayload := []byte{}
 	gomock.InOrder(
 		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.storage.EXPECT().ListCertificates(
@@ -817,6 +850,19 @@ func (s *CertAuthorityTestSuite) TestRevokeCertificate() {
 				return nil
 			},
 		),
+		s.storage.EXPECT().AddCertificateOutboxMsg(
+			gomock.Any(),
+			s.tx,
+			ts,
+			expectedCert.IssuerKeyID,
+			int(relay.X509CertificateRevocationList),
+			gomock.Any(),
+		).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, key string, kind int, payload []byte) error {
+				receivedCRLPayload = payload
+				return nil
+			},
+		),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -828,6 +874,7 @@ func (s *CertAuthorityTestSuite) TestRevokeCertificate() {
 	expectedCertRevocationList.ID = receivedCRL.ID
 	expectedCertRevocationList.CRL = receivedCRL.CRL
 	s.Assert().Equal(expectedCertRevocationList, receivedCRL)
+	s.Assert().Equal(expectedCertRevocationList.CRL, string(receivedCRLPayload))
 
 	// Additional check if receivedCRL.CRL is a valid CRL.
 	crlX509, err := eblpkix.ParseCertificateRevocationList([]byte(receivedCRL.CRL))

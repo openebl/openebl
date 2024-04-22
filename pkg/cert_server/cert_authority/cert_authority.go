@@ -16,6 +16,7 @@ import (
 	"github.com/openebl/openebl/pkg/cert_server/model"
 	"github.com/openebl/openebl/pkg/cert_server/storage"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
+	"github.com/openebl/openebl/pkg/relay"
 )
 
 type CertAuthority interface {
@@ -314,10 +315,13 @@ func (ca *_CertAuthority) RespondCACertificateSigningRequest(ctx context.Context
 	newCert.CertificateSerialNumber = cert[0].SerialNumber.String()
 
 	if err := ca.certStorage.AddCertificate(ctx, tx, newCert); err != nil {
-		return model.Cert{}, err
+		return model.Cert{}, fmt.Errorf("DB AddCertificate fail: %w", err)
+	}
+	if err := ca.addCertIntoOutbox(ctx, tx, ts, newCert); err != nil {
+		return model.Cert{}, fmt.Errorf("DB addCertIntoOutbox fail: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return model.Cert{}, err
+		return model.Cert{}, fmt.Errorf("DB Commit fail: %w", err)
 	}
 
 	newCert.PrivateKey = "" // Do not return the private key.
@@ -396,13 +400,16 @@ func (ca *_CertAuthority) RevokeCACertificate(ctx context.Context, ts int64, req
 	}
 
 	if err := ca.certStorage.AddCertificate(ctx, tx, cert); err != nil {
-		return model.Cert{}, err
+		return model.Cert{}, fmt.Errorf("DB AddCertificate fail: %w", err)
 	}
 	if err := ca.certStorage.AddCertificateRevocationList(ctx, tx, certRevocationList); err != nil {
-		return model.Cert{}, err
+		return model.Cert{}, fmt.Errorf("DB AddCertificateRevocationList fail: %w", err)
+	}
+	if err := ca.addCRLIntoOutbox(ctx, tx, ts, certRevocationList); err != nil {
+		return model.Cert{}, fmt.Errorf("DB addCRLIntoOutbox fail: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return model.Cert{}, err
+		return model.Cert{}, fmt.Errorf("DB Commit fail: %w", err)
 	}
 
 	cert.PrivateKey = "" // Do not return the private key.
@@ -542,13 +549,16 @@ func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req Is
 	cert.CertificateSerialNumber = leafCert.SerialNumber.String()
 
 	if err := ca.certStorage.AddCertificate(ctx, tx, caCert); err != nil {
-		return model.Cert{}, err
+		return model.Cert{}, fmt.Errorf("DB AddCertificate for CA Cert fail: %w", err)
 	}
 	if err := ca.certStorage.AddCertificate(ctx, tx, cert); err != nil {
-		return model.Cert{}, err
+		return model.Cert{}, fmt.Errorf("DB AddCertificate for Cert fail: %w", err)
+	}
+	if err := ca.addCertIntoOutbox(ctx, tx, ts, cert); err != nil {
+		return model.Cert{}, fmt.Errorf("DB addCertIntoOutbox fail: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return model.Cert{}, err
+		return model.Cert{}, fmt.Errorf("DB Commit fail: %w", err)
 	}
 
 	cert.PrivateKey = "" // Do not return the private key.
@@ -581,10 +591,10 @@ func (ca *_CertAuthority) RejectCertificateSigningRequest(ctx context.Context, t
 	cert.RejectReason = req.Reason
 
 	if err := ca.certStorage.AddCertificate(ctx, tx, cert); err != nil {
-		return model.Cert{}, err
+		return model.Cert{}, fmt.Errorf("DB AddCertificate fail: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return model.Cert{}, err
+		return model.Cert{}, fmt.Errorf("DB Commit fail: %w", err)
 	}
 
 	cert.PrivateKey = "" // Do not return the private key.
@@ -672,13 +682,16 @@ func (ca *_CertAuthority) RevokeCertificate(ctx context.Context, ts int64, req R
 		CRL:         string(crl),
 	}
 	if err := ca.certStorage.AddCertificate(ctx, tx, caCert); err != nil {
-		return model.Cert{}, err
+		return model.Cert{}, fmt.Errorf("DB AddCertificate for CA Cert fail: %w", err)
 	}
 	if err := ca.certStorage.AddCertificate(ctx, tx, cert); err != nil {
-		return model.Cert{}, err
+		return model.Cert{}, fmt.Errorf("DB AddCertificate for Cert fail: %w", err)
 	}
 	if err := ca.certStorage.AddCertificateRevocationList(ctx, tx, certRevocationList); err != nil {
-		return model.Cert{}, err
+		return model.Cert{}, fmt.Errorf("DB AddCertificateRevocationList fail: %w", err)
+	}
+	if err := ca.addCRLIntoOutbox(ctx, tx, ts, certRevocationList); err != nil {
+		return model.Cert{}, fmt.Errorf("DB addCRLIntoOutbox fail: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return model.Cert{}, err
@@ -757,4 +770,16 @@ func (ca *_CertAuthority) validateCert(ctx context.Context, tx storage.Tx, certs
 	}
 
 	return eblpkix.Verify(certs, rootCerts, time.Now().Unix())
+}
+
+func (ca *_CertAuthority) addCertIntoOutbox(ctx context.Context, tx storage.Tx, ts int64, cert model.Cert) error {
+	key := cert.IssuerKeyID
+	kind := relay.X509Certificate
+	return ca.certStorage.AddCertificateOutboxMsg(ctx, tx, ts, key, int(kind), []byte(cert.Certificate))
+}
+
+func (ca *_CertAuthority) addCRLIntoOutbox(ctx context.Context, tx storage.Tx, ts int64, crl model.CertRevocationList) error {
+	key := crl.IssuerKeyID
+	kind := relay.X509CertificateRevocationList
+	return ca.certStorage.AddCertificateOutboxMsg(ctx, tx, ts, key, int(kind), []byte(crl.CRL))
 }

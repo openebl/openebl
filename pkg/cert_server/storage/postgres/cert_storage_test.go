@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/go-testfixtures/testfixtures/v3"
@@ -15,6 +16,7 @@ import (
 	"github.com/openebl/openebl/pkg/cert_server/storage"
 	"github.com/openebl/openebl/pkg/cert_server/storage/postgres"
 	"github.com/openebl/openebl/pkg/util"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -60,6 +62,7 @@ func (s *CertStorageSuite) SetupTest() {
 		"cert",
 		"cert_history",
 		"cert_revocation_list",
+		"cert_outbox",
 	}
 	for _, tableName := range tableNames {
 		_, err := pool.Exec(context.Background(), fmt.Sprintf(`DELETE FROM %q`, tableName))
@@ -228,4 +231,77 @@ func (s *CertStorageSuite) TestAddCertificateRevocationList() {
 	s.Require().NoError(row.Scan(&crlOnDB))
 	s.Equal(crl, crlOnDB)
 	s.Require().NoError(tx.Commit(ctx))
+}
+
+func (s *CertStorageSuite) TestCertificateOutbox() {
+	type Msg struct {
+		Key     string
+		Kind    int
+		Payload []byte
+	}
+
+	testRecordNumber := 10000
+	msgsOnDB := make([]Msg, 0, testRecordNumber)
+	processedMsgs := make([]Msg, 0, testRecordNumber)
+	mtx := sync.Mutex{}
+	addProcessedMsg := func(msg Msg) {
+		mtx.Lock()
+		defer mtx.Unlock()
+		processedMsgs = append(processedMsgs, msg)
+	}
+
+	func() {
+		tx, ctx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+		s.Require().NoError(err)
+		defer tx.Rollback(ctx)
+
+		for i := 0; i < testRecordNumber; i++ {
+			key := fmt.Sprintf("key-%d", i)
+			kind := i % 2
+			payload := []byte(fmt.Sprintf("payload-%d", i))
+			err = s.storage.AddCertificateOutboxMsg(ctx, tx, int64(i), key, kind, payload)
+			s.Require().NoError(err)
+			msgsOnDB = append(msgsOnDB, Msg{Key: key, Kind: kind, Payload: payload})
+		}
+		s.Require().NoError(tx.Commit(ctx))
+	}()
+
+	wg := sync.WaitGroup{}
+	workerNumber := 10
+	batchSize := 8
+	workerFunc := func() {
+		for {
+			tx, ctx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true))
+			s.Require().NoError(err)
+			defer tx.Rollback(ctx)
+
+			msgs, err := s.storage.GetCertificateOutboxMsg(ctx, tx, batchSize)
+			s.Require().NoError(err)
+
+			if len(msgs) == 0 {
+				s.Require().NoError(tx.Commit(ctx))
+				return
+			}
+
+			for _, msg := range msgs {
+				addProcessedMsg(Msg{Key: msg.Key, Kind: msg.Kind, Payload: msg.Msg})
+			}
+			recIDs := lo.Map(msgs, func(msg storage.CertificateOutboxMsg, _ int) int64 {
+				return msg.RecID
+			})
+			s.Require().NoError(s.storage.DeleteCertificateOutboxMsg(ctx, tx, recIDs...))
+			s.Require().NoError(tx.Commit(ctx))
+		}
+	}
+
+	wg.Add(workerNumber)
+	for i := 1; i <= workerNumber; i++ {
+		go func() {
+			defer wg.Done()
+			workerFunc()
+		}()
+	}
+
+	wg.Wait()
+	s.Assert().Equal(processedMsgs, msgsOnDB)
 }

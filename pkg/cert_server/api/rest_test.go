@@ -48,7 +48,7 @@ func (s *RestServerTestSuite) SetupTest() {
 	s.privateAddress = fmt.Sprintf("localhost:%d", portNum)
 
 	s.ca = mock_cert_authority.NewMockCertAuthority(s.ctrl)
-	s.restServer = api.NewRestServerWithController(s.ca, s.privateAddress, "")
+	s.restServer = api.NewRestServerWithController(s.ca, nil, s.privateAddress, "")
 
 	go func() {
 		s.restServer.Run()

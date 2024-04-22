@@ -69,6 +69,14 @@ type CertStorage interface {
 	ListCertificates(ctx context.Context, tx Tx, req ListCertificatesRequest) (ListCertificatesResponse, error)
 
 	AddCertificateRevocationList(ctx context.Context, tx Tx, crl model.CertRevocationList) error
+
+	// CertificateOutbox functions.
+	// GetCertificateOutboxMsg and DeleteCertificateOutboxMsg relies on "SELECT FOR UPDATE" query, so it should be called inside a transaction.
+	// The transaction isolation level MUST NOT be sql.LevelSerializable, or the query will fail.
+	// AddCertificateOutboxMsg doesn't have the isolation level limitation.
+	AddCertificateOutboxMsg(ctx context.Context, tx Tx, ts int64, key string, kind int, payload []byte) error
+	GetCertificateOutboxMsg(ctx context.Context, tx Tx, batchSize int) ([]CertificateOutboxMsg, error)
+	DeleteCertificateOutboxMsg(ctx context.Context, tx Tx, recIDs ...int64) error
 }
 
 type ListCertificatesRequest struct {
@@ -85,4 +93,11 @@ type ListCertificatesRequest struct {
 type ListCertificatesResponse struct {
 	Total int64        `json:"total"` // Total number of certificates.
 	Certs []model.Cert `json:"certs"` // List of certificates.
+}
+
+type CertificateOutboxMsg struct {
+	RecID int64
+	Key   string
+	Kind  int
+	Msg   []byte
 }

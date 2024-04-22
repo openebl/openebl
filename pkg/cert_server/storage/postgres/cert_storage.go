@@ -122,3 +122,51 @@ VALUES ($1, $2, $3, $4, $5)
 	}
 	return nil
 }
+
+func (s *_Storage) AddCertificateOutboxMsg(ctx context.Context, tx storage.Tx, ts int64, key string, kind int, payload []byte) error {
+	query := `INSERT INTO cert_outbox (key, kind, created_at, payload) VALUES ($1, $2, $3, $4)`
+
+	_, err := tx.Exec(ctx, query, key, kind, ts, payload)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *_Storage) GetCertificateOutboxMsg(ctx context.Context, tx storage.Tx, batchSize int) ([]storage.CertificateOutboxMsg, error) {
+	query := `
+SELECT rec_id, key, kind, payload
+FROM cert_outbox
+ORDER BY rec_id ASC LIMIT $1
+FOR UPDATE`
+
+	rows, err := tx.Query(ctx, query, batchSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []storage.CertificateOutboxMsg
+	for rows.Next() {
+		var msg storage.CertificateOutboxMsg
+		if err := rows.Scan(&msg.RecID, &msg.Key, &msg.Kind, &msg.Msg); err != nil {
+			return nil, err
+		}
+		result = append(result, msg)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (s *_Storage) DeleteCertificateOutboxMsg(ctx context.Context, tx storage.Tx, recIDs ...int64) error {
+	query := `DELETE FROM cert_outbox WHERE rec_id = ANY($1)`
+
+	_, err := tx.Exec(ctx, query, recIDs)
+	if err != nil {
+		return err
+	}
+	return nil
+}

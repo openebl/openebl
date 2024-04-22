@@ -13,8 +13,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/openebl/openebl/pkg/cert_server/cert_authority"
 	"github.com/openebl/openebl/pkg/cert_server/model"
+	"github.com/openebl/openebl/pkg/cert_server/publisher"
 	"github.com/openebl/openebl/pkg/cert_server/storage"
 	"github.com/openebl/openebl/pkg/cert_server/storage/postgres"
+	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/util"
 )
 
@@ -29,11 +31,12 @@ type RestServerConfig struct {
 	Database             util.PostgresDatabaseConfig `yaml:"database"`
 	PrivateServerAddress string                      `yaml:"private_server_address"`
 	PublicServerAddress  string                      `yaml:"public_server_address"`
+	RelayServer          string                      `yaml:"relay_server"`
 }
 
 type RestServer struct {
-	ca cert_authority.CertAuthority
-
+	ca                cert_authority.CertAuthority
+	publisher         *publisher.Publisher
 	privateHttpServer *http.Server
 	publicHttpServer  *http.Server
 }
@@ -54,12 +57,26 @@ func NewRestServerWithConfig(config RestServerConfig) (*RestServer, error) {
 	}
 
 	ca := cert_authority.NewCertAuthority(certStorage)
-	return NewRestServerWithController(ca, config.PrivateServerAddress, config.PublicServerAddress), nil
+	var pub *publisher.Publisher
+	if config.RelayServer != "" {
+		pub = publisher.NewPublisher(
+			publisher.PublisherWithOutboxStorage(certStorage),
+			publisher.PublisherWithRelayClient(
+				relay.NewNostrClient(
+					relay.NostrClientWithServerURL(config.RelayServer),
+					relay.NostrClientWithConnectionStatusCallback(func(ctx context.Context, cancelFunc context.CancelCauseFunc, client relay.RelayClient, serverIdentity string, status bool) {
+					}),
+				),
+			),
+		)
+	}
+	return NewRestServerWithController(ca, pub, config.PrivateServerAddress, config.PublicServerAddress), nil
 }
 
-func NewRestServerWithController(ca cert_authority.CertAuthority, privateAddress, publicAddress string) *RestServer {
+func NewRestServerWithController(ca cert_authority.CertAuthority, publisher *publisher.Publisher, privateAddress, publicAddress string) *RestServer {
 	restServer := &RestServer{
-		ca: ca,
+		ca:        ca,
+		publisher: publisher,
 	}
 
 	registerPublicEndpoints := func(r *mux.Router) {
@@ -107,6 +124,10 @@ func NewRestServerWithController(ca cert_authority.CertAuthority, privateAddress
 func (s *RestServer) Run() error {
 	if s.privateHttpServer == nil && s.publicHttpServer == nil {
 		return errors.New("no server to run")
+	}
+
+	if s.publisher != nil {
+		s.publisher.Start()
 	}
 
 	var privateServerErr error
@@ -168,6 +189,9 @@ func (s *RestServer) Close(ctx context.Context) error {
 	}
 
 	wg.Wait()
+	if s.publisher != nil {
+		s.publisher.Stop()
+	}
 	return serverErr
 }
 

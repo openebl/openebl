@@ -144,6 +144,9 @@ func (s *BusinessUnitStorageTestSuite) TestStoreAuthentication() {
 	newAuth.Version = 2
 	newAuth.Status = model.BusinessUnitAuthenticationStatusRevoked
 	newAuth.RevokedAt = ts + 10
+	newAuth.PublicKeyID = "test_pub_key_1"
+	newAuth.IssuerKeyID = "test_issuer_key_1"
+	newAuth.CertificateSerialNumber = "123456"
 
 	tx, ctx, err := s.storage.CreateTx(s.ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 	s.Require().NoError(err)
@@ -222,4 +225,30 @@ func (s *BusinessUnitStorageTestSuite) TestListAuthentication() {
 	s.Require().Equal(1, len(result.Records))
 	s.Assert().Equal("bu1_auth2", result.Records[0].ID)
 	// End of Test Filter by AuthenticationIDs
+
+	// Test Filter by PublicKeyIDs
+	req = storage.ListAuthenticationRequest{
+		Limit:         10,
+		ApplicationID: "app1",
+		PublicKeyIDs:  []string{"auth2_pub_key_id"},
+	}
+	result, err = s.storage.ListAuthentication(ctx, tx, req)
+	s.Require().NoError(err)
+	s.Assert().Equal(1, result.Total)
+	s.Require().Equal(1, len(result.Records))
+	s.Assert().Equal("bu1_auth2", result.Records[0].ID)
+	// End of Test Filter by PublicKeyIDs
+
+	// Test Filter by IssuerKeyIDs
+	req = storage.ListAuthenticationRequest{
+		Limit:         10,
+		ApplicationID: "app1",
+		IssuerKeyIDs:  []string{"auth3_issuer_key_id"},
+	}
+	result, err = s.storage.ListAuthentication(ctx, tx, req)
+	s.Require().NoError(err)
+	s.Assert().Equal(1, result.Total)
+	s.Require().Equal(1, len(result.Records))
+	s.Assert().Equal("bu2_auth1", result.Records[0].ID)
+	// End of Test Filter by IssuerKeyIDs
 }

@@ -14,6 +14,8 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -37,6 +39,16 @@ type PrivateKeyOption struct {
 	CurveType ECDSACurveType `json:"curve_type"` // Curve type of the private key. Only used when KeyType is ECDSA.
 }
 
+type CertRevocationChecker interface {
+	IsCertsRevoked(ts int64, certs []*x509.Certificate) ([]*x509.Certificate, error)
+}
+
+type EmptyCertRevocationChecker struct{}
+
+func (EmptyCertRevocationChecker) IsCertsRevoked(ts int64, certs []*x509.Certificate) ([]*x509.Certificate, error) {
+	return nil, nil
+}
+
 // Verify verifies the certificate chain of trust.
 //
 // The first certificate in the chain is the end-entity certificate.
@@ -48,7 +60,7 @@ type PrivateKeyOption struct {
 // ts is the timestamp to verify the certificate chain. If ts is 0, the current time is used.
 //
 // !!! Current implementation doesn't check KeyUsage extension for better new user migration.
-func Verify(certs []*x509.Certificate, rootCerts []*x509.Certificate, ts int64) error {
+func Verify(certs []*x509.Certificate, rootCerts []*x509.Certificate, ts int64, revocationChecker CertRevocationChecker) error {
 	if len(certs) == 0 {
 		return errors.New("no certificate provided")
 	}
@@ -92,8 +104,31 @@ func Verify(certs []*x509.Certificate, rootCerts []*x509.Certificate, ts int64) 
 		return err
 	}
 
-	// TODO: Check if certificates involved in certChains are not revoked.
-	_ = certChains
+	var revokedCerts []*x509.Certificate
+	noValidCertChain := true
+	for _, chain := range certChains {
+		tmpRevokedCerts, err := revocationChecker.IsCertsRevoked(ts, chain)
+		if err != nil {
+			return err
+		}
+		if len(tmpRevokedCerts) > 0 {
+			revokedCerts = append(revokedCerts, tmpRevokedCerts...)
+			continue
+		}
+		noValidCertChain = false
+	}
+	if noValidCertChain {
+		strBuilder := strings.Builder{}
+		strBuilder.WriteString("certs (issuer key id, serial number) ")
+		for i, cert := range revokedCerts {
+			if i > 0 {
+				strBuilder.WriteString(", ")
+			}
+			strBuilder.WriteString(fmt.Sprintf("{%s, %s}", hex.EncodeToString(cert.AuthorityKeyId), cert.SerialNumber.String()))
+		}
+		strBuilder.WriteString(" are revoked")
+		return errors.New(strBuilder.String())
+	}
 
 	return nil
 }

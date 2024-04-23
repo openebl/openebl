@@ -769,7 +769,7 @@ func (ca *_CertAuthority) validateCert(ctx context.Context, tx storage.Tx, certs
 		}
 	}
 
-	return eblpkix.Verify(certs, rootCerts, time.Now().Unix())
+	return eblpkix.Verify(certs, rootCerts, time.Now().Unix(), eblpkix.EmptyCertRevocationChecker{})
 }
 
 func (ca *_CertAuthority) addCertIntoOutbox(ctx context.Context, tx storage.Tx, ts int64, cert model.Cert) error {

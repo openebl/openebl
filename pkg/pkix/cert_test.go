@@ -84,29 +84,29 @@ func (s *CertVerifyTestSuite) TestVerifyWithRootCertificate() {
 	_ = pubKeySha1
 
 	// s.intermediateCert is signed by s.rootCert, it should pass.
-	err := pkix.Verify([]*x509.Certificate{s.intermediateCert}, []*x509.Certificate{s.rootCert}, 0)
+	err := pkix.Verify([]*x509.Certificate{s.intermediateCert}, []*x509.Certificate{s.rootCert}, 0, pkix.EmptyCertRevocationChecker{})
 	s.Assert().NoError(err)
 
 	// s.intermediateCert is signed by s.rootCert, but the certificates are too old.
-	err = pkix.Verify([]*x509.Certificate{s.intermediateCert}, []*x509.Certificate{s.rootCert}, time.Now().AddDate(200, 0, 0).Unix())
+	err = pkix.Verify([]*x509.Certificate{s.intermediateCert}, []*x509.Certificate{s.rootCert}, time.Now().AddDate(200, 0, 0).Unix(), pkix.EmptyCertRevocationChecker{})
 	s.Assert().Error(err)
 
 	// s.cert is not signed by s.rootCert, it should fail.
-	err = pkix.Verify([]*x509.Certificate{s.cert}, []*x509.Certificate{s.rootCert}, 0)
+	err = pkix.Verify([]*x509.Certificate{s.cert}, []*x509.Certificate{s.rootCert}, 0, pkix.EmptyCertRevocationChecker{})
 	s.Assert().Error(err)
 }
 
 func (s *CertVerifyTestSuite) TestVerifyWithIntermediateCertificates() {
 	// s.cert is signed by s.intermediateCert, it should pass because s.intermediateCert is signed by s.rootCert.
-	err := pkix.Verify([]*x509.Certificate{s.cert, s.intermediateCert}, []*x509.Certificate{s.rootCert}, 0)
+	err := pkix.Verify([]*x509.Certificate{s.cert, s.intermediateCert}, []*x509.Certificate{s.rootCert}, 0, pkix.EmptyCertRevocationChecker{})
 	s.Assert().NoError(err)
 
 	// s.cert is signed by s.intermediateCert, it should fail because s.intermediateCert is signed by s.rootCert but they are too old..
-	err = pkix.Verify([]*x509.Certificate{s.cert, s.intermediateCert}, []*x509.Certificate{s.rootCert}, time.Now().AddDate(200, 0, 0).Unix())
+	err = pkix.Verify([]*x509.Certificate{s.cert, s.intermediateCert}, []*x509.Certificate{s.rootCert}, time.Now().AddDate(200, 0, 0).Unix(), pkix.EmptyCertRevocationChecker{})
 	s.Assert().Error(err)
 
 	// s.cert is not signed by s.intermediateCert2, it should fail.
-	err = pkix.Verify([]*x509.Certificate{s.cert, s.intermediateCert2}, []*x509.Certificate{s.rootCert}, 0)
+	err = pkix.Verify([]*x509.Certificate{s.cert, s.intermediateCert2}, []*x509.Certificate{s.rootCert}, 0, pkix.EmptyCertRevocationChecker{})
 	s.Assert().Error(err)
 }
 

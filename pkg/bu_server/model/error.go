@@ -38,6 +38,7 @@ var ErrBusinessUnitNotFound = fmt.Errorf("business unit not found%w", ErrBusines
 var ErrBusinessUnitInActive = fmt.Errorf("business unit is not active%w", ErrBusinessUnitError)
 var ErrAuthenticationNotFound = fmt.Errorf("authentication not found%w", ErrBusinessUnitError)
 var ErrAuthenticationNotActive = fmt.Errorf("authentication is not active%w", ErrBusinessUnitError)
+var ErrAuthenticationNotPending = fmt.Errorf("authentication is not pending%w", ErrBusinessUnitError)
 
 // Certification Authority errors
 var ErrCertificationNotFound = fmt.Errorf("certification not found%w", ErrCertificationAuthorityError)

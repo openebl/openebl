@@ -41,10 +41,11 @@ type BusinessUnitAuthentication struct {
 	BusinessUnit did.DID                          `json:"business_unit"` // Unique DID of a BusinessUnit.
 	Status       BusinessUnitAuthenticationStatus `json:"status"`        // Status of the authentication.
 
-	CreatedAt int64  `json:"created_at"` // Unix Time (in second) when the authentication was created.
-	CreatedBy string `json:"created_by"` // User who created the authentication.
-	RevokedAt int64  `json:"revoked_at"` // Unix Time (in second) when the authentication was revoked.
-	RevokedBy string `json:"revoked_by"` // User who revoked the authentication.
+	CreatedAt   int64  `json:"created_at"`   // Unix Time (in second) when the authentication was created.
+	CreatedBy   string `json:"created_by"`   // User who created the authentication.
+	ActivatedAt int64  `json:"activated_at"` // Unix Time (in second) when the authentication was activated.
+	RevokedAt   int64  `json:"revoked_at"`   // Unix Time (in second) when the authentication was revoked.
+	RevokedBy   string `json:"revoked_by"`   // User who revoked the authentication.
 
 	PrivateKey                string `json:"private_key"`                 // PEM encoded private key.
 	CertificateSigningRequest string `json:"certificate_signing_request"` // PEM encoded certificate signing request (CSR).

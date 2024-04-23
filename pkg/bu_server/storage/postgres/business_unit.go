@@ -132,7 +132,7 @@ SELECT * FROM new_data
 		auth.BusinessUnit,
 		auth.Status,
 		auth,
-		max(auth.CreatedAt, auth.RevokedAt),
+		max(auth.CreatedAt, auth.RevokedAt, auth.ActivatedAt),
 		auth.PublicKeyID,
 		auth.IssuerKeyID,
 		auth.CertificateSerialNumber,

@@ -10,6 +10,8 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"database/sql"
+	"encoding/hex"
+	"fmt"
 	"io"
 
 	"github.com/google/uuid"
@@ -33,6 +35,11 @@ type BusinessUnitManager interface {
 	ListAuthentication(ctx context.Context, req storage.ListAuthenticationRequest) (storage.ListAuthenticationResult, error)
 	GetJWSSigner(ctx context.Context, req GetJWSSignerRequest) (JWSSigner, error)
 	GetJWEEncryptors(ctx context.Context, req GetJWEEncryptorsRequest) ([]JWEEncryptor, error)
+
+	// ActivateAuthentication activates an authentication of a business unit with its certificate.
+	// This function is NOT for REST API.
+	// The returned error can be model.ErrAuthenticationNotFound, model.ErrAuthenticationNotPending, model.ErrInvalidParameter or any other errors.
+	ActivateAuthentication(ctx context.Context, tx storage.Tx, ts int64, certRaw []byte) (model.BusinessUnitAuthentication, error)
 }
 
 type JWSSigner interface {
@@ -354,6 +361,51 @@ func (m *_BusinessUnitManager) AddAuthentication(ctx context.Context, ts int64, 
 
 	auth.PrivateKey = "" // Erase PrivateKey before returning.
 	return auth, nil
+}
+
+func (m *_BusinessUnitManager) ActivateAuthentication(ctx context.Context, tx storage.Tx, ts int64, certRaw []byte) (model.BusinessUnitAuthentication, error) {
+	certs, err := eblpkix.ParseCertificate(certRaw)
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, fmt.Errorf("%s: %w", err.Error(), model.ErrInvalidParameter)
+	}
+	if len(certs) == 0 || certs[0].SerialNumber == nil || certs[0].AuthorityKeyId == nil {
+		return model.BusinessUnitAuthentication{}, fmt.Errorf("certificate is empty, or serial number is not available, or authority key id is not available: %w", model.ErrInvalidParameter)
+	}
+
+	// TODO: Validate the certificate.
+
+	pubKeyID := eblpkix.GetSubjectKeyIDFromCertificate(certs[0])
+	issuerKeyID := hex.EncodeToString(certs[0].AuthorityKeyId)
+	certSerialNumber := certs[0].SerialNumber.String()
+
+	listReq := storage.ListAuthenticationRequest{
+		Limit:        1,
+		PublicKeyIDs: []string{pubKeyID},
+	}
+	listResult, err := m.storage.ListAuthentication(ctx, tx, listReq)
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+	if len(listResult.Records) == 0 {
+		return model.BusinessUnitAuthentication{}, model.ErrAuthenticationNotFound
+	}
+
+	buAuth := listResult.Records[0]
+	if buAuth.Status != model.BusinessUnitAuthenticationStatusPending {
+		return model.BusinessUnitAuthentication{}, model.ErrAuthenticationNotPending
+	}
+
+	buAuth.Version += 1
+	buAuth.Status = model.BusinessUnitAuthenticationStatusActive
+	buAuth.Certificate = string(certRaw)
+	buAuth.CertificateSerialNumber = certSerialNumber
+	buAuth.IssuerKeyID = issuerKeyID
+	buAuth.ActivatedAt = ts
+
+	if err := m.storage.StoreAuthentication(ctx, tx, buAuth); err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+	return buAuth, nil
 }
 
 func (m *_BusinessUnitManager) RevokeAuthentication(ctx context.Context, ts int64, req RevokeAuthenticationRequest) (model.BusinessUnitAuthentication, error) {

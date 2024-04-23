@@ -9,10 +9,8 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"database/sql"
 	"io"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
@@ -105,7 +103,6 @@ type AddAuthenticationRequest struct {
 	ApplicationID    string                   `json:"application_id"`     // The ID of the application this BusinessUnit belongs to.
 	BusinessUnitID   did.DID                  `json:"id"`                 // Unique DID of a BusinessUnit.
 	PrivateKeyOption eblpkix.PrivateKeyOption `json:"private_key_option"` // Option of the private key.
-	ExpiredAfter     int64                    `json:"expired_after"`      // How long (in second) the authentication/certificate will be valid.
 }
 
 // RevokeAuthenticationRequest is the request to revoke an authentication from a business unit.
@@ -303,51 +300,45 @@ func (m *_BusinessUnitManager) AddAuthentication(ctx context.Context, ts int64, 
 		return model.BusinessUnitAuthentication{}, err
 	}
 
-	oldBu, err := m.getBusinessUnit(ctx, nil, req.ApplicationID, req.BusinessUnitID)
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	oldBu, err := m.getBusinessUnit(ctx, tx, req.ApplicationID, req.BusinessUnitID)
 	if err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
 	if oldBu.Status != model.BusinessUnitStatusActive {
 		return model.BusinessUnitAuthentication{}, model.ErrBusinessUnitInActive
 	}
-	certificateRequest, err := m.createCertificateRequest(ctx, privateKey, oldBu)
-	if err != nil {
-		return model.BusinessUnitAuthentication{}, err
-	}
 
-	caRequest := cert_authority.IssueCertificateRequest{
-		CACertID:           "__root__",
-		CertificateRequest: certificateRequest,
-		NotBefore:          time.Unix(ts, 0),
-		NotAfter:           time.Unix(ts+req.ExpiredAfter, 0),
-	}
-	cert, err := m.ca.IssueCertificate(ctx, ts, caRequest)
+	csrRaw, err := eblpkix.CreateCertificateSigningRequest(
+		privateKey,
+		[]string{oldBu.Country},
+		[]string{oldBu.Name},
+		nil,
+		oldBu.ID.String(),
+	)
 	if err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
 
 	auth := model.BusinessUnitAuthentication{
-		ID:           uuid.NewString(),
-		Version:      1,
-		BusinessUnit: req.BusinessUnitID,
-		Status:       model.BusinessUnitAuthenticationStatusActive,
-		CreatedAt:    ts,
-		CreatedBy:    req.Requester,
+		ID:                        uuid.NewString(),
+		Version:                   1,
+		BusinessUnit:              req.BusinessUnitID,
+		Status:                    model.BusinessUnitAuthenticationStatusPending,
+		CreatedAt:                 ts,
+		CreatedBy:                 req.Requester,
+		PublicKeyID:               eblpkix.GetPublicKeyID(eblpkix.GetPublicKey(privateKey)),
+		CertificateSigningRequest: string(csrRaw),
 	}
 	auth.PrivateKey, err = eblpkix.MarshalPrivateKey(privateKey)
 	if err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
-	auth.Certificate, err = eblpkix.MarshalCertificates(cert...)
-	if err != nil {
-		return model.BusinessUnitAuthentication{}, err
-	}
-
-	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
-	if err != nil {
-		return model.BusinessUnitAuthentication{}, err
-	}
-	defer tx.Rollback(ctx)
 
 	if err := m.storage.StoreAuthentication(ctx, tx, auth); err != nil {
 		return model.BusinessUnitAuthentication{}, err
@@ -585,24 +576,12 @@ func (m *_BusinessUnitManager) createPrivateKey(ctx context.Context, opt eblpkix
 	}
 }
 
-func (m *_BusinessUnitManager) createCertificateRequest(ctx context.Context, privateKey interface{}, bu model.BusinessUnit) (x509.CertificateRequest, error) {
-	certRequestTemplate := x509.CertificateRequest{
-		Subject: pkix.Name{
-			Country:      []string{bu.Country},
-			Organization: []string{bu.Name},
-			CommonName:   bu.ID.String(),
-		},
-	}
-
-	csrRaw, err := x509.CreateCertificateRequest(rand.Reader, &certRequestTemplate, privateKey)
-	if err != nil {
-		return x509.CertificateRequest{}, err
-	}
-
-	csr, err := x509.ParseCertificateRequest(csrRaw)
-	if err != nil {
-		return x509.CertificateRequest{}, err
-	}
-
-	return *csr, nil
+func (m *_BusinessUnitManager) createCertificateRequest(ctx context.Context, privateKey interface{}, bu model.BusinessUnit) ([]byte, error) {
+	return eblpkix.CreateCertificateSigningRequest(
+		privateKey,
+		[]string{bu.Country},
+		[]string{bu.Name},
+		nil,
+		bu.ID.String(),
+	)
 }

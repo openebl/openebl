@@ -260,6 +260,39 @@ func GetPublicKey(privKey any) any {
 	}
 }
 
+func GetPublicKeyID(pubKey any) string {
+	getBytes := func() []byte {
+		rsaPubKey, _ := pubKey.(*rsa.PublicKey)
+		if rsaPubKey != nil {
+			return x509.MarshalPKCS1PublicKey(rsaPubKey)
+		}
+
+		ecdsaPubKey, _ := pubKey.(*ecdsa.PublicKey)
+		if ecdsaPubKey != nil {
+			ecdhPubKey, err := ecdsaPubKey.ECDH()
+			if err != nil {
+				return nil
+			}
+			return ecdhPubKey.Bytes()
+		}
+
+		ecdhPubKey, _ := pubKey.(*ecdh.PublicKey)
+		if ecdhPubKey != nil {
+			return ecdhPubKey.Bytes()
+		}
+
+		return nil
+	}
+
+	keyBytes := getBytes()
+	if len(keyBytes) == 0 {
+		return ""
+	}
+
+	hashResult := sha1.Sum(keyBytes)
+	return hex.EncodeToString(hashResult[:])
+}
+
 func IsPublicKeySupported(pubKey any) error {
 	rsaPublicKey, _ := pubKey.(*rsa.PublicKey)
 	ecdsaPublicKey, _ := pubKey.(*ecdsa.PublicKey)
@@ -287,32 +320,7 @@ func GetSubjectKeyIDFromCertificate(cert *x509.Certificate) string {
 		return hex.EncodeToString(cert.SubjectKeyId)
 	}
 
-	getBytes := func() []byte {
-		rsaPubKey, _ := cert.PublicKey.(*rsa.PublicKey)
-		if rsaPubKey != nil {
-			return x509.MarshalPKCS1PublicKey(rsaPubKey)
-		}
-
-		ecdsaPubKey, _ := cert.PublicKey.(*ecdsa.PublicKey)
-		if ecdsaPubKey != nil {
-			ecdhPubKey, err := ecdsaPubKey.ECDH()
-			if err != nil {
-				return nil
-			}
-			return ecdhPubKey.Bytes()
-		}
-
-		ecdhPubKey, _ := cert.PublicKey.(*ecdh.PublicKey)
-		if ecdhPubKey != nil {
-			return ecdhPubKey.Bytes()
-		}
-
-		return nil
-	}
-
-	keyBytes := getBytes()
-	hashResult := sha1.Sum(keyBytes)
-	return hex.EncodeToString(hashResult[:])
+	return GetPublicKeyID(cert.PublicKey)
 }
 
 func GetAuthorityKeyIDFromCertificateRevocationList(crl *x509.RevocationList) string {

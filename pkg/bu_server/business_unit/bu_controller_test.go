@@ -3,7 +3,6 @@ package business_unit_test
 import (
 	"context"
 	"crypto/ecdsa"
-	"crypto/x509"
 	"testing"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
-	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/envelope"
@@ -300,7 +298,6 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 			KeyType:   eblpkix.PrivateKeyTypeECDSA,
 			CurveType: eblpkix.ECDSACurveTypeP384,
 		},
-		ExpiredAfter: 86400 * 365,
 	}
 
 	bu := model.BusinessUnit{
@@ -333,37 +330,23 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 	receivedAuthentication := model.BusinessUnitAuthentication{
 		Version:      1,
 		BusinessUnit: request.BusinessUnitID,
-		Status:       model.BusinessUnitAuthenticationStatusActive,
+		Status:       model.BusinessUnitAuthenticationStatusPending,
 		CreatedAt:    ts,
 		CreatedBy:    request.Requester,
 	}
 
-	receivedCertRequest := x509.CertificateRequest{}
-
 	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, s.ctx, nil),
-		s.storage.EXPECT().ListBusinessUnits(gomock.Any(), s.tx, expectedListBuRequest).Return(listBuResult, nil),
-		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
-		s.ca.EXPECT().IssueCertificate(gomock.Any(), ts, gomock.Any()).DoAndReturn(
-			func(ctx context.Context, ts int64, req cert_authority.IssueCertificateRequest) ([]*x509.Certificate, error) {
-				s.Assert().Equal("name", req.CertificateRequest.Subject.Organization[0])
-				s.Assert().Equal("did:openebl:bu1", req.CertificateRequest.Subject.CommonName)
-				s.Assert().Equal("US", req.CertificateRequest.Subject.Country[0])
-				s.Assert().Equal("__root__", req.CACertID)
-				s.Assert().Equal(time.Unix(ts, 0), req.NotBefore)
-				s.Assert().Equal(time.Unix(ts+request.ExpiredAfter, 0), req.NotAfter)
-				receivedCertRequest = req.CertificateRequest
-				emptyCert := x509.Certificate{}
-				return []*x509.Certificate{&emptyCert, &emptyCert}, nil
-			},
-		),
 		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+		s.storage.EXPECT().ListBusinessUnits(gomock.Any(), s.tx, expectedListBuRequest).Return(listBuResult, nil),
 		s.storage.EXPECT().StoreAuthentication(gomock.Any(), s.tx, gomock.Any()).DoAndReturn(
 			func(ctx context.Context, tx storage.Tx, auth model.BusinessUnitAuthentication) error {
 				receivedAuthentication.ID = auth.ID
 				receivedAuthentication.PrivateKey = auth.PrivateKey
 				receivedAuthentication.Certificate = auth.Certificate
 				receivedAuthentication.CertFingerPrint = auth.CertFingerPrint
+				receivedAuthentication.CertificateSigningRequest = auth.CertificateSigningRequest
+				receivedAuthentication.PublicKeyID = auth.PublicKeyID
+				receivedAuthentication.IssuerKeyID = auth.IssuerKeyID
 				s.Assert().Equal(receivedAuthentication, auth)
 				return nil
 			},
@@ -379,14 +362,16 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 	newAuthentication.PrivateKey = receivedAuthentication.PrivateKey
 	s.Assert().Equal(receivedAuthentication, newAuthentication)
 	s.Assert().NotEmpty(receivedAuthentication.PrivateKey)
-	s.Assert().NotEmpty(receivedAuthentication.Certificate)
+	s.Assert().Empty(receivedAuthentication.Certificate)
 
 	// Check if receivedCertRequest is valid and have correct public key.
+	csr, err := eblpkix.ParseCertificateRequest([]byte(receivedAuthentication.CertificateSigningRequest))
+	s.Require().NoError(err)
 	privateKey, err := pkix.ParsePrivateKey([]byte(receivedAuthentication.PrivateKey))
 	s.Require().NoError(err)
 	publicKey := privateKey.(*ecdsa.PrivateKey).PublicKey
-	s.Assert().True(publicKey.Equal(receivedCertRequest.PublicKey))
-	s.Assert().Nil(receivedCertRequest.CheckSignature())
+	s.Assert().True(publicKey.Equal(csr.PublicKey))
+	s.Assert().Nil(csr.CheckSignature())
 }
 
 func (s *BusinessUnitManagerTestSuite) TestRevokeAuthentication() {

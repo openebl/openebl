@@ -11,6 +11,7 @@ const (
 	BusinessUnitStatusActive   BusinessUnitStatus = "active"
 	BusinessUnitStatusInactive BusinessUnitStatus = "inactive"
 
+	BusinessUnitAuthenticationStatusPending BusinessUnitAuthenticationStatus = "pending"
 	BusinessUnitAuthenticationStatusActive  BusinessUnitAuthenticationStatus = "active"
 	BusinessUnitAuthenticationStatusRevoked BusinessUnitAuthenticationStatus = "revoked"
 )

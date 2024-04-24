@@ -8,11 +8,13 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
 	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
+	"github.com/openebl/openebl/pkg/envelope"
 	"github.com/openebl/openebl/pkg/pkix"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
@@ -529,4 +531,65 @@ func (s *BusinessUnitManagerTestSuite) TestGetJWSSigner() {
 
 	_, err := s.buManager.GetJWSSigner(s.ctx, request)
 	s.NoError(err)
+}
+
+func (s *BusinessUnitManagerTestSuite) TestGetJWEEncryptors() {
+	request := business_unit.GetJWEEncryptorsRequest{
+		BusinessUnitIDs: []string{"did:openebl:alice", "did:openebl:bob"},
+	}
+
+	listBusinessUnitsRequest := storage.ListBusinessUnitsRequest{
+		Limit:           2,
+		BusinessUnitIDs: []string{"did:openebl:alice", "did:openebl:bob"},
+	}
+	buAlice := storage.ListBusinessUnitsRecord{
+		BusinessUnit: model.BusinessUnit{ID: did.DID{Method: "openebl", ID: "alice"}},
+		Authentications: []model.BusinessUnitAuthentication{
+			{ID: "alice-auth-01", Status: model.BusinessUnitAuthenticationStatusRevoked},
+			{ID: "alice-auth-02", Status: model.BusinessUnitAuthenticationStatusActive},
+		},
+	}
+	buBob := storage.ListBusinessUnitsRecord{
+		BusinessUnit: model.BusinessUnit{ID: did.DID{Method: "openebl", ID: "bob"}},
+		Authentications: []model.BusinessUnitAuthentication{
+			{ID: "bob-auth-01", Status: model.BusinessUnitAuthenticationStatusActive},
+		},
+	}
+	listBusinessUnitsResult := storage.ListBusinessUnitsResult{
+		Total: 2,
+		Records: []storage.ListBusinessUnitsRecord{
+			buAlice,
+			buBob,
+		},
+	}
+
+	aliceEncryptor := &business_unit.ECDSAEncryptor{}
+	bobEncryptor := &business_unit.RSAEncryptor{}
+	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(0)).Return(s.tx, s.ctx, nil),
+		s.storage.EXPECT().ListBusinessUnits(gomock.Any(), s.tx, listBusinessUnitsRequest).Return(listBusinessUnitsResult, nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+		s.jwtFactory.EXPECT().NewJWEEncryptor(buAlice.Authentications[1]).Return(aliceEncryptor, nil),
+		s.jwtFactory.EXPECT().NewJWEEncryptor(buBob.Authentications[0]).Return(bobEncryptor, nil),
+	)
+
+	encryptors, err := s.buManager.GetJWEEncryptors(s.ctx, request)
+	s.NoError(err)
+	s.Require().Len(encryptors, 2)
+	s.Assert().Equal(
+		[]envelope.KeyEncryptionAlgorithm{
+			envelope.KeyEncryptionAlgorithm(jwa.ECDH_ES_A128KW),
+			envelope.KeyEncryptionAlgorithm(jwa.ECDH_ES_A192KW),
+			envelope.KeyEncryptionAlgorithm(jwa.ECDH_ES_A256KW),
+		},
+		encryptors[0].AvailableJWEEncryptAlgorithms(),
+	)
+	s.Assert().Equal(
+		[]envelope.KeyEncryptionAlgorithm{
+			envelope.KeyEncryptionAlgorithm(jwa.RSA_OAEP),
+			envelope.KeyEncryptionAlgorithm(jwa.RSA_OAEP_256),
+			envelope.KeyEncryptionAlgorithm(jwa.RSA1_5),
+		},
+		encryptors[1].AvailableJWEEncryptAlgorithms(),
+	)
 }

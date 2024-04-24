@@ -500,7 +500,7 @@ func (m *_BusinessUnitManager) GetJWEEncryptors(ctx context.Context, req GetJWEE
 		}
 
 		// find latest active authentications
-		var authenticates map[string]model.BusinessUnitAuthentication
+		authenticates := make(map[string]model.BusinessUnitAuthentication)
 		for _, record := range result.Records {
 			for i := len(record.Authentications) - 1; i >= 0; i-- {
 				if record.Authentications[i].Status == model.BusinessUnitAuthenticationStatusActive {

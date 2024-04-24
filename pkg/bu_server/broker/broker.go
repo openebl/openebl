@@ -451,7 +451,7 @@ func (b *Broker) tradeDocumentOutboxWorker(ctx context.Context) {
 
 				var ids []int64
 				for _, msg := range messages {
-					if err := b.client.Publish(ctx, int(relay.FileBasedBillOfLading), msg.Msg); err != nil {
+					if err := b.client.Publish(ctx, msg.Kind, msg.Msg); err != nil {
 						return fmt.Errorf("failed to publish message: %w", err)
 					}
 					ids = append(ids, msg.RecID)
@@ -481,23 +481,21 @@ func (b *Broker) tradeDocumentOutboxWorker(ctx context.Context) {
 
 		// Process the outbox to send messages
 		err := processOutbox(ctx)
-		if err == nil {
-			continue
+		if errors.Is(err, errOutboxEmpty) {
+			// Wait for the next check interval or done signal if the outbox is empty
+			select {
+			case <-ctx.Done():
+				return
+			case <-b.done:
+				return
+			case <-ticker.C:
+				continue
+			}
 		}
-		if err != nil && !errors.Is(err, errOutboxEmpty) {
+		if err != nil {
 			logrus.Errorf("Failed to process outbox: %v", err)
 			b.closeWithError(err)
 			return
-		}
-
-		// Wait for the next check interval or done signal if the outbox is empty
-		select {
-		case <-ctx.Done():
-			return
-		case <-b.done:
-			return
-		case <-ticker.C:
-			continue
 		}
 	}
 }

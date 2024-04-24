@@ -211,6 +211,7 @@ func (s *BrokerTestSuite) TestBrokerPublish() {
 	message := storage.OutboxMsg{
 		RecID: 111,
 		Key:   "ebl.001",
+		Kind:  int(relay.EncryptedFileBasedBillOfLading),
 		Msg:   td.Doc,
 	}
 	var receivedData []byte
@@ -219,7 +220,7 @@ func (s *BrokerTestSuite) TestBrokerPublish() {
 		s.outboxStorage.EXPECT().GetTradeDocumentOutbox(gomock.Any(), s.tx, 100).Return([]storage.OutboxMsg{message}, nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 
-		s.relayClient.EXPECT().Publish(gomock.Any(), int(relay.FileBasedBillOfLading), gomock.Any()).
+		s.relayClient.EXPECT().Publish(gomock.Any(), 1002, gomock.Any()).
 			DoAndReturn(func(ctx context.Context, evtType int, data []byte) error {
 				receivedData = data
 				return nil

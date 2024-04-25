@@ -637,6 +637,122 @@ func (mr *MockWebhookStorageMockRecorder) ListWebhook(ctx, tx, req interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListWebhook", reflect.TypeOf((*MockWebhookStorage)(nil).ListWebhook), ctx, tx, req)
 }
 
+// MockCertStorage is a mock of CertStorage interface.
+type MockCertStorage struct {
+	ctrl     *gomock.Controller
+	recorder *MockCertStorageMockRecorder
+}
+
+// MockCertStorageMockRecorder is the mock recorder for MockCertStorage.
+type MockCertStorageMockRecorder struct {
+	mock *MockCertStorage
+}
+
+// NewMockCertStorage creates a new mock instance.
+func NewMockCertStorage(ctrl *gomock.Controller) *MockCertStorage {
+	mock := &MockCertStorage{ctrl: ctrl}
+	mock.recorder = &MockCertStorageMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockCertStorage) EXPECT() *MockCertStorageMockRecorder {
+	return m.recorder
+}
+
+// AddCRL mocks base method.
+func (m *MockCertStorage) AddCRL(ctx context.Context, tx storage.Tx, ts int64, issuerKeyID, certSerialNumber string, revokedAt int64, crl []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddCRL", ctx, tx, ts, issuerKeyID, certSerialNumber, revokedAt, crl)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddCRL indicates an expected call of AddCRL.
+func (mr *MockCertStorageMockRecorder) AddCRL(ctx, tx, ts, issuerKeyID, certSerialNumber, revokedAt, crl interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCRL", reflect.TypeOf((*MockCertStorage)(nil).AddCRL), ctx, tx, ts, issuerKeyID, certSerialNumber, revokedAt, crl)
+}
+
+// AddRootCert mocks base method.
+func (m *MockCertStorage) AddRootCert(ctx context.Context, tx storage.Tx, ts int64, fingerPrint string, cert []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddRootCert", ctx, tx, ts, fingerPrint, cert)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddRootCert indicates an expected call of AddRootCert.
+func (mr *MockCertStorageMockRecorder) AddRootCert(ctx, tx, ts, fingerPrint, cert interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddRootCert", reflect.TypeOf((*MockCertStorage)(nil).AddRootCert), ctx, tx, ts, fingerPrint, cert)
+}
+
+// CreateTx mocks base method.
+func (m *MockCertStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx}
+	for _, a := range options {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CreateTx", varargs...)
+	ret0, _ := ret[0].(storage.Tx)
+	ret1, _ := ret[1].(context.Context)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// CreateTx indicates an expected call of CreateTx.
+func (mr *MockCertStorageMockRecorder) CreateTx(ctx interface{}, options ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx}, options...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTx", reflect.TypeOf((*MockCertStorage)(nil).CreateTx), varargs...)
+}
+
+// GetActiveRootCert mocks base method.
+func (m *MockCertStorage) GetActiveRootCert(ctx context.Context, tx storage.Tx) ([][]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetActiveRootCert", ctx, tx)
+	ret0, _ := ret[0].([][]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetActiveRootCert indicates an expected call of GetActiveRootCert.
+func (mr *MockCertStorageMockRecorder) GetActiveRootCert(ctx, tx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetActiveRootCert", reflect.TypeOf((*MockCertStorage)(nil).GetActiveRootCert), ctx, tx)
+}
+
+// GetCRL mocks base method.
+func (m *MockCertStorage) GetCRL(ctx context.Context, tx storage.Tx, req storage.GetCRLRequest) (storage.GetCRLResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCRL", ctx, tx, req)
+	ret0, _ := ret[0].(storage.GetCRLResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCRL indicates an expected call of GetCRL.
+func (mr *MockCertStorageMockRecorder) GetCRL(ctx, tx, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCRL", reflect.TypeOf((*MockCertStorage)(nil).GetCRL), ctx, tx, req)
+}
+
+// RevokeRootCert mocks base method.
+func (m *MockCertStorage) RevokeRootCert(ctx context.Context, tx storage.Tx, ts int64, fingerPrinter string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RevokeRootCert", ctx, tx, ts, fingerPrinter)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RevokeRootCert indicates an expected call of RevokeRootCert.
+func (mr *MockCertStorageMockRecorder) RevokeRootCert(ctx, tx, ts, fingerPrinter interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeRootCert", reflect.TypeOf((*MockCertStorage)(nil).RevokeRootCert), ctx, tx, ts, fingerPrinter)
+}
+
 // MockOffsetStorage is a mock of OffsetStorage interface.
 type MockOffsetStorage struct {
 	ctrl     *gomock.Controller

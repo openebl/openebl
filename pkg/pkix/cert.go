@@ -358,6 +358,11 @@ func GetSubjectKeyIDFromCertificate(cert *x509.Certificate) string {
 	return GetPublicKeyID(cert.PublicKey)
 }
 
+func GetFingerPrintFromCertificate(cert *x509.Certificate) string {
+	hashSum := sha1.Sum(cert.Raw)
+	return fmt.Sprintf("sha1:%s", hex.EncodeToString(hashSum[:]))
+}
+
 func GetAuthorityKeyIDFromCertificateRevocationList(crl *x509.RevocationList) string {
 	type authKeyId struct {
 		Id []byte `asn1:"optional,tag:0"`

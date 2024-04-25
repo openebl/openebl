@@ -57,6 +57,8 @@ func (s *BaseTestSuite) SetupTest() {
 		"webhook",
 		"webhook_history",
 		"webhook_outbox",
+		"cert_revocation_list",
+		"root_cert",
 	}
 	for _, tableName := range tableNames {
 		_, err := pool.Exec(context.Background(), fmt.Sprintf(`DELETE FROM %q`, tableName))

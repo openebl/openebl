@@ -3,7 +3,6 @@ package cert_authority
 import (
 	"context"
 	"crypto/rand"
-	"crypto/sha1"
 	"crypto/x509"
 	"database/sql"
 	"encoding/hex"
@@ -153,7 +152,7 @@ func (ca *_CertAuthority) AddRootCertificate(ctx context.Context, ts int64, req 
 		PublicKeyID:             eblpkix.GetSubjectKeyIDFromCertificate(certs[0]),
 		IssuerKeyID:             hex.EncodeToString(certs[0].AuthorityKeyId),
 		Certificate:             req.Cert,
-		CertFingerPrint:         fmt.Sprintf("sha1:%x", sha1.Sum(certs[0].Raw)),
+		CertFingerPrint:         eblpkix.GetFingerPrintFromCertificate(certs[0]),
 		CertificateSerialNumber: certs[0].SerialNumber.String(),
 	}
 
@@ -300,7 +299,6 @@ func (ca *_CertAuthority) RespondCACertificateSigningRequest(ctx context.Context
 		return model.Cert{}, fmt.Errorf("certificate %s is not a CA certificate %w", req.CertID, model.ErrInvalidParameter)
 	}
 
-	hashValue := sha1.Sum(cert[0].Raw)
 	newCert := oldCert
 	newCert.Version += 1
 	newCert.Status = model.CertStatusActive
@@ -311,7 +309,7 @@ func (ca *_CertAuthority) RespondCACertificateSigningRequest(ctx context.Context
 	newCert.Certificate = req.Cert
 	newCert.NotBefore = cert[0].NotBefore.Unix()
 	newCert.NotAfter = cert[0].NotAfter.Unix()
-	newCert.CertFingerPrint = fmt.Sprintf("sha1:%x", hashValue)
+	newCert.CertFingerPrint = eblpkix.GetFingerPrintFromCertificate(cert[0])
 	newCert.CertificateSerialNumber = cert[0].SerialNumber.String()
 
 	if err := ca.certStorage.AddCertificate(ctx, tx, newCert); err != nil {
@@ -545,7 +543,7 @@ func (ca *_CertAuthority) IssueCertificate(ctx context.Context, ts int64, req Is
 	cert.Certificate = string(certPem)
 	cert.NotBefore = leafCert.NotBefore.Unix()
 	cert.NotAfter = leafCert.NotAfter.Unix()
-	cert.CertFingerPrint = fmt.Sprintf("sha1:%x", sha1.Sum(leafCert.Raw))
+	cert.CertFingerPrint = eblpkix.GetFingerPrintFromCertificate(leafCert)
 	cert.CertificateSerialNumber = leafCert.SerialNumber.String()
 
 	if err := ca.certStorage.AddCertificate(ctx, tx, caCert); err != nil {

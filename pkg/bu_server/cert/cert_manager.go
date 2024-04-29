@@ -16,6 +16,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type CertVerifier interface {
+	VerifyCert(ctx context.Context, tx storage.Tx, ts int64, certChain []*x509.Certificate) error
+}
+
 type CertManager struct {
 	certServerURL string
 	certStore     storage.CertStorage

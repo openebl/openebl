@@ -14,7 +14,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
-	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
+	"github.com/openebl/openebl/pkg/bu_server/cert"
 	"github.com/openebl/openebl/pkg/bu_server/middleware"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
@@ -41,15 +41,15 @@ type API struct {
 
 func NewAPIWithConfig(cfg APIConfig) (*API, error) {
 	dbStorage, err := postgres.NewStorageWithConfig(cfg.Database)
-	ca := cert_authority.NewCertAuthority(dbStorage)
 	if err != nil {
 		logrus.Errorf("failed to create storage: %v", err)
 		return nil, err
 	}
+	cv := cert.NewCertManager(cert.WithCertStore(storage))
 
 	apiKeyMgr := auth.NewAPIKeyAuthenticator(dbStorage)
 	webhookCtrl := webhook.NewWebhookController(dbStorage)
-	buMgr := business_unit.NewBusinessUnitManager(dbStorage, ca, webhookCtrl, nil)
+	buMgr := business_unit.NewBusinessUnitManager(dbStorage, cv, webhookCtrl, nil)
 	fileEBLCtrl := trade_document.NewFileBaseEBLController(dbStorage, buMgr, webhookCtrl)
 	api, err := NewAPIWithController(apiKeyMgr, buMgr, webhookCtrl, fileEBLCtrl, cfg.LocalAddress)
 	if err != nil {

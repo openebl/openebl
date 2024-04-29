@@ -18,7 +18,7 @@ import (
 	"github.com/openebl/openebl/pkg/pkix"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
-	mock_cert_authority "github.com/openebl/openebl/test/mock/bu_server/cert_authority"
+	mock_cert "github.com/openebl/openebl/test/mock/bu_server/cert"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
 	mock_webhook "github.com/openebl/openebl/test/mock/bu_server/webhook"
 	"github.com/stretchr/testify/suite"
@@ -31,7 +31,7 @@ type BusinessUnitManagerTestSuite struct {
 	storage     *mock_storage.MockBusinessUnitStorage
 	webhookCtrl *mock_webhook.MockWebhookController
 	jwtFactory  *mock_business_unit.MockJWTFactory
-	ca          *mock_cert_authority.MockCertAuthority
+	cv          *mock_cert.MockCertVerifier
 	tx          *mock_storage.MockTx
 	buManager   business_unit.BusinessUnitManager
 }
@@ -46,9 +46,9 @@ func (s *BusinessUnitManagerTestSuite) SetupTest() {
 	s.storage = mock_storage.NewMockBusinessUnitStorage(s.ctrl)
 	s.webhookCtrl = mock_webhook.NewMockWebhookController(s.ctrl)
 	s.jwtFactory = mock_business_unit.NewMockJWTFactory(s.ctrl)
-	s.ca = mock_cert_authority.NewMockCertAuthority(s.ctrl)
+	s.cv = mock_cert.NewMockCertVerifier(s.ctrl)
 	s.tx = mock_storage.NewMockTx(s.ctrl)
-	s.buManager = business_unit.NewBusinessUnitManager(s.storage, s.ca, s.webhookCtrl, s.jwtFactory)
+	s.buManager = business_unit.NewBusinessUnitManager(s.storage, s.cv, s.webhookCtrl, s.jwtFactory)
 }
 
 func (s *BusinessUnitManagerTestSuite) TearDownTest() {
@@ -421,6 +421,7 @@ func (s *BusinessUnitManagerTestSuite) TestActivateAuthentication() {
 	expectedBuAuth.CertFingerPrint = "sha1:c22d268faa8895e02d8be8ffbcfd80e03a204f30"
 
 	gomock.InOrder(
+		s.cv.EXPECT().VerifyCert(gomock.Any(), s.tx, gomock.Any(), buCert).Return(nil),
 		s.storage.EXPECT().ListAuthentication(
 			gomock.Any(),
 			s.tx,

@@ -16,7 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
+	"github.com/openebl/openebl/pkg/bu_server/cert"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/webhook"
@@ -131,15 +131,15 @@ type GetJWEEncryptorsRequest struct {
 }
 
 type _BusinessUnitManager struct {
-	ca          cert_authority.CertAuthority
+	cv          cert.CertVerifier
 	storage     storage.BusinessUnitStorage
 	webhookCtrl webhook.WebhookController
 	jwtFactory  JWTFactory
 }
 
-func NewBusinessUnitManager(storage storage.BusinessUnitStorage, ca cert_authority.CertAuthority, webhookCtrl webhook.WebhookController, jwtFactory JWTFactory) BusinessUnitManager {
+func NewBusinessUnitManager(storage storage.BusinessUnitStorage, cv cert.CertVerifier, webhookCtrl webhook.WebhookController, jwtFactory JWTFactory) BusinessUnitManager {
 	return &_BusinessUnitManager{
-		ca:          ca,
+		cv:          cv,
 		storage:     storage,
 		webhookCtrl: webhookCtrl,
 		jwtFactory:  jwtFactory,
@@ -372,7 +372,9 @@ func (m *_BusinessUnitManager) ActivateAuthentication(ctx context.Context, tx st
 		return model.BusinessUnitAuthentication{}, fmt.Errorf("certificate is empty, or serial number is not available, or authority key id is not available: %w", model.ErrInvalidParameter)
 	}
 
-	// TODO: Validate the certificate.
+	if err := m.cv.VerifyCert(ctx, tx, ts, certs); err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
 
 	pubKeyID := eblpkix.GetSubjectKeyIDFromCertificate(certs[0])
 	issuerKeyID := hex.EncodeToString(certs[0].AuthorityKeyId)

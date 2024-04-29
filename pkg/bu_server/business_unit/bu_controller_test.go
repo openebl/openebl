@@ -418,6 +418,7 @@ func (s *BusinessUnitManagerTestSuite) TestActivateAuthentication() {
 	expectedBuAuth.Certificate = string(buCertRaw)
 	expectedBuAuth.IssuerKeyID = hex.EncodeToString(buCert[0].AuthorityKeyId)
 	expectedBuAuth.CertificateSerialNumber = buCert[0].SerialNumber.String()
+	expectedBuAuth.CertFingerPrint = "sha1:c22d268faa8895e02d8be8ffbcfd80e03a204f30"
 
 	gomock.InOrder(
 		s.storage.EXPECT().ListAuthentication(

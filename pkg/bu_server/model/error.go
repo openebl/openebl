@@ -14,6 +14,7 @@ var ErrBusinessUnitError = errors.New("")           // Base error for Business U
 var ErrCertificationAuthorityError = errors.New("") // Base error for Certification Authority
 var ErrFileBasedEBLError = errors.New("")           // Base error for File Based EBL
 var ErrWebhookError = errors.New("")                // Base error for Webhook
+var ErrCertInvalid = errors.New("")                 // Base error for Certification Verification Error
 
 // API Key errors
 var ErrInvalidAPIKeyString = fmt.Errorf("invalid API key string%w", ErrAPIKeyError)

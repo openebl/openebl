@@ -2,15 +2,18 @@ package cert_test
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/openebl/openebl/pkg/bu_server/cert"
+	"github.com/openebl/openebl/pkg/bu_server/storage"
 	cert_model "github.com/openebl/openebl/pkg/cert_server/model"
 	cert_storage "github.com/openebl/openebl/pkg/cert_server/storage"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
@@ -24,10 +27,9 @@ type CertTestSuite struct {
 	ctrl      *gomock.Controller
 	certStore *mock_storage.MockCertStorage
 	tx        *mock_storage.MockTx
-	certMgr   *cert.CertManager
 
-	rootCerts      []cert_model.Cert
-	mockCertServer *httptest.Server
+	certs     []cert_model.Cert
+	x509Certs []*x509.Certificate
 }
 
 type _MockCertAuthorityServer struct {
@@ -63,6 +65,10 @@ func (s *CertTestSuite) SetupTest() {
 	s.Require().NoError(err)
 	cert2X509, err := eblpkix.ParseCertificate(certRaw2)
 	s.Require().NoError(err)
+	certRaw3, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert.crt")
+	s.Require().NoError(err)
+	cert3X509, err := eblpkix.ParseCertificate(certRaw3)
+	s.Require().NoError(err)
 	cert1 := cert_model.Cert{
 		ID:              "root_cert",
 		Version:         1,
@@ -72,42 +78,119 @@ func (s *CertTestSuite) SetupTest() {
 		CertFingerPrint: eblpkix.GetFingerPrintFromCertificate(cert1X509[0]),
 	}
 	cert2 := cert_model.Cert{
-		ID:              "root_cert2",
+		ID:              "ca_cert",
 		Version:         1,
 		Type:            cert_model.RootCert,
 		Status:          cert_model.CertStatusRevoked,
 		Certificate:     string(certRaw2),
 		CertFingerPrint: eblpkix.GetFingerPrintFromCertificate(cert2X509[0]),
 	}
-	s.rootCerts = []cert_model.Cert{cert1, cert2}
+	cert3 := cert_model.Cert{
+		ID:              "bu_cert",
+		Version:         1,
+		Type:            cert_model.BUCert,
+		Status:          cert_model.CertStatusActive,
+		Certificate:     string(certRaw3),
+		CertFingerPrint: eblpkix.GetFingerPrintFromCertificate(cert3X509[0]),
+	}
+	s.certs = []cert_model.Cert{cert1, cert2, cert3}
+	s.x509Certs = []*x509.Certificate{cert1X509[0], cert2X509[0], cert3X509[0]}
 
 	s.ctrl = gomock.NewController(s.T())
 	s.certStore = mock_storage.NewMockCertStorage(s.ctrl)
 	s.tx = mock_storage.NewMockTx(s.ctrl)
-
-	mockHttpHandler := &_MockCertAuthorityServer{
-		Certs: s.rootCerts,
-	}
-	certServer := httptest.NewServer(mockHttpHandler)
-	s.certMgr = cert.NewCertManager(cert.WithCertStore(s.certStore), cert.WithCertServerURL(certServer.URL))
-	s.mockCertServer = certServer
 }
 
 func (s *CertTestSuite) TearDownTest() {
 	s.ctrl.Finish()
-	s.mockCertServer.Close()
+}
+
+func (s *CertTestSuite) TestVerifyCert() {
+	certMgr := cert.NewCertManager(cert.WithCertStore(s.certStore))
+	ts := time.Now().Unix()
+
+	certChain := []*x509.Certificate{s.x509Certs[2], s.x509Certs[1], s.x509Certs[0]}
+	expectedGetCRLReq := storage.GetCRLRequest{
+		RevokedAt: ts,
+		IssuerKeysAndCertSerialNumbers: []storage.IssuerKeyAndCertSerialNumber{
+			{
+				IssuerKeyID:       eblpkix.GetSubjectKeyIDFromCertificate(s.x509Certs[2]),
+				CertificateSerial: s.x509Certs[2].SerialNumber.String(),
+			},
+			{
+				IssuerKeyID:       eblpkix.GetSubjectKeyIDFromCertificate(s.x509Certs[1]),
+				CertificateSerial: s.x509Certs[1].SerialNumber.String(),
+			},
+			{
+				IssuerKeyID:       eblpkix.GetSubjectKeyIDFromCertificate(s.x509Certs[0]),
+				CertificateSerial: s.x509Certs[0].SerialNumber.String(),
+			},
+		},
+	}
+
+	// Test Certificate Valid Case
+	gomock.InOrder(
+		s.certStore.EXPECT().GetCRL(gomock.Any(), s.tx, expectedGetCRLReq).Return(storage.GetCRLResult{}, nil),
+		s.certStore.EXPECT().GetActiveRootCert(gomock.Any(), s.tx).Return([][]byte{[]byte(s.certs[0].Certificate)}, nil),
+	)
+
+	err := certMgr.VerifyCert(context.Background(), s.tx, ts, certChain)
+	s.Require().NoError(err)
+
+	// Test Certification Expired Case
+	func() {
+		newTs := ts + 200*86400*365
+		getCRLReq := expectedGetCRLReq
+		getCRLReq.RevokedAt = newTs
+		gomock.InOrder(
+			s.certStore.EXPECT().GetCRL(gomock.Any(), s.tx, getCRLReq).Return(storage.GetCRLResult{}, nil),
+			s.certStore.EXPECT().GetActiveRootCert(gomock.Any(), s.tx).Return([][]byte{[]byte(s.certs[0].Certificate)}, nil),
+		)
+		err = certMgr.VerifyCert(context.Background(), s.tx, newTs, certChain)
+		s.Require().Error(err)
+	}()
+
+	// Test Certification Revoked Case
+	crlRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/ca_cert.crl")
+	s.Require().NoError(err)
+	crl, err := eblpkix.ParseCertificateRevocationList(crlRaw)
+	s.Require().NoError(err)
+
+	gomock.InOrder(
+		s.certStore.EXPECT().GetCRL(gomock.Any(), s.tx, expectedGetCRLReq).Return(
+			storage.GetCRLResult{
+				CRLs: map[storage.IssuerKeyAndCertSerialNumber][]byte{
+					{
+						IssuerKeyID:       eblpkix.GetAuthorityKeyIDFromCertificateRevocationList(crl),
+						CertificateSerial: crl.RevokedCertificateEntries[0].SerialNumber.String(),
+					}: crlRaw,
+				},
+			},
+			nil,
+		),
+		s.certStore.EXPECT().GetActiveRootCert(gomock.Any(), s.tx).Return([][]byte{[]byte(s.certs[0].Certificate)}, nil),
+	)
+	err = certMgr.VerifyCert(context.Background(), s.tx, ts, certChain)
+	s.Require().Error(err)
 }
 
 func (s *CertTestSuite) TestSyncRootCert() {
+	mockHttpHandler := &_MockCertAuthorityServer{
+		Certs: s.certs[:2],
+	}
+	certServer := httptest.NewServer(mockHttpHandler)
+	certMgr := cert.NewCertManager(cert.WithCertStore(s.certStore), cert.WithCertServerURL(certServer.URL))
+	defer certServer.Close()
+
 	gomock.InOrder(
 		s.certStore.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, context.Background(), nil),
-		s.certStore.EXPECT().AddRootCert(gomock.Any(), s.tx, gomock.Not(int64(0)), gomock.Any(), gomock.Eq([]byte(s.rootCerts[0].Certificate))).Return(nil),
-		s.certStore.EXPECT().RevokeRootCert(gomock.Any(), s.tx, gomock.Not(int64(0)), gomock.Eq(s.rootCerts[1].CertFingerPrint)).Return(nil),
+		s.certStore.EXPECT().AddRootCert(gomock.Any(), s.tx, gomock.Not(int64(0)), gomock.Any(), gomock.Eq([]byte(s.certs[0].Certificate))).Return(nil),
+		s.certStore.EXPECT().RevokeRootCert(gomock.Any(), s.tx, gomock.Not(int64(0)), gomock.Eq(s.certs[1].CertFingerPrint)).Return(nil),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()),
 	)
 
-	err := s.certMgr.SyncRootCerts(context.Background())
+	err := certMgr.SyncRootCerts(context.Background())
 	s.Require().NoError(err)
 }
 
@@ -116,6 +199,8 @@ func (s *CertTestSuite) TestAddCRL() {
 	s.Require().NoError(err)
 	crl, err := eblpkix.ParseCertificateRevocationList(crlRaw)
 	s.Require().NoError(err)
+
+	certMgr := cert.NewCertManager(cert.WithCertStore(s.certStore))
 
 	gomock.InOrder(
 		s.certStore.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, context.Background(), nil),
@@ -132,6 +217,6 @@ func (s *CertTestSuite) TestAddCRL() {
 		s.tx.EXPECT().Rollback(gomock.Any()),
 	)
 
-	err = s.certMgr.AddCRL(context.Background(), []byte(crlRaw))
+	err = certMgr.AddCRL(context.Background(), []byte(crlRaw))
 	s.Require().NoError(err)
 }

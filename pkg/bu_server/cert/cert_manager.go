@@ -2,6 +2,7 @@ package cert
 
 import (
 	"context"
+	"crypto/x509"
 	"database/sql"
 	"fmt"
 	"time"
@@ -45,6 +46,24 @@ func NewCertManager(opts ...CertManagerOption) *CertManager {
 	}
 
 	return cm
+}
+
+func (cm *CertManager) VerifyCert(ctx context.Context, tx storage.Tx, ts int64, certChain []*x509.Certificate) error {
+	cvh, err := NewCertVerifyHelper(ctx, tx, ts, cm, certChain)
+	if err != nil {
+		return fmt.Errorf("CertManager::VerifyCert(): fail to NewCertVerifyHelper(): %w", err)
+	}
+
+	rootCerts, err := cm.getActiveRootCert(ctx, tx)
+	if err != nil {
+		return fmt.Errorf("CertManager::VerifyCert(): fail to getActiveRootCert(): %w", err)
+	}
+
+	err = eblpkix.Verify(certChain, rootCerts, ts, cvh)
+	if err != nil {
+		return fmt.Errorf("%s%w", err.Error(), model.ErrCertInvalid)
+	}
+	return nil
 }
 
 func (cm *CertManager) SyncRootCerts(ctx context.Context) error {
@@ -138,4 +157,25 @@ func (cm *CertManager) storeRootCert(rootCerts []cert_model.Cert) error {
 		return fmt.Errorf("CertManager::storeRootCert(): fail to Commit(): %w", err)
 	}
 	return nil
+}
+
+func (cm *CertManager) getActiveRootCert(ctx context.Context, tx storage.Tx) ([]*x509.Certificate, error) {
+	certsRaw, err := cm.certStore.GetActiveRootCert(ctx, tx)
+	if err != nil {
+		return nil, fmt.Errorf("CertManager::GetActiveRootCert(): fail to GetActiveRootCert(): %w", err)
+	}
+	certs := make([]*x509.Certificate, 0, len(certsRaw))
+	for _, certRaw := range certsRaw {
+		cert, err := eblpkix.ParseCertificate(certRaw)
+		if err != nil {
+			logrus.Errorf("CertManager::GetActiveRootCert(): fail to ParseCertificate(): %v", err)
+			continue
+		}
+		if len(cert) == 0 {
+			logrus.Errorf("CertManager::GetActiveRootCert(): empty certificate")
+			continue
+		}
+		certs = append(certs, cert[0])
+	}
+	return certs, nil
 }

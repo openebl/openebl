@@ -400,6 +400,7 @@ func (m *_BusinessUnitManager) ActivateAuthentication(ctx context.Context, tx st
 	buAuth.Certificate = string(certRaw)
 	buAuth.CertificateSerialNumber = certSerialNumber
 	buAuth.IssuerKeyID = issuerKeyID
+	buAuth.CertFingerPrint = eblpkix.GetFingerPrintFromCertificate(certs[0])
 	buAuth.ActivatedAt = ts
 
 	if err := m.storage.StoreAuthentication(ctx, tx, buAuth); err != nil {

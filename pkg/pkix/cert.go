@@ -40,13 +40,13 @@ type PrivateKeyOption struct {
 }
 
 type CertRevocationChecker interface {
-	IsCertsRevoked(ts int64, certs []*x509.Certificate) ([]*x509.Certificate, error)
+	IsCertsRevoked(ts int64, certs []*x509.Certificate) []*x509.Certificate
 }
 
 type EmptyCertRevocationChecker struct{}
 
-func (EmptyCertRevocationChecker) IsCertsRevoked(ts int64, certs []*x509.Certificate) ([]*x509.Certificate, error) {
-	return nil, nil
+func (EmptyCertRevocationChecker) IsCertsRevoked(ts int64, certs []*x509.Certificate) []*x509.Certificate {
+	return nil
 }
 
 // Verify verifies the certificate chain of trust.
@@ -107,10 +107,7 @@ func Verify(certs []*x509.Certificate, rootCerts []*x509.Certificate, ts int64, 
 	var revokedCerts []*x509.Certificate
 	noValidCertChain := true
 	for _, chain := range certChains {
-		tmpRevokedCerts, err := revocationChecker.IsCertsRevoked(ts, chain)
-		if err != nil {
-			return err
-		}
+		tmpRevokedCerts := revocationChecker.IsCertsRevoked(ts, chain)
 		if len(tmpRevokedCerts) > 0 {
 			revokedCerts = append(revokedCerts, tmpRevokedCerts...)
 			continue

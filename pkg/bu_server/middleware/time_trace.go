@@ -10,6 +10,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
 )
 
 type ResponseWriter struct {
@@ -31,31 +33,30 @@ func (w *ResponseWriter) WriteHeader(status int) {
 }
 
 func TimeTrace(next http.Handler) http.Handler {
+	requestDuration := otlp_util.NewInt64Histogram("bu_server.api.request.duration", metric.WithDescription("Request duration in milliseconds"))
+
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = "unknown"
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, span := otlp_util.Start(r.Context(), "bu_server/middleware/TimeTrace")
-		defer span.End()
-
+		ctx := r.Context()
 		clientIP := r.RemoteAddr
 		userAgent := r.UserAgent()
 		referer := r.Referer()
 		method := r.Method
 		urlPath := r.URL.Path
 
-		span.SetAttributes(
-			attribute.String("client_ip", clientIP),
-			attribute.String("user_agent", userAgent),
-			attribute.String("referer", referer),
-			attribute.String("method", method),
-			attribute.String("path", urlPath),
-		)
+		metricAttributes := []attribute.KeyValue{
+			semconv.NetworkPeerAddress(clientIP),
+			semconv.UserAgentName(userAgent),
+			semconv.HTTPMethod(method),
+			semconv.HTTPURL(urlPath),
+		}
 		if route := mux.CurrentRoute(r); route != nil {
 			path, _ := route.GetPathTemplate()
-			span.SetAttributes(attribute.String("route", path))
+			metricAttributes = append(metricAttributes, semconv.HTTPRoute(path))
 		}
 
 		start := time.Now()
@@ -66,5 +67,8 @@ func TimeTrace(next http.Handler) http.Handler {
 		statusCode := rw.Status()
 		dataLength, _ := strconv.ParseInt(w.Header().Get("Content-Length"), 10, 64)
 		logrus.Debugf("%s - %s \"%s %s\" %d %d \"%s\" \"%s\" (%dms)", clientIP, hostname, method, urlPath, statusCode, dataLength, referer, userAgent, elapsed)
+
+		metricAttributes = append(metricAttributes, semconv.HTTPStatusCode(statusCode))
+		requestDuration.Record(ctx, elapsed, metric.WithAttributes(metricAttributes...))
 	})
 }

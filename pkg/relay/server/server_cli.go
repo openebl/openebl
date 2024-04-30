@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -64,15 +65,22 @@ func (r *RelayServerApp) runServer(cli RelayServerCli) error {
 		os.Exit(1)
 	}
 
-	if otlpEndpoint := cfg.OTLPEndpoint; otlpEndpoint != "" {
-		otlp_util.InitGlobalTracer(
-			otlp_util.WithEndPoint(otlpEndpoint),
+	ctx := context.Background()
+	if endpoint := cfg.OTLPEndpoint; endpoint != "" {
+		exporter, err := otlp_util.InitExporter(
+			otlp_util.WithContext(ctx),
+			otlp_util.WithEndPoint(endpoint),
 			otlp_util.WithServiceName(appName),
 			otlp_util.WithInSecure(),
 			otlp_util.WithErrorHandler(func(err error) {
 				logrus.Warnf("OTLP error: %v", err)
 			}),
 		)
+		if err != nil {
+			logrus.Errorf("failed to init OTLP exporter: %v", err)
+			os.Exit(1)
+		}
+		defer func() { _ = exporter.Shutdown(ctx) }()
 	}
 
 	relayServer, err := NewServer(

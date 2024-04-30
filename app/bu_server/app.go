@@ -17,7 +17,10 @@ import (
 	"github.com/gobuffalo/pop/logging"
 	"github.com/openebl/openebl/pkg/bu_server/api"
 	"github.com/openebl/openebl/pkg/bu_server/broker"
+	"github.com/openebl/openebl/pkg/bu_server/business_unit"
+	"github.com/openebl/openebl/pkg/bu_server/cert"
 	"github.com/openebl/openebl/pkg/bu_server/manager"
+	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
 	"github.com/openebl/openebl/pkg/bu_server/webhook"
 	"github.com/openebl/openebl/pkg/config"
 	"github.com/openebl/openebl/pkg/util"
@@ -51,6 +54,7 @@ type Config struct {
 		RelayServer   string `yaml:"relay_server"`
 		CheckInterval int    `yaml:"check_interval"`
 		BatchSize     int    `yaml:"batch_size"`
+		CertServer    string `yaml:"cert_server"`
 	} `yaml:"broker"`
 	Webhook struct {
 		CheckInterval int `yaml:"check_interval"`
@@ -256,15 +260,25 @@ func (a *App) runBroker(cli CLI) {
 		os.Exit(128)
 	}
 
-	brokerConfig := broker.Config{
-		ClientID:    "default",
-		RelayServer: appConfig.Broker.RelayServer,
-		Database:    appConfig.Database,
+	dbStorage, err := postgres.NewStorageWithConfig(appConfig.Database)
+	if err != nil {
+		logrus.Errorf("failed to create database connection: %v", err)
+		os.Exit(128)
 	}
-	brokerService, err := broker.NewFromConfig(
-		brokerConfig,
+
+	certMgr := cert.NewCertManager(cert.WithCertStore(dbStorage), cert.WithCertServerURL(appConfig.Broker.CertServer))
+	webhookCtrl := webhook.NewWebhookController(dbStorage)
+	buMgr := business_unit.NewBusinessUnitManager(dbStorage, certMgr, webhookCtrl, nil)
+
+	brokerService, err := broker.NewBroker(
+		broker.WithClientID("default"),
 		broker.WithCheckInterval(appConfig.Broker.CheckInterval),
 		broker.WithBatchSize(appConfig.Broker.BatchSize),
+		broker.WithRelayServer(appConfig.Broker.RelayServer),
+		broker.WithInboxStore(dbStorage),
+		broker.WithOutboxStore(dbStorage),
+		broker.WithCertManager(certMgr),
+		broker.WithBUManager(buMgr),
 	)
 	if err != nil {
 		logrus.Errorf("failed to create broker: %v", err)

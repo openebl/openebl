@@ -39,7 +39,7 @@ type BusinessUnitManager interface {
 	// ActivateAuthentication activates an authentication of a business unit with its certificate.
 	// This function is NOT for REST API.
 	// The returned error can be model.ErrAuthenticationNotFound, model.ErrAuthenticationNotPending, model.ErrInvalidParameter or any other errors.
-	ActivateAuthentication(ctx context.Context, tx storage.Tx, ts int64, certRaw []byte) (model.BusinessUnitAuthentication, error)
+	ActivateAuthentication(ctx context.Context, ts int64, certRaw []byte) (model.BusinessUnitAuthentication, error)
 }
 
 type JWSSigner interface {
@@ -363,7 +363,7 @@ func (m *_BusinessUnitManager) AddAuthentication(ctx context.Context, ts int64, 
 	return auth, nil
 }
 
-func (m *_BusinessUnitManager) ActivateAuthentication(ctx context.Context, tx storage.Tx, ts int64, certRaw []byte) (model.BusinessUnitAuthentication, error) {
+func (m *_BusinessUnitManager) ActivateAuthentication(ctx context.Context, ts int64, certRaw []byte) (model.BusinessUnitAuthentication, error) {
 	certs, err := eblpkix.ParseCertificate(certRaw)
 	if err != nil {
 		return model.BusinessUnitAuthentication{}, fmt.Errorf("%s: %w", err.Error(), model.ErrInvalidParameter)
@@ -371,6 +371,12 @@ func (m *_BusinessUnitManager) ActivateAuthentication(ctx context.Context, tx st
 	if len(certs) == 0 || certs[0].SerialNumber == nil || certs[0].AuthorityKeyId == nil {
 		return model.BusinessUnitAuthentication{}, fmt.Errorf("certificate is empty, or serial number is not available, or authority key id is not available: %w", model.ErrInvalidParameter)
 	}
+
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+	defer tx.Rollback(ctx)
 
 	if err := m.cv.VerifyCert(ctx, tx, ts, certs); err != nil {
 		return model.BusinessUnitAuthentication{}, err
@@ -408,6 +414,11 @@ func (m *_BusinessUnitManager) ActivateAuthentication(ctx context.Context, tx st
 	if err := m.storage.StoreAuthentication(ctx, tx, buAuth); err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
+	if err := tx.Commit(ctx); err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+
+	buAuth.PrivateKey = "" // Erase PrivateKey before returning.
 	return buAuth, nil
 }
 

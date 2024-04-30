@@ -15,7 +15,7 @@ type CertVerifyHelper struct {
 	revocations map[storage.IssuerKeyAndCertSerialNumber][]byte
 }
 
-func NewCertVerifyHelper(ctx context.Context, tx storage.Tx, ts int64, cm *CertManager, certs []*x509.Certificate) (*CertVerifyHelper, error) {
+func NewCertVerifyHelper(ctx context.Context, tx storage.Tx, ts int64, cm *_CertManager, certs []*x509.Certificate) (*CertVerifyHelper, error) {
 	issuerKeyAndSerialNumber := lo.Map(
 		certs,
 		func(c *x509.Certificate, _ int) storage.IssuerKeyAndCertSerialNumber {

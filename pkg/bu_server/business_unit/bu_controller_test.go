@@ -421,6 +421,7 @@ func (s *BusinessUnitManagerTestSuite) TestActivateAuthentication() {
 	expectedBuAuth.CertFingerPrint = "sha1:c22d268faa8895e02d8be8ffbcfd80e03a204f30"
 
 	gomock.InOrder(
+		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
 		s.cv.EXPECT().VerifyCert(gomock.Any(), s.tx, gomock.Any(), buCert).Return(nil),
 		s.storage.EXPECT().ListAuthentication(
 			gomock.Any(),
@@ -441,10 +442,14 @@ func (s *BusinessUnitManagerTestSuite) TestActivateAuthentication() {
 			s.tx,
 			expectedBuAuth,
 		).Return(nil),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
 
-	result, err := s.buManager.ActivateAuthentication(s.ctx, s.tx, ts, buCertRaw)
+	result, err := s.buManager.ActivateAuthentication(s.ctx, ts, buCertRaw)
 	s.Require().NoError(err)
+	s.Assert().Empty(result.PrivateKey)
+	result.PrivateKey = expectedBuAuth.PrivateKey
 	s.Assert().Equal(expectedBuAuth, result)
 }
 

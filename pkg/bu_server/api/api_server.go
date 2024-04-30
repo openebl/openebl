@@ -45,7 +45,7 @@ func NewAPIWithConfig(cfg APIConfig) (*API, error) {
 		logrus.Errorf("failed to create storage: %v", err)
 		return nil, err
 	}
-	cv := cert.NewCertManager(cert.WithCertStore(storage))
+	cv := cert.NewCertManager(cert.WithCertStore(dbStorage))
 
 	apiKeyMgr := auth.NewAPIKeyAuthenticator(dbStorage)
 	webhookCtrl := webhook.NewWebhookController(dbStorage)

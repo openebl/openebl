@@ -20,27 +20,32 @@ type CertVerifier interface {
 	VerifyCert(ctx context.Context, tx storage.Tx, ts int64, certChain []*x509.Certificate) error
 }
 
-type CertManager struct {
+type CertManager interface {
+	SyncRootCerts(ctx context.Context) error
+	AddCRL(ctx context.Context, crlRaw []byte) error
+}
+
+type _CertManager struct {
 	certServerURL string
 	certStore     storage.CertStorage
 }
 
-type CertManagerOption func(*CertManager)
+type CertManagerOption func(*_CertManager)
 
 func WithCertServerURL(certServerURL string) CertManagerOption {
-	return func(cm *CertManager) {
+	return func(cm *_CertManager) {
 		cm.certServerURL = certServerURL
 	}
 }
 
 func WithCertStore(certStore storage.CertStorage) CertManagerOption {
-	return func(cm *CertManager) {
+	return func(cm *_CertManager) {
 		cm.certStore = certStore
 	}
 }
 
-func NewCertManager(opts ...CertManagerOption) *CertManager {
-	cm := &CertManager{}
+func NewCertManager(opts ...CertManagerOption) *_CertManager {
+	cm := &_CertManager{}
 	for _, opt := range opts {
 		opt(cm)
 	}
@@ -52,7 +57,7 @@ func NewCertManager(opts ...CertManagerOption) *CertManager {
 	return cm
 }
 
-func (cm *CertManager) VerifyCert(ctx context.Context, tx storage.Tx, ts int64, certChain []*x509.Certificate) error {
+func (cm *_CertManager) VerifyCert(ctx context.Context, tx storage.Tx, ts int64, certChain []*x509.Certificate) error {
 	cvh, err := NewCertVerifyHelper(ctx, tx, ts, cm, certChain)
 	if err != nil {
 		return fmt.Errorf("CertManager::VerifyCert(): fail to NewCertVerifyHelper(): %w", err)
@@ -70,14 +75,14 @@ func (cm *CertManager) VerifyCert(ctx context.Context, tx storage.Tx, ts int64, 
 	return nil
 }
 
-func (cm *CertManager) SyncRootCerts(ctx context.Context) error {
+func (cm *_CertManager) SyncRootCerts(ctx context.Context) error {
 	if err := cm.syncRootCerts(); err != nil {
 		return fmt.Errorf("CertManager::SyncRootCerts(): fail to syncRootCerts(): %w", err)
 	}
 	return nil
 }
 
-func (cm *CertManager) AddCRL(ctx context.Context, crlRaw []byte) error {
+func (cm *_CertManager) AddCRL(ctx context.Context, crlRaw []byte) error {
 	ts := time.Now().Unix()
 
 	crl, err := eblpkix.ParseCertificateRevocationList(crlRaw)
@@ -105,7 +110,7 @@ func (cm *CertManager) AddCRL(ctx context.Context, crlRaw []byte) error {
 	return nil
 }
 
-func (cm *CertManager) syncRootCerts() error {
+func (cm *_CertManager) syncRootCerts() error {
 	client := cli.NewRestClient(cm.certServerURL, "bu_server_cert_manager")
 
 	offset := 0
@@ -126,7 +131,7 @@ func (cm *CertManager) syncRootCerts() error {
 	return nil
 }
 
-func (cm *CertManager) storeRootCert(rootCerts []cert_model.Cert) error {
+func (cm *_CertManager) storeRootCert(rootCerts []cert_model.Cert) error {
 	ts := time.Now().Unix()
 	tx, ctx, err := cm.certStore.CreateTx(context.Background(), storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelLinearizable))
 	if err != nil {
@@ -163,7 +168,7 @@ func (cm *CertManager) storeRootCert(rootCerts []cert_model.Cert) error {
 	return nil
 }
 
-func (cm *CertManager) getActiveRootCert(ctx context.Context, tx storage.Tx) ([]*x509.Certificate, error) {
+func (cm *_CertManager) getActiveRootCert(ctx context.Context, tx storage.Tx) ([]*x509.Certificate, error) {
 	certsRaw, err := cm.certStore.GetActiveRootCert(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("CertManager::GetActiveRootCert(): fail to GetActiveRootCert(): %w", err)

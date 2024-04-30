@@ -42,18 +42,18 @@ func (m *MockBusinessUnitManager) EXPECT() *MockBusinessUnitManagerMockRecorder 
 }
 
 // ActivateAuthentication mocks base method.
-func (m *MockBusinessUnitManager) ActivateAuthentication(ctx context.Context, tx storage.Tx, ts int64, certRaw []byte) (model.BusinessUnitAuthentication, error) {
+func (m *MockBusinessUnitManager) ActivateAuthentication(ctx context.Context, ts int64, certRaw []byte) (model.BusinessUnitAuthentication, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ActivateAuthentication", ctx, tx, ts, certRaw)
+	ret := m.ctrl.Call(m, "ActivateAuthentication", ctx, ts, certRaw)
 	ret0, _ := ret[0].(model.BusinessUnitAuthentication)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ActivateAuthentication indicates an expected call of ActivateAuthentication.
-func (mr *MockBusinessUnitManagerMockRecorder) ActivateAuthentication(ctx, tx, ts, certRaw interface{}) *gomock.Call {
+func (mr *MockBusinessUnitManagerMockRecorder) ActivateAuthentication(ctx, ts, certRaw interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivateAuthentication", reflect.TypeOf((*MockBusinessUnitManager)(nil).ActivateAuthentication), ctx, tx, ts, certRaw)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivateAuthentication", reflect.TypeOf((*MockBusinessUnitManager)(nil).ActivateAuthentication), ctx, ts, certRaw)
 }
 
 // AddAuthentication mocks base method.

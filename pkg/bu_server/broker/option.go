@@ -3,6 +3,8 @@ package broker
 import (
 	"time"
 
+	"github.com/openebl/openebl/pkg/bu_server/business_unit"
+	"github.com/openebl/openebl/pkg/bu_server/cert"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/relay"
 )
@@ -13,6 +15,13 @@ type OptionFunc func(broker *Broker)
 func WithRelayClient(client relay.RelayClient) OptionFunc {
 	return func(b *Broker) {
 		b.client = client
+	}
+}
+
+// WithRelayServer sets the relay server URL for the broker
+func WithRelayServer(server string) OptionFunc {
+	return func(b *Broker) {
+		b.relayServer = server
 	}
 }
 
@@ -48,5 +57,17 @@ func WithCheckInterval(interval int) OptionFunc {
 func WithBatchSize(size int) OptionFunc {
 	return func(b *Broker) {
 		b.batchSize = size
+	}
+}
+
+func WithBUManager(ctrl business_unit.BusinessUnitManager) OptionFunc {
+	return func(b *Broker) {
+		b.buMgr = ctrl
+	}
+}
+
+func WithCertManager(ctrl cert.CertManager) OptionFunc {
+	return func(b *Broker) {
+		b.certMgr = ctrl
 	}
 }

@@ -49,3 +49,54 @@ func (mr *MockCertVerifierMockRecorder) VerifyCert(ctx, tx, ts, certChain interf
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyCert", reflect.TypeOf((*MockCertVerifier)(nil).VerifyCert), ctx, tx, ts, certChain)
 }
+
+// MockCertManager is a mock of CertManager interface.
+type MockCertManager struct {
+	ctrl     *gomock.Controller
+	recorder *MockCertManagerMockRecorder
+}
+
+// MockCertManagerMockRecorder is the mock recorder for MockCertManager.
+type MockCertManagerMockRecorder struct {
+	mock *MockCertManager
+}
+
+// NewMockCertManager creates a new mock instance.
+func NewMockCertManager(ctrl *gomock.Controller) *MockCertManager {
+	mock := &MockCertManager{ctrl: ctrl}
+	mock.recorder = &MockCertManagerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockCertManager) EXPECT() *MockCertManagerMockRecorder {
+	return m.recorder
+}
+
+// AddCRL mocks base method.
+func (m *MockCertManager) AddCRL(ctx context.Context, crlRaw []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddCRL", ctx, crlRaw)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddCRL indicates an expected call of AddCRL.
+func (mr *MockCertManagerMockRecorder) AddCRL(ctx, crlRaw interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCRL", reflect.TypeOf((*MockCertManager)(nil).AddCRL), ctx, crlRaw)
+}
+
+// SyncRootCerts mocks base method.
+func (m *MockCertManager) SyncRootCerts(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SyncRootCerts", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SyncRootCerts indicates an expected call of SyncRootCerts.
+func (mr *MockCertManagerMockRecorder) SyncRootCerts(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncRootCerts", reflect.TypeOf((*MockCertManager)(nil).SyncRootCerts), ctx)
+}

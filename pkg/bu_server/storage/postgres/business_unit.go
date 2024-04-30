@@ -97,14 +97,28 @@ FULL OUTER JOIN (SELECT business_unit, authentications FROM filtered_record ORDE
 func (s *_Storage) StoreAuthentication(ctx context.Context, tx storage.Tx, auth model.BusinessUnitAuthentication) error {
 	query := `
 WITH new_data AS (
-	INSERT INTO business_unit_authentication (id, "version", business_unit_id, "status", "authentication", created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $6)
+	INSERT INTO business_unit_authentication (
+		id,
+		"version",
+		business_unit_id,
+		"status",
+		"authentication",
+		created_at,
+		updated_at,
+		cert_public_key_id,
+		cert_issuer_key_id,
+		cert_serial
+	)
+	VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $8, $9)
 	ON CONFLICT (id) DO UPDATE SET
 		"version" = excluded."version",
 		business_unit_id = excluded.business_unit_id,
 		"status" = excluded."status",
 		"authentication" = excluded."authentication",
-		updated_at = excluded.updated_at
+		updated_at = excluded.updated_at,
+		cert_public_key_id = excluded.cert_public_key_id,
+		cert_issuer_key_id = excluded.cert_issuer_key_id,
+		cert_serial = excluded.cert_serial
 	RETURNING id, "version", "authentication", updated_at
 )
 INSERT INTO business_unit_authentication_history (id, "version", "authentication", created_at)
@@ -118,7 +132,10 @@ SELECT * FROM new_data
 		auth.BusinessUnit,
 		auth.Status,
 		auth,
-		max(auth.CreatedAt, auth.RevokedAt),
+		max(auth.CreatedAt, auth.RevokedAt, auth.ActivatedAt),
+		auth.PublicKeyID,
+		auth.IssuerKeyID,
+		auth.CertificateSerialNumber,
 	)
 	if err != nil {
 		return err
@@ -137,7 +154,9 @@ WITH filtered_record AS (
 	WHERE
 		($3 = '' OR bu.application_id = $3) AND
 		($4 = '' OR ba.business_unit_id = $4) AND
-		(COALESCE(array_length($5::TEXT[], 1), 0) = 0 OR ba.id = ANY($5))
+		(COALESCE(array_length($5::TEXT[], 1), 0) = 0 OR ba.id = ANY($5)) AND
+		(COALESCE(array_length($6::TEXT[], 1), 0) = 0 OR ba.cert_public_key_id = ANY($6)) AND
+		(COALESCE(array_length($7::TEXT[], 1), 0) = 0 OR ba.cert_issuer_key_id = ANY($7))
 )
 SELECT
 	total,
@@ -146,7 +165,7 @@ FROM (SELECT COUNT(*) AS total FROM filtered_record) AS report
 FULL OUTER JOIN (SELECT authentication FROM filtered_record ORDER BY rec_id ASC OFFSET $1 LIMIT $2) AS record ON FALSE
 `
 
-	rows, err := tx.Query(ctx, query, req.Offset, req.Limit, req.ApplicationID, req.BusinessUnitID, req.AuthenticationIDs)
+	rows, err := tx.Query(ctx, query, req.Offset, req.Limit, req.ApplicationID, req.BusinessUnitID, req.AuthenticationIDs, req.PublicKeyIDs, req.IssuerKeyIDs)
 	if err != nil {
 		return storage.ListAuthenticationResult{}, err
 	}

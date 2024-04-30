@@ -23,6 +23,8 @@ import (
 	"github.com/openebl/openebl/pkg/pkix"
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/relay/server"
+	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
+	mock_cert "github.com/openebl/openebl/test/mock/bu_server/cert"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
 	mock_relay "github.com/openebl/openebl/test/mock/relay"
 	"github.com/stretchr/testify/suite"
@@ -45,6 +47,8 @@ type BrokerTestSuite struct {
 	relayClient   *mock_relay.MockRelayClient
 	inboxStorage  *mock_storage.MockTradeDocumentInboxStorage
 	outboxStorage *mock_storage.MockTradeDocumentOutboxStorage
+	buMgr         *mock_business_unit.MockBusinessUnitManager
+	certMgr       *mock_cert.MockCertManager
 }
 
 func TestBrokerTestSuite(t *testing.T) {
@@ -58,6 +62,8 @@ func (s *BrokerTestSuite) SetupTest() {
 	s.relayClient = mock_relay.NewMockRelayClient(s.ctrl)
 	s.inboxStorage = mock_storage.NewMockTradeDocumentInboxStorage(s.ctrl)
 	s.outboxStorage = mock_storage.NewMockTradeDocumentOutboxStorage(s.ctrl)
+	s.buMgr = mock_business_unit.NewMockBusinessUnitManager(s.ctrl)
+	s.certMgr = mock_cert.NewMockCertManager(s.ctrl)
 }
 
 func (s *BrokerTestSuite) TearDownTest() {
@@ -72,9 +78,7 @@ func (s *BrokerTestSuite) TestBrokerConnectionStatusCallback() {
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
 
-	config := broker.Config{}
-	b, err := broker.NewFromConfig(
-		config,
+	b, err := broker.NewBroker(
 		broker.WithRelayClient(s.relayClient),
 		broker.WithInboxStore(s.inboxStorage),
 		broker.WithOutboxStore(s.outboxStorage),
@@ -101,9 +105,7 @@ func (s *BrokerTestSuite) TestBrokerEventSinkPlain() {
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
 
-	config := broker.Config{}
-	b, err := broker.NewFromConfig(
-		config,
+	b, err := broker.NewBroker(
 		broker.WithRelayClient(s.relayClient),
 		broker.WithInboxStore(s.inboxStorage),
 		broker.WithOutboxStore(s.outboxStorage),
@@ -159,9 +161,7 @@ func (s *BrokerTestSuite) TestBrokerEventSinkEncrypted() {
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
 
-	config := broker.Config{}
-	b, err := broker.NewFromConfig(
-		config,
+	b, err := broker.NewBroker(
 		broker.WithRelayClient(s.relayClient),
 		broker.WithInboxStore(s.inboxStorage),
 		broker.WithOutboxStore(s.outboxStorage),
@@ -206,6 +206,70 @@ func (s *BrokerTestSuite) TestBrokerEventSinkEncrypted() {
 	s.Assert().EqualValues(td, receivedTD)
 }
 
+func (s *BrokerTestSuite) TestBrokerCertEvent() {
+	ts := time.Now().Unix()
+	buCertRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert.crt")
+	s.Require().NoError(err)
+	b, err := broker.NewBroker(
+		broker.WithRelayClient(s.relayClient),
+		broker.WithInboxStore(s.inboxStorage),
+		broker.WithOutboxStore(s.outboxStorage),
+		broker.WithCertManager(s.certMgr),
+		broker.WithBUManager(s.buMgr),
+	)
+	s.Require().NoError(err)
+
+	evt := relay.Event{
+		Timestamp: ts,
+		Type:      int(relay.X509Certificate),
+		Offset:    12345,
+		Data:      buCertRaw,
+	}
+
+	gomock.InOrder(
+		s.buMgr.EXPECT().ActivateAuthentication(gomock.Any(), ts, buCertRaw).Return(model.BusinessUnitAuthentication{}, nil),
+		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+		s.inboxStorage.EXPECT().UpdateRelayServerOffset(gomock.Any(), s.tx, "", int64(12345)).Return(nil),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	_, err = eventSink(b, s.ctx, evt)
+	s.Require().NoError(err)
+}
+
+func (s *BrokerTestSuite) TestBrokerCRLEvent() {
+	ts := time.Now().Unix()
+	crlRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/ca_cert.crl")
+	s.Require().NoError(err)
+	b, err := broker.NewBroker(
+		broker.WithRelayClient(s.relayClient),
+		broker.WithInboxStore(s.inboxStorage),
+		broker.WithOutboxStore(s.outboxStorage),
+		broker.WithCertManager(s.certMgr),
+		broker.WithBUManager(s.buMgr),
+	)
+	s.Require().NoError(err)
+
+	evt := relay.Event{
+		Timestamp: ts,
+		Type:      int(relay.X509CertificateRevocationList),
+		Offset:    12345,
+		Data:      crlRaw,
+	}
+
+	gomock.InOrder(
+		s.certMgr.EXPECT().AddCRL(gomock.Any(), crlRaw).Return(nil),
+		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+		s.inboxStorage.EXPECT().UpdateRelayServerOffset(gomock.Any(), s.tx, "", int64(12345)).Return(nil),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+	)
+
+	_, err = eventSink(b, s.ctx, evt)
+	s.Require().NoError(err)
+}
+
 func (s *BrokerTestSuite) TestBrokerPublish() {
 	td := loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_issued_ebl_jws.json")
 	message := storage.OutboxMsg{
@@ -236,9 +300,7 @@ func (s *BrokerTestSuite) TestBrokerPublish() {
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
 
-	config := broker.Config{}
-	b, err := broker.NewFromConfig(
-		config,
+	b, err := broker.NewBroker(
 		broker.WithRelayClient(s.relayClient),
 		broker.WithInboxStore(s.inboxStorage),
 		broker.WithOutboxStore(s.outboxStorage),

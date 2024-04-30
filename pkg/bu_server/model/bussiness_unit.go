@@ -11,6 +11,7 @@ const (
 	BusinessUnitStatusActive   BusinessUnitStatus = "active"
 	BusinessUnitStatusInactive BusinessUnitStatus = "inactive"
 
+	BusinessUnitAuthenticationStatusPending BusinessUnitAuthenticationStatus = "pending"
 	BusinessUnitAuthenticationStatusActive  BusinessUnitAuthenticationStatus = "active"
 	BusinessUnitAuthenticationStatusRevoked BusinessUnitAuthenticationStatus = "revoked"
 )
@@ -40,12 +41,17 @@ type BusinessUnitAuthentication struct {
 	BusinessUnit did.DID                          `json:"business_unit"` // Unique DID of a BusinessUnit.
 	Status       BusinessUnitAuthenticationStatus `json:"status"`        // Status of the authentication.
 
-	CreatedAt int64  `json:"created_at"` // Unix Time (in second) when the authentication was created.
-	CreatedBy string `json:"created_by"` // User who created the authentication.
-	RevokedAt int64  `json:"revoked_at"` // Unix Time (in second) when the authentication was revoked.
-	RevokedBy string `json:"revoked_by"` // User who revoked the authentication.
+	CreatedAt   int64  `json:"created_at"`   // Unix Time (in second) when the authentication was created.
+	CreatedBy   string `json:"created_by"`   // User who created the authentication.
+	ActivatedAt int64  `json:"activated_at"` // Unix Time (in second) when the authentication was activated.
+	RevokedAt   int64  `json:"revoked_at"`   // Unix Time (in second) when the authentication was revoked.
+	RevokedBy   string `json:"revoked_by"`   // User who revoked the authentication.
 
-	PrivateKey      string `json:"private_key"`      // PEM encoded private key.
-	Certificate     string `json:"certificate"`      // PEM encoded certificate. It may contains multiple certificates. The first certificate is the leaf certificate. Others are intermediate certificates.
-	CertFingerPrint string `json:"cert_fingerprint"` // Fingerprint of the leaf certificate. The format is [HASH_ALGORITHM]:[FINGERPRINT_HEX_ENCODED].
+	PrivateKey                string `json:"private_key"`                 // PEM encoded private key.
+	CertificateSigningRequest string `json:"certificate_signing_request"` // PEM encoded certificate signing request (CSR).
+	Certificate               string `json:"certificate"`                 // PEM encoded certificate. It may contains multiple certificates. The first certificate is the leaf certificate. Others are intermediate certificates.
+	CertFingerPrint           string `json:"cert_fingerprint"`            // Fingerprint of the leaf certificate. The format is [HASH_ALGORITHM]:[FINGERPRINT_HEX_ENCODED].
+	PublicKeyID               string `json:"public_key_id"`               // Certificate Public key ID.
+	IssuerKeyID               string `json:"issuer_key_id"`               // Issuer public key ID.
+	CertificateSerialNumber   string `json:"certificate_serial_number"`   // Serial number of the certificate.
 }

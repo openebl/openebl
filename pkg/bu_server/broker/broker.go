@@ -9,25 +9,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/openebl/openebl/pkg/bu_server/business_unit"
+	"github.com/openebl/openebl/pkg/bu_server/cert"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
-	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
 	"github.com/openebl/openebl/pkg/bu_server/trade_document"
 	"github.com/openebl/openebl/pkg/envelope"
 	"github.com/openebl/openebl/pkg/pkix"
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/relay/server"
-	"github.com/openebl/openebl/pkg/util"
 	"github.com/sirupsen/logrus"
 )
-
-// Config represents the configuration for the broker
-type Config struct {
-	ClientID    string                      `yaml:"client_id"`
-	RelayServer string                      `yaml:"relay_server"`
-	Database    util.PostgresDatabaseConfig `yaml:"database"`
-}
 
 // Broker represents the broker instance
 type Broker struct {
@@ -39,31 +32,22 @@ type Broker struct {
 	batchSize     int
 	outboxStore   storage.TradeDocumentOutboxStorage
 	inboxStore    storage.TradeDocumentInboxStorage
+	buMgr         business_unit.BusinessUnitManager
+	certMgr       cert.CertManager
 	done          chan struct{}
 	closed        bool
 	closeErr      error
 	mu            sync.Mutex
 }
 
-// NewFromConfig creates a new broker from the given configuration
-func NewFromConfig(config Config, optFns ...OptionFunc) (*Broker, error) {
-	// Create the default broker
+func NewBroker(opts ...OptionFunc) (*Broker, error) {
 	s := &Broker{
-		clientID:      config.ClientID,
-		relayServer:   config.RelayServer,
 		checkInterval: 30 * time.Second, // Default check interval
 		batchSize:     10,               // Default batch size
 		done:          make(chan struct{}),
 	}
-
-	// Resolve the storage
-	if err := resolveStorage(config, s); err != nil {
-		return nil, err
-	}
-
-	// Apply the options
-	for _, optFn := range optFns {
-		optFn(s)
+	for _, opt := range opts {
+		opt(s)
 	}
 
 	return s, nil
@@ -78,6 +62,12 @@ func (b *Broker) Run(ctx context.Context) error {
 			relay.NostrClientWithConnectionStatusCallback(b.connectionStatusCallback),
 		)
 		b.client = client
+	}
+
+	if b.certMgr != nil {
+		if err := b.certMgr.SyncRootCerts(ctx); err != nil {
+			return fmt.Errorf("failed to sync root certs: %w", err)
+		}
 	}
 
 	go b.tradeDocumentOutboxWorker(ctx)
@@ -138,6 +128,34 @@ func (b *Broker) eventSink(ctx context.Context, event relay.Event) (string, erro
 		}
 		return nil
 	}
+
+	storeCertificate := func(ctx context.Context, certRaw []byte) error {
+		ts := time.Now().Unix()
+		_, err := b.buMgr.ActivateAuthentication(ctx, ts, certRaw)
+		if errors.Is(err, model.ErrAuthenticationNotFound) {
+			return nil
+		}
+		if errors.Is(err, model.ErrInvalidParameter) || errors.Is(err, model.ErrAuthenticationNotPending) {
+			logrus.Warnf("Failed to activate authentication: %v", err)
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to activate authentication: %w", err)
+		}
+		return nil
+	}
+
+	storeCertificateRevocation := func(ctx context.Context, crl []byte) error {
+		err := b.certMgr.AddCRL(ctx, crl)
+		if errors.Is(err, model.ErrInvalidParameter) {
+			logrus.Warnf("Failed to add CRL: %v", err)
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to add CRL: %w", err)
+		}
+		return nil
+	}
 	commitOffset := func(ctx context.Context, serverID string, offset int64) error {
 		tx, ctx, err := b.inboxStore.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 		if err != nil {
@@ -177,7 +195,14 @@ func (b *Broker) eventSink(ctx context.Context, event relay.Event) (string, erro
 			if err := storeTradeDocument(ctx, td); err != nil {
 				return fmt.Errorf("failed to store trade document: %w", err)
 			}
-
+		case relay.X509Certificate:
+			if err := storeCertificate(ctx, event.Data); err != nil {
+				return fmt.Errorf("failed to store certificate: %w", err)
+			}
+		case relay.X509CertificateRevocationList:
+			if err := storeCertificateRevocation(ctx, event.Data); err != nil {
+				return fmt.Errorf("failed to store certificate revocation: %w", err)
+			}
 		default:
 			log.Debugf("Unwanted event type: %d", event.Type)
 		}
@@ -498,20 +523,4 @@ func (b *Broker) tradeDocumentOutboxWorker(ctx context.Context) {
 			return
 		}
 	}
-}
-
-func resolveStorage(config Config, broker *Broker) error {
-	if config.Database.Host == "" {
-		return nil
-	}
-
-	store, err := postgres.NewStorageWithConfig(config.Database)
-	if err != nil {
-		return err
-	}
-
-	broker.inboxStore = store
-	broker.outboxStore = store
-
-	return nil
 }

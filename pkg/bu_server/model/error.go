@@ -14,6 +14,7 @@ var ErrBusinessUnitError = errors.New("")           // Base error for Business U
 var ErrCertificationAuthorityError = errors.New("") // Base error for Certification Authority
 var ErrFileBasedEBLError = errors.New("")           // Base error for File Based EBL
 var ErrWebhookError = errors.New("")                // Base error for Webhook
+var ErrCertInvalid = errors.New("")                 // Base error for Certification Verification Error
 
 // API Key errors
 var ErrInvalidAPIKeyString = fmt.Errorf("invalid API key string%w", ErrAPIKeyError)
@@ -38,6 +39,7 @@ var ErrBusinessUnitNotFound = fmt.Errorf("business unit not found%w", ErrBusines
 var ErrBusinessUnitInActive = fmt.Errorf("business unit is not active%w", ErrBusinessUnitError)
 var ErrAuthenticationNotFound = fmt.Errorf("authentication not found%w", ErrBusinessUnitError)
 var ErrAuthenticationNotActive = fmt.Errorf("authentication is not active%w", ErrBusinessUnitError)
+var ErrAuthenticationNotPending = fmt.Errorf("authentication is not pending%w", ErrBusinessUnitError)
 
 // Certification Authority errors
 var ErrCertificationNotFound = fmt.Errorf("certification not found%w", ErrCertificationAuthorityError)

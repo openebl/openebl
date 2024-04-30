@@ -14,6 +14,8 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -37,6 +39,16 @@ type PrivateKeyOption struct {
 	CurveType ECDSACurveType `json:"curve_type"` // Curve type of the private key. Only used when KeyType is ECDSA.
 }
 
+type CertRevocationChecker interface {
+	IsCertsRevoked(ts int64, certs []*x509.Certificate) []*x509.Certificate
+}
+
+type EmptyCertRevocationChecker struct{}
+
+func (EmptyCertRevocationChecker) IsCertsRevoked(ts int64, certs []*x509.Certificate) []*x509.Certificate {
+	return nil
+}
+
 // Verify verifies the certificate chain of trust.
 //
 // The first certificate in the chain is the end-entity certificate.
@@ -48,7 +60,7 @@ type PrivateKeyOption struct {
 // ts is the timestamp to verify the certificate chain. If ts is 0, the current time is used.
 //
 // !!! Current implementation doesn't check KeyUsage extension for better new user migration.
-func Verify(certs []*x509.Certificate, rootCerts []*x509.Certificate, ts int64) error {
+func Verify(certs []*x509.Certificate, rootCerts []*x509.Certificate, ts int64, revocationChecker CertRevocationChecker) error {
 	if len(certs) == 0 {
 		return errors.New("no certificate provided")
 	}
@@ -92,8 +104,28 @@ func Verify(certs []*x509.Certificate, rootCerts []*x509.Certificate, ts int64) 
 		return err
 	}
 
-	// TODO: Check if certificates involved in certChains are not revoked.
-	_ = certChains
+	var revokedCerts []*x509.Certificate
+	noValidCertChain := true
+	for _, chain := range certChains {
+		tmpRevokedCerts := revocationChecker.IsCertsRevoked(ts, chain)
+		if len(tmpRevokedCerts) > 0 {
+			revokedCerts = append(revokedCerts, tmpRevokedCerts...)
+			continue
+		}
+		noValidCertChain = false
+	}
+	if noValidCertChain {
+		strBuilder := strings.Builder{}
+		strBuilder.WriteString("certs (issuer key id, serial number) ")
+		for i, cert := range revokedCerts {
+			if i > 0 {
+				strBuilder.WriteString(", ")
+			}
+			strBuilder.WriteString(fmt.Sprintf("{%s, %s}", hex.EncodeToString(cert.AuthorityKeyId), cert.SerialNumber.String()))
+		}
+		strBuilder.WriteString(" are revoked")
+		return errors.New(strBuilder.String())
+	}
 
 	return nil
 }
@@ -260,6 +292,39 @@ func GetPublicKey(privKey any) any {
 	}
 }
 
+func GetPublicKeyID(pubKey any) string {
+	getBytes := func() []byte {
+		rsaPubKey, _ := pubKey.(*rsa.PublicKey)
+		if rsaPubKey != nil {
+			return x509.MarshalPKCS1PublicKey(rsaPubKey)
+		}
+
+		ecdsaPubKey, _ := pubKey.(*ecdsa.PublicKey)
+		if ecdsaPubKey != nil {
+			ecdhPubKey, err := ecdsaPubKey.ECDH()
+			if err != nil {
+				return nil
+			}
+			return ecdhPubKey.Bytes()
+		}
+
+		ecdhPubKey, _ := pubKey.(*ecdh.PublicKey)
+		if ecdhPubKey != nil {
+			return ecdhPubKey.Bytes()
+		}
+
+		return nil
+	}
+
+	keyBytes := getBytes()
+	if len(keyBytes) == 0 {
+		return ""
+	}
+
+	hashResult := sha1.Sum(keyBytes)
+	return hex.EncodeToString(hashResult[:])
+}
+
 func IsPublicKeySupported(pubKey any) error {
 	rsaPublicKey, _ := pubKey.(*rsa.PublicKey)
 	ecdsaPublicKey, _ := pubKey.(*ecdsa.PublicKey)
@@ -287,32 +352,12 @@ func GetSubjectKeyIDFromCertificate(cert *x509.Certificate) string {
 		return hex.EncodeToString(cert.SubjectKeyId)
 	}
 
-	getBytes := func() []byte {
-		rsaPubKey, _ := cert.PublicKey.(*rsa.PublicKey)
-		if rsaPubKey != nil {
-			return x509.MarshalPKCS1PublicKey(rsaPubKey)
-		}
+	return GetPublicKeyID(cert.PublicKey)
+}
 
-		ecdsaPubKey, _ := cert.PublicKey.(*ecdsa.PublicKey)
-		if ecdsaPubKey != nil {
-			ecdhPubKey, err := ecdsaPubKey.ECDH()
-			if err != nil {
-				return nil
-			}
-			return ecdhPubKey.Bytes()
-		}
-
-		ecdhPubKey, _ := cert.PublicKey.(*ecdh.PublicKey)
-		if ecdhPubKey != nil {
-			return ecdhPubKey.Bytes()
-		}
-
-		return nil
-	}
-
-	keyBytes := getBytes()
-	hashResult := sha1.Sum(keyBytes)
-	return hex.EncodeToString(hashResult[:])
+func GetFingerPrintFromCertificate(cert *x509.Certificate) string {
+	hashSum := sha1.Sum(cert.Raw)
+	return fmt.Sprintf("sha1:%s", hex.EncodeToString(hashSum[:]))
 }
 
 func GetAuthorityKeyIDFromCertificateRevocationList(crl *x509.RevocationList) string {

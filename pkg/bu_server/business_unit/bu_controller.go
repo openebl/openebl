@@ -9,14 +9,14 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"database/sql"
+	"encoding/hex"
+	"fmt"
 	"io"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
+	"github.com/openebl/openebl/pkg/bu_server/cert"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/webhook"
@@ -35,6 +35,11 @@ type BusinessUnitManager interface {
 	ListAuthentication(ctx context.Context, req storage.ListAuthenticationRequest) (storage.ListAuthenticationResult, error)
 	GetJWSSigner(ctx context.Context, req GetJWSSignerRequest) (JWSSigner, error)
 	GetJWEEncryptors(ctx context.Context, req GetJWEEncryptorsRequest) ([]JWEEncryptor, error)
+
+	// ActivateAuthentication activates an authentication of a business unit with its certificate.
+	// This function is NOT for REST API.
+	// The returned error can be model.ErrAuthenticationNotFound, model.ErrAuthenticationNotPending, model.ErrInvalidParameter or any other errors.
+	ActivateAuthentication(ctx context.Context, ts int64, certRaw []byte) (model.BusinessUnitAuthentication, error)
 }
 
 type JWSSigner interface {
@@ -105,7 +110,6 @@ type AddAuthenticationRequest struct {
 	ApplicationID    string                   `json:"application_id"`     // The ID of the application this BusinessUnit belongs to.
 	BusinessUnitID   did.DID                  `json:"id"`                 // Unique DID of a BusinessUnit.
 	PrivateKeyOption eblpkix.PrivateKeyOption `json:"private_key_option"` // Option of the private key.
-	ExpiredAfter     int64                    `json:"expired_after"`      // How long (in second) the authentication/certificate will be valid.
 }
 
 // RevokeAuthenticationRequest is the request to revoke an authentication from a business unit.
@@ -127,15 +131,15 @@ type GetJWEEncryptorsRequest struct {
 }
 
 type _BusinessUnitManager struct {
-	ca          cert_authority.CertAuthority
+	cv          cert.CertVerifier
 	storage     storage.BusinessUnitStorage
 	webhookCtrl webhook.WebhookController
 	jwtFactory  JWTFactory
 }
 
-func NewBusinessUnitManager(storage storage.BusinessUnitStorage, ca cert_authority.CertAuthority, webhookCtrl webhook.WebhookController, jwtFactory JWTFactory) BusinessUnitManager {
+func NewBusinessUnitManager(storage storage.BusinessUnitStorage, cv cert.CertVerifier, webhookCtrl webhook.WebhookController, jwtFactory JWTFactory) BusinessUnitManager {
 	return &_BusinessUnitManager{
-		ca:          ca,
+		cv:          cv,
 		storage:     storage,
 		webhookCtrl: webhookCtrl,
 		jwtFactory:  jwtFactory,
@@ -303,51 +307,45 @@ func (m *_BusinessUnitManager) AddAuthentication(ctx context.Context, ts int64, 
 		return model.BusinessUnitAuthentication{}, err
 	}
 
-	oldBu, err := m.getBusinessUnit(ctx, nil, req.ApplicationID, req.BusinessUnitID)
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	oldBu, err := m.getBusinessUnit(ctx, tx, req.ApplicationID, req.BusinessUnitID)
 	if err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
 	if oldBu.Status != model.BusinessUnitStatusActive {
 		return model.BusinessUnitAuthentication{}, model.ErrBusinessUnitInActive
 	}
-	certificateRequest, err := m.createCertificateRequest(ctx, privateKey, oldBu)
-	if err != nil {
-		return model.BusinessUnitAuthentication{}, err
-	}
 
-	caRequest := cert_authority.IssueCertificateRequest{
-		CACertID:           "__root__",
-		CertificateRequest: certificateRequest,
-		NotBefore:          time.Unix(ts, 0),
-		NotAfter:           time.Unix(ts+req.ExpiredAfter, 0),
-	}
-	cert, err := m.ca.IssueCertificate(ctx, ts, caRequest)
+	csrRaw, err := eblpkix.CreateCertificateSigningRequest(
+		privateKey,
+		[]string{oldBu.Country},
+		[]string{oldBu.Name},
+		nil,
+		oldBu.ID.String(),
+	)
 	if err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
 
 	auth := model.BusinessUnitAuthentication{
-		ID:           uuid.NewString(),
-		Version:      1,
-		BusinessUnit: req.BusinessUnitID,
-		Status:       model.BusinessUnitAuthenticationStatusActive,
-		CreatedAt:    ts,
-		CreatedBy:    req.Requester,
+		ID:                        uuid.NewString(),
+		Version:                   1,
+		BusinessUnit:              req.BusinessUnitID,
+		Status:                    model.BusinessUnitAuthenticationStatusPending,
+		CreatedAt:                 ts,
+		CreatedBy:                 req.Requester,
+		PublicKeyID:               eblpkix.GetPublicKeyID(eblpkix.GetPublicKey(privateKey)),
+		CertificateSigningRequest: string(csrRaw),
 	}
 	auth.PrivateKey, err = eblpkix.MarshalPrivateKey(privateKey)
 	if err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
-	auth.Certificate, err = eblpkix.MarshalCertificates(cert...)
-	if err != nil {
-		return model.BusinessUnitAuthentication{}, err
-	}
-
-	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
-	if err != nil {
-		return model.BusinessUnitAuthentication{}, err
-	}
-	defer tx.Rollback(ctx)
 
 	if err := m.storage.StoreAuthentication(ctx, tx, auth); err != nil {
 		return model.BusinessUnitAuthentication{}, err
@@ -363,6 +361,65 @@ func (m *_BusinessUnitManager) AddAuthentication(ctx context.Context, ts int64, 
 
 	auth.PrivateKey = "" // Erase PrivateKey before returning.
 	return auth, nil
+}
+
+func (m *_BusinessUnitManager) ActivateAuthentication(ctx context.Context, ts int64, certRaw []byte) (model.BusinessUnitAuthentication, error) {
+	certs, err := eblpkix.ParseCertificate(certRaw)
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, fmt.Errorf("%s: %w", err.Error(), model.ErrInvalidParameter)
+	}
+	if len(certs) == 0 || certs[0].SerialNumber == nil || certs[0].AuthorityKeyId == nil {
+		return model.BusinessUnitAuthentication{}, fmt.Errorf("certificate is empty, or serial number is not available, or authority key id is not available: %w", model.ErrInvalidParameter)
+	}
+
+	tx, ctx, err := m.storage.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	if err := m.cv.VerifyCert(ctx, tx, ts, certs); err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+
+	pubKeyID := eblpkix.GetSubjectKeyIDFromCertificate(certs[0])
+	issuerKeyID := hex.EncodeToString(certs[0].AuthorityKeyId)
+	certSerialNumber := certs[0].SerialNumber.String()
+
+	listReq := storage.ListAuthenticationRequest{
+		Limit:        1,
+		PublicKeyIDs: []string{pubKeyID},
+	}
+	listResult, err := m.storage.ListAuthentication(ctx, tx, listReq)
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+	if len(listResult.Records) == 0 {
+		return model.BusinessUnitAuthentication{}, model.ErrAuthenticationNotFound
+	}
+
+	buAuth := listResult.Records[0]
+	if buAuth.Status != model.BusinessUnitAuthenticationStatusPending {
+		return model.BusinessUnitAuthentication{}, model.ErrAuthenticationNotPending
+	}
+
+	buAuth.Version += 1
+	buAuth.Status = model.BusinessUnitAuthenticationStatusActive
+	buAuth.Certificate = string(certRaw)
+	buAuth.CertificateSerialNumber = certSerialNumber
+	buAuth.IssuerKeyID = issuerKeyID
+	buAuth.CertFingerPrint = eblpkix.GetFingerPrintFromCertificate(certs[0])
+	buAuth.ActivatedAt = ts
+
+	if err := m.storage.StoreAuthentication(ctx, tx, buAuth); err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+
+	buAuth.PrivateKey = "" // Erase PrivateKey before returning.
+	return buAuth, nil
 }
 
 func (m *_BusinessUnitManager) RevokeAuthentication(ctx context.Context, ts int64, req RevokeAuthenticationRequest) (model.BusinessUnitAuthentication, error) {
@@ -585,24 +642,12 @@ func (m *_BusinessUnitManager) createPrivateKey(ctx context.Context, opt eblpkix
 	}
 }
 
-func (m *_BusinessUnitManager) createCertificateRequest(ctx context.Context, privateKey interface{}, bu model.BusinessUnit) (x509.CertificateRequest, error) {
-	certRequestTemplate := x509.CertificateRequest{
-		Subject: pkix.Name{
-			Country:      []string{bu.Country},
-			Organization: []string{bu.Name},
-			CommonName:   bu.ID.String(),
-		},
-	}
-
-	csrRaw, err := x509.CreateCertificateRequest(rand.Reader, &certRequestTemplate, privateKey)
-	if err != nil {
-		return x509.CertificateRequest{}, err
-	}
-
-	csr, err := x509.ParseCertificateRequest(csrRaw)
-	if err != nil {
-		return x509.CertificateRequest{}, err
-	}
-
-	return *csr, nil
+func (m *_BusinessUnitManager) createCertificateRequest(ctx context.Context, privateKey interface{}, bu model.BusinessUnit) ([]byte, error) {
+	return eblpkix.CreateCertificateSigningRequest(
+		privateKey,
+		[]string{bu.Country},
+		[]string{bu.Name},
+		nil,
+		bu.ID.String(),
+	)
 }

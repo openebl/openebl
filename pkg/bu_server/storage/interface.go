@@ -87,6 +87,8 @@ type ListAuthenticationRequest struct {
 	ApplicationID     string   `json:"application_id"`     // The ID of the application this BusinessUnit belongs to.
 	BusinessUnitID    string   `json:"id"`                 // Unique DID of a BusinessUnit.
 	AuthenticationIDs []string `json:"authentication_ids"` // Unique IDs of the authentications.
+	PublicKeyIDs      []string `json:"public_key_ids"`     // Public Key IDs of the authentications.
+	IssuerKeyIDs      []string `json:"issuer_key_ids"`     // Issuer Key IDs of the authentications.
 }
 
 // ListAuthenticationResult is the result of listing authentications.
@@ -186,6 +188,33 @@ type WebhookStorage interface {
 	AddWebhookEvent(ctx context.Context, tx Tx, ts int64, key string, event *model.WebhookEvent) error
 	GetWebhookEvent(ctx context.Context, tx Tx, batchSize int) ([]OutboxMsg, error)
 	DeleteWebhookEvent(ctx context.Context, tx Tx, recIDs ...int64) error
+}
+
+type IssuerKeyAndCertSerialNumber struct {
+	IssuerKeyID       string `json:"issuer_key_id"`
+	CertificateSerial string `json:"cert_serial_number"`
+}
+type GetCRLRequest struct {
+	RevokedAt                      int64                          // The time when the certificate is revoked. Only CRLs that are revoked before this time will be retrieved.
+	IssuerKeysAndCertSerialNumbers []IssuerKeyAndCertSerialNumber // The issuer key ID and certificate serial number of the CRLs to be retrieved.
+}
+
+type GetCRLResult struct {
+	CRLs map[IssuerKeyAndCertSerialNumber][]byte
+}
+type CertStorage interface {
+	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
+	AddRootCert(ctx context.Context, tx Tx, ts int64, fingerPrint string, cert []byte) error
+	RevokeRootCert(ctx context.Context, tx Tx, ts int64, fingerPrinter string) error
+	GetActiveRootCert(ctx context.Context, tx Tx) ([][]byte, error)
+
+	// AddCRL add a CRL of a certificate into the database.
+	// issuerKeyID is the authority key ID of the certificate that issued the CRL.
+	// certSerialNumber is the serial number of the certificate that is revoked.
+	// revokedAt is the time when the certificate is revoked.
+	// crl is PEM encoded CRL.
+	AddCRL(ctx context.Context, tx Tx, ts int64, issuerKeyID string, certSerialNumber string, revokedAt int64, crl []byte) error
+	GetCRL(ctx context.Context, tx Tx, req GetCRLRequest) (GetCRLResult, error)
 }
 
 type OffsetStorage interface {

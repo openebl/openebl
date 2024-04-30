@@ -9,7 +9,7 @@ WORKDIR /app
 RUN pnpm install --frozen-lockfile
 RUN pnpm run build
 
-FROM golang:1.22.1-alpine3.19 as builder
+FROM golang:1.22.2-alpine3.19 as builder
 ENV GO111MODULE=on CGO_ENABLED=0 GOPROXY=https://proxy.golang.org,direct
 
 RUN apk add --no-cache bash binutils ca-certificates curl git tzdata

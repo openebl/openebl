@@ -9,8 +9,11 @@ import (
 	"sync"
 	"time"
 
+	otlp_util "github.com/bluexlab/otlp-util-go"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 type NostrServerOption func(s *NostrServer)
@@ -26,8 +29,11 @@ type NostrServer struct {
 	eventSource EventSource
 	eventSink   EventSink
 
-	clientMux sync.Mutex
-	clients   map[string]*NostrClientStub // map[remote address]*NostrClientStub
+	clientMux       sync.Mutex
+	clients         map[string]*NostrClientStub // map[remote address]*NostrClientStub
+	connectionCount metric.Int64UpDownCounter
+	readCount       metric.Int64Counter
+	sendCount       metric.Int64Counter
 }
 
 type NostrClientSubscription struct {
@@ -53,11 +59,17 @@ type NostrClientStub struct {
 
 	closeChan  chan struct{}
 	outputChan chan []byte
+
+	readCount metric.Int64Counter
+	sendCount metric.Int64Counter
 }
 
 func NewNostrServer(opts ...NostrServerOption) *NostrServer {
 	server := &NostrServer{
-		clients: make(map[string]*NostrClientStub),
+		clients:         make(map[string]*NostrClientStub),
+		connectionCount: otlp_util.NewInt64UpDownCounter("relay.server.connection.count", metric.WithDescription("Number of connections to the relay server")),
+		readCount:       otlp_util.NewInt64Counter("relay.server.read.count", metric.WithDescription("Number of messages read by the server")),
+		sendCount:       otlp_util.NewInt64Counter("relay.server.send.count", metric.WithDescription("Number of messages sent by the server")),
 	}
 
 	for _, opt := range opts {
@@ -132,6 +144,7 @@ func (s *NostrServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *NostrServer) addClient(client *NostrClientStub) {
 	remoteAddr := client.conn.RemoteAddr().String()
+	s.connectionCount.Add(context.Background(), 1, metric.WithAttributes(attribute.String("client_id", remoteAddr)))
 
 	s.clientMux.Lock()
 	defer s.clientMux.Unlock()
@@ -140,6 +153,7 @@ func (s *NostrServer) addClient(client *NostrClientStub) {
 
 func (s *NostrServer) removeClient(client *NostrClientStub) {
 	remoteAddr := client.conn.RemoteAddr().String()
+	s.connectionCount.Add(context.Background(), -1, metric.WithAttributes(attribute.String("client_id", remoteAddr)))
 
 	s.clientMux.Lock()
 	defer s.clientMux.Unlock()
@@ -171,6 +185,7 @@ func (c *NostrClientStub) Run() {
 			logrus.Errorf("failed to read message: %v", err)
 			return
 		}
+		c.nostrServer.readCount.Add(context.Background(), 1, metric.WithAttributes(attribute.String("client_id", c.conn.RemoteAddr().String())))
 		logrus.Debugf("recv: message length %d", len(message))
 
 		request, err := ParseRequest(message)
@@ -203,6 +218,7 @@ func (c *NostrClientStub) outputWorker() {
 				c.close()
 				return
 			}
+			c.nostrServer.sendCount.Add(context.Background(), 1, metric.WithAttributes(attribute.String("client_id", c.conn.RemoteAddr().String())))
 		}
 	}
 }

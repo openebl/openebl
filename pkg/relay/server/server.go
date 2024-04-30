@@ -13,6 +13,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -32,6 +33,8 @@ type Server struct {
 	relayServer  *relay.NostrServer
 
 	otherPeers map[string]*ClientCallback // map[remote address]RelayClient
+	readCount  metric.Int64Counter
+	writeCount metric.Int64Counter
 }
 
 type ClientCallback struct {
@@ -77,11 +80,15 @@ func (c *ClientCallback) EventSink(ctx context.Context, event relay.Event) (stri
 	if err != nil && !errors.Is(err, storage.ErrDuplicateEvent) {
 		return "", err
 	}
+	c.server.writeCount.Add(ctx, 1, metric.WithAttributes(attribute.String("server_id", c.serverIdentity), attribute.String("event_id", evtID)))
 	return evtID, nil
 }
 
 func NewServer(options ...ServerOption) (*Server, error) {
-	server := &Server{}
+	server := &Server{
+		readCount:  otlp_util.NewInt64Counter("relay.server.event.read.count", metric.WithDescription("The total number of events read by the server")),
+		writeCount: otlp_util.NewInt64Counter("relay.server.event.write.count", metric.WithDescription("The total number of events written by the server")),
+	}
 	for _, option := range options {
 		option(server)
 	}
@@ -97,7 +104,7 @@ func NewServer(options ...ServerOption) (*Server, error) {
 	eventSource := func(ctx context.Context, request relay.EventSourcePullingRequest) (relay.EventSourcePullingResponse, error) {
 		dsRequest := storage.ListEventRequest{
 			Limit:  int64(request.Length),
-			Offset: int64(request.Offset),
+			Offset: request.Offset,
 		}
 		dsResult, err := server.dataStore.ListEvents(ctx, dsRequest)
 		if err != nil {
@@ -116,6 +123,7 @@ func NewServer(options ...ServerOption) (*Server, error) {
 			},
 		)
 
+		server.readCount.Add(ctx, int64(len(events)), metric.WithAttributes(attribute.String("server_id", dataStoreID)))
 		return relay.EventSourcePullingResponse{
 			Events:    events,
 			MaxOffset: dsResult.MaxOffset,
@@ -133,6 +141,7 @@ func NewServer(options ...ServerOption) (*Server, error) {
 		if err != nil && !errors.Is(err, storage.ErrDuplicateEvent) {
 			return "", err
 		}
+		server.writeCount.Add(ctx, 1, metric.WithAttributes(attribute.String("server_id", dataStoreID), attribute.String("event_id", evtID)))
 		return evtID, nil
 	}
 	server.eventSink = serverEventSink

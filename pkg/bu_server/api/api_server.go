@@ -40,17 +40,17 @@ type API struct {
 }
 
 func NewAPIWithConfig(cfg APIConfig) (*API, error) {
-	storage, err := postgres.NewStorageWithConfig(cfg.Database)
-	ca := cert_authority.NewCertAuthority(storage)
+	dbStorage, err := postgres.NewStorageWithConfig(cfg.Database)
+	ca := cert_authority.NewCertAuthority(dbStorage)
 	if err != nil {
 		logrus.Errorf("failed to create storage: %v", err)
 		return nil, err
 	}
 
-	apiKeyMgr := auth.NewAPIKeyAuthenticator(storage)
-	webhookCtrl := webhook.NewWebhookController(storage)
-	buMgr := business_unit.NewBusinessUnitManager(storage, ca, webhookCtrl, nil)
-	fileEBLCtrl := trade_document.NewFileBaseEBLController(storage, buMgr, webhookCtrl)
+	apiKeyMgr := auth.NewAPIKeyAuthenticator(dbStorage)
+	webhookCtrl := webhook.NewWebhookController(dbStorage)
+	buMgr := business_unit.NewBusinessUnitManager(dbStorage, ca, webhookCtrl, nil)
+	fileEBLCtrl := trade_document.NewFileBaseEBLController(dbStorage, buMgr, webhookCtrl)
 	api, err := NewAPIWithController(apiKeyMgr, buMgr, webhookCtrl, fileEBLCtrl, cfg.LocalAddress)
 	if err != nil {
 		return nil, err

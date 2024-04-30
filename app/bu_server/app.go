@@ -80,6 +80,8 @@ func (a *App) Run() {
 }
 
 func (a *App) runServer(cli CLI) {
+	ctx := context.Background()
+
 	var appConfig Config
 	if err := config.FromFile(cli.Config, &appConfig); err != nil {
 		logrus.Errorf("failed to load config: %v", err)
@@ -87,7 +89,8 @@ func (a *App) runServer(cli CLI) {
 	}
 
 	if endpoint := appConfig.OTLPEndpoint; endpoint != "" {
-		otlp_util.InitGlobalTracer(
+		exporter, err := otlp_util.InitExporter(
+			otlp_util.WithContext(ctx),
 			otlp_util.WithEndPoint(endpoint),
 			otlp_util.WithServiceName(appName),
 			otlp_util.WithInSecure(),
@@ -95,6 +98,11 @@ func (a *App) runServer(cli CLI) {
 				logrus.Warnf("OTLP error: %v", err)
 			}),
 		)
+		if err != nil {
+			logrus.Errorf("failed to initialize OTLP exporter: %v", err)
+			os.Exit(128)
+		}
+		defer func() { _ = exporter.Shutdown(ctx) }()
 	}
 
 	apiConfig := api.APIConfig{
@@ -117,7 +125,7 @@ func (a *App) runServer(cli CLI) {
 		os.Exit(128)
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	processorConfig := webhook.Config{

@@ -24,27 +24,29 @@ import (
 
 // Broker represents the broker instance
 type Broker struct {
-	relayServer   string
-	relayServerID string
-	client        relay.RelayClient
-	clientID      string
-	checkInterval time.Duration
-	batchSize     int
-	outboxStore   storage.TradeDocumentOutboxStorage
-	inboxStore    storage.TradeDocumentInboxStorage
-	buMgr         business_unit.BusinessUnitManager
-	certMgr       cert.CertManager
-	done          chan struct{}
-	closed        bool
-	closeErr      error
-	mu            sync.Mutex
+	relayServer           string
+	relayServerID         string
+	client                relay.RelayClient
+	clientID              string
+	checkInterval         time.Duration
+	batchSize             int
+	outboxStore           storage.TradeDocumentOutboxStorage
+	inboxStore            storage.TradeDocumentInboxStorage
+	buMgr                 business_unit.BusinessUnitManager
+	certMgr               cert.CertManager
+	rootCertCheckInterval time.Duration
+	done                  chan struct{}
+	closed                bool
+	closeErr              error
+	mu                    sync.Mutex
 }
 
 func NewBroker(opts ...OptionFunc) (*Broker, error) {
 	s := &Broker{
-		checkInterval: 30 * time.Second, // Default check interval
-		batchSize:     10,               // Default batch size
-		done:          make(chan struct{}),
+		checkInterval:         30 * time.Second, // Default check interval
+		batchSize:             10,               // Default batch size
+		rootCertCheckInterval: time.Hour,        // Default root cert check interval
+		done:                  make(chan struct{}),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -64,12 +66,7 @@ func (b *Broker) Run(ctx context.Context) error {
 		b.client = client
 	}
 
-	if b.certMgr != nil {
-		if err := b.certMgr.SyncRootCerts(ctx); err != nil {
-			return fmt.Errorf("failed to sync root certs: %w", err)
-		}
-	}
-
+	go b.syncRootCerts(ctx)
 	go b.tradeDocumentOutboxWorker(ctx)
 
 	select {
@@ -521,6 +518,45 @@ func (b *Broker) tradeDocumentOutboxWorker(ctx context.Context) {
 			logrus.Errorf("Failed to process outbox: %v", err)
 			b.closeWithError(err)
 			return
+		}
+	}
+}
+
+func (b *Broker) syncRootCerts(ctx context.Context) {
+	if b.certMgr == nil {
+		return
+	}
+
+	fastTicker := time.NewTicker(3 * time.Second)
+	defer fastTicker.Stop()
+
+	normalTicker := time.NewTicker(b.rootCertCheckInterval)
+	defer normalTicker.Stop()
+
+	err := b.certMgr.SyncRootCerts(ctx)
+	if err != nil {
+		logrus.Errorf("Failed to sync root certs: %v", err)
+	} else {
+		fastTicker.Stop()
+		logrus.Info("Root certs synced")
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-b.done:
+			return
+		case <-fastTicker.C:
+		case <-normalTicker.C:
+		}
+
+		err := b.certMgr.SyncRootCerts(ctx)
+		if err != nil {
+			logrus.Errorf("Failed to sync root certs: %v", err)
+		} else {
+			fastTicker.Stop()
+			logrus.Info("Root certs synced")
 		}
 	}
 }

@@ -378,7 +378,7 @@ func (m *_BusinessUnitManager) ActivateAuthentication(ctx context.Context, ts in
 	}
 	defer tx.Rollback(ctx)
 
-	if err := m.cv.VerifyCert(ctx, tx, ts, certs); err != nil {
+	if err := m.cv.VerifyCert(ctx, tx, certs[0].NotBefore.Unix(), certs); err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
 

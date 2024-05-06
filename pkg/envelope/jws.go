@@ -2,6 +2,7 @@ package envelope
 
 import (
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -79,7 +80,7 @@ func (s *JWS) GetCertificateChain() ([]*x509.Certificate, error) {
 
 	certChain := make([]*x509.Certificate, len(jose.X5C))
 	for i, certB64 := range jose.X5C {
-		certDER, err := Base64URLDecode(certB64)
+		certDER, err := base64.StdEncoding.DecodeString(certB64)
 		if err != nil {
 			return nil, err
 		}
@@ -110,7 +111,7 @@ func Sign(payload []byte, algorithm SignatureAlgorithm, key any, certChain []*x5
 	header.Alg = string(algorithm)
 	header.X5C = make([]string, len(certChain))
 	for i, cert := range certChain {
-		header.X5C[i] = Base64URLEncode(cert.Raw)
+		header.X5C[i] = base64.StdEncoding.EncodeToString(cert.Raw)
 	}
 
 	signInput := genSignInput(payload, header)

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	otlp_util "github.com/bluexlab/otlp-util-go"
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
 	"github.com/openebl/openebl/pkg/bu_server/cert"
 	"github.com/openebl/openebl/pkg/bu_server/model"
@@ -20,6 +21,8 @@ import (
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/relay/server"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 // Broker represents the broker instance
@@ -39,6 +42,8 @@ type Broker struct {
 	closed                bool
 	closeErr              error
 	mu                    sync.Mutex
+	receivedCount         metric.Int64Counter
+	sentCount             metric.Int64Counter
 }
 
 func NewBroker(opts ...OptionFunc) (*Broker, error) {
@@ -47,6 +52,8 @@ func NewBroker(opts ...OptionFunc) (*Broker, error) {
 		batchSize:             10,               // Default batch size
 		rootCertCheckInterval: time.Hour,        // Default root cert check interval
 		done:                  make(chan struct{}),
+		receivedCount:         otlp_util.NewInt64Counter("broker.received.count", metric.WithDescription("Number of received messages")),
+		sentCount:             otlp_util.NewInt64Counter("broker.sent.count", metric.WithDescription("Number of sent messages")),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -206,6 +213,7 @@ func (b *Broker) eventSink(ctx context.Context, event relay.Event) (string, erro
 		return nil
 	}
 
+	b.receivedCount.Add(ctx, 1, metric.WithAttributes(attribute.Int("kind", event.Type)))
 	if err := processEvent(ctx, event); err != nil {
 		log.Warnf("Failed to process event: %v", err)
 		return "", err
@@ -473,6 +481,7 @@ func (b *Broker) tradeDocumentOutboxWorker(ctx context.Context) {
 
 				var ids []int64
 				for _, msg := range messages {
+					b.sentCount.Add(ctx, 1, metric.WithAttributes(attribute.Int("kind", msg.Kind)))
 					if err := b.client.Publish(ctx, msg.Kind, msg.Msg); err != nil {
 						return fmt.Errorf("failed to publish message: %w", err)
 					}

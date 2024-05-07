@@ -7,8 +7,6 @@
   import UserDetail from '@/views/UserDetail.svelte'
   import Applications from '@/views/AppList.svelte'
   import AppDetail from './views/AppDetail.svelte'
-  import Certificates from '@/views/CertList.svelte'
-  import CertDetail from './views/CertDetail.svelte'
   import NotFound from '@views/NotFound.svelte'
   import { currentUser } from './stores/auth'
 
@@ -26,7 +24,6 @@
         <Link to="/">Home</Link>
         <Link to="/users">Users</Link>
         <Link to="/applications">Applications</Link>
-        <Link to="/certificates">Certificates</Link>
       </div>
       <div class="nav-right-links">
         {#if isLoggedIn}
@@ -43,8 +40,6 @@
       <Route path="/users/:id" component={UserDetail} />
       <Route path="/applications" component={Applications} />
       <Route path="/applications/:id" component={AppDetail} />
-      <Route path="/certificates" component={Certificates} />
-      <Route path="/certificates/:id" component={CertDetail} />
       <Route path="/login" component={Login} />
       <Route path="/logout" component={Logout} />
       <Route path="*" component={NotFound} />

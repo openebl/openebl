@@ -14,7 +14,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/openebl/openebl/frontend"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
-	"github.com/openebl/openebl/pkg/bu_server/cert_authority"
 	"github.com/openebl/openebl/pkg/bu_server/middleware"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
@@ -31,7 +30,6 @@ type ManagerAPI struct {
 	userMgr    auth.UserManager
 	appMgr     auth.ApplicationManager
 	apiKeyMgr  auth.APIKeyAuthenticator
-	ca         cert_authority.CertAuthority
 	httpServer *http.Server
 }
 
@@ -45,15 +43,13 @@ func NewManagerAPI(cfg ManagerAPIConfig) (*ManagerAPI, error) {
 	userMgr := auth.NewUserManager(storage)
 	appMgr := auth.NewApplicationManager(storage)
 	apiKeyMgr := auth.NewAPIKeyAuthenticator(storage)
-	ca := cert_authority.NewCertAuthority(storage)
-	return NewManagerAPIWithControllers(userMgr, appMgr, apiKeyMgr, ca, cfg.LocalAddress)
+	return NewManagerAPIWithControllers(userMgr, appMgr, apiKeyMgr, cfg.LocalAddress)
 }
 
 func NewManagerAPIWithControllers(
 	userMgr auth.UserManager,
 	appMgr auth.ApplicationManager,
 	apiKeyMgr auth.APIKeyAuthenticator,
-	ca cert_authority.CertAuthority,
 	localAddress string,
 ) (*ManagerAPI, error) {
 	apiServer := &ManagerAPI{}
@@ -61,7 +57,6 @@ func NewManagerAPIWithControllers(
 	apiServer.userMgr = userMgr
 	apiServer.appMgr = appMgr
 	apiServer.apiKeyMgr = apiKeyMgr
-	apiServer.ca = ca
 
 	userTokenMiddleware := middleware.NewUserTokenAuth(apiServer.userMgr)
 
@@ -89,10 +84,6 @@ func NewManagerAPIWithControllers(
 	mgrRouter.HandleFunc("/applications/{id}/api_keys", apiServer.createAPIKey).Methods(http.MethodPost)
 	mgrRouter.HandleFunc("/applications/{id}/api_keys", apiServer.listAPIKey).Methods(http.MethodGet)
 	mgrRouter.HandleFunc("/applications/{id}/api_keys/{key_id}", apiServer.revokeAPIKey).Methods(http.MethodDelete)
-	mgrRouter.HandleFunc("/ca/certificates", apiServer.addCACertificate).Methods(http.MethodPost)
-	mgrRouter.HandleFunc("/ca/certificates", apiServer.getCACertificateList).Methods(http.MethodGet)
-	mgrRouter.HandleFunc("/ca/certificates/{id}", apiServer.getCACertificate).Methods(http.MethodGet)
-	mgrRouter.HandleFunc("/ca/certificates/{id}", apiServer.revokeCACertificate).Methods(http.MethodDelete)
 
 	// SPA frontend handler
 	r.PathPrefix("/").HandlerFunc(frontend.Handler())
@@ -655,128 +646,4 @@ func (s *ManagerAPI) revokeAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-}
-
-func (s *ManagerAPI) addCACertificate(w http.ResponseWriter, r *http.Request) {
-	userToken, _ := r.Context().Value(middleware.USER_TOKEN).(auth.UserToken)
-
-	// Parse the request body
-	var req cert_authority.AddCertificateRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	req.Requester = userToken.UserID
-
-	// Add the CA certificate
-	cert, err := s.ca.AddCertificate(r.Context(), time.Now().Unix(), req)
-	if errors.Is(err, model.ErrInvalidParameter) {
-		logrus.Warnf("failed to add CA certificate: %v", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	} else if err != nil {
-		logrus.Errorf("failed to add CA certificate: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Return the added certificate to the client
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(cert)
-}
-
-func (s *ManagerAPI) getCACertificateList(w http.ResponseWriter, r *http.Request) {
-	listReq := cert_authority.ListCertificatesRequest{
-		Limit: 10,
-	}
-
-	offsetStr := r.URL.Query().Get("offset")
-	limitStr := r.URL.Query().Get("limit")
-	if offsetStr != "" {
-		offset, err := strconv.ParseInt(offsetStr, 10, 32)
-		if err != nil || offset < 0 {
-			http.Error(w, "offset is invalid", http.StatusBadRequest)
-			return
-		}
-		listReq.Offset = int(offset)
-	}
-	if limitStr != "" {
-		limit, err := strconv.ParseInt(limitStr, 10, 32)
-		if err != nil || limit < 1 {
-			http.Error(w, "limit is invalid", http.StatusBadRequest)
-			return
-		}
-		listReq.Limit = int(limit)
-	}
-
-	result, err := s.ca.ListCertificates(r.Context(), listReq)
-	if err != nil {
-		logrus.Errorf("failed to list CA certificates: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(result)
-}
-
-func (s *ManagerAPI) getCACertificate(w http.ResponseWriter, r *http.Request) {
-	certID := mux.Vars(r)["id"]
-
-	listReq := cert_authority.ListCertificatesRequest{
-		Limit: 1,
-		IDs:   []string{certID},
-	}
-	result, err := s.ca.ListCertificates(r.Context(), listReq)
-	if err != nil {
-		logrus.Errorf("failed to get CA certificate %q: %v", certID, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if len(result.Certs) == 0 {
-		http.Error(w, "CA certificate not found", http.StatusNotFound)
-		return
-	}
-
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(result.Certs[0])
-}
-
-func (s *ManagerAPI) revokeCACertificate(w http.ResponseWriter, r *http.Request) {
-	userToken, _ := r.Context().Value(middleware.USER_TOKEN).(auth.UserToken)
-	certID := mux.Vars(r)["id"]
-
-	// Parse the request body
-	req := cert_authority.RevokeCertificateRequest{
-		Requester: userToken.UserID,
-		CertID:    certID,
-	}
-
-	// Revoke the CA certificate
-	cert, err := s.ca.RevokeCertificate(r.Context(), time.Now().Unix(), req)
-	if errors.Is(err, model.ErrInvalidParameter) {
-		logrus.Warnf("failed to revoke CA certificate: %v", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if errors.Is(err, model.ErrCertificationNotFound) {
-		logrus.Warnf("failed to revoke CA certificate: %v", err)
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		logrus.Errorf("failed to revoke CA certificate: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Return the revoked certificate to the client
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(cert)
 }

@@ -46,7 +46,6 @@ MOCK_SOURCES := \
 	pkg/bu_server/business_unit/bu_controller.go \
 	pkg/bu_server/business_unit/bu_jwt_factory.go \
 	pkg/bu_server/trade_document/file_based_ebl.go \
-	pkg/bu_server/cert_authority/cert_authority.go \
 	pkg/bu_server/cert/cert_manager.go \
 	pkg/bu_server/webhook/webhook_controller.go \
 	pkg/cert_server/storage/interface.go \

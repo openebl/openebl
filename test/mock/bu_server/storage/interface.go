@@ -930,6 +930,21 @@ func (mr *MockTradeDocumentInboxStorageMockRecorder) ListAuthentication(ctx, tx,
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAuthentication", reflect.TypeOf((*MockTradeDocumentInboxStorage)(nil).ListAuthentication), ctx, tx, req)
 }
 
+// StoreEvent mocks base method.
+func (m *MockTradeDocumentInboxStorage) StoreEvent(ctx context.Context, tx storage.Tx, ts int64, eventID string, event relay.Event, serverID string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StoreEvent", ctx, tx, ts, eventID, event, serverID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StoreEvent indicates an expected call of StoreEvent.
+func (mr *MockTradeDocumentInboxStorageMockRecorder) StoreEvent(ctx, tx, ts, eventID, event, serverID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreEvent", reflect.TypeOf((*MockTradeDocumentInboxStorage)(nil).StoreEvent), ctx, tx, ts, eventID, event, serverID)
+}
+
 // UpdateRelayServerOffset mocks base method.
 func (m *MockTradeDocumentInboxStorage) UpdateRelayServerOffset(ctx context.Context, tx storage.Tx, serverID string, offset int64) error {
 	m.ctrl.T.Helper()

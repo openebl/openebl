@@ -88,21 +88,29 @@ func (s *BrokerTestSuite) TestBrokerConnectionStatusCallback() {
 }
 
 func (s *BrokerTestSuite) TestBrokerEventSinkPlain() {
+	td := loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_issued_ebl_jws.json")
+	event := relay.Event{
+		Timestamp: 1234567890,
+		Offset:    101,
+		Type:      int(relay.FileBasedBillOfLading),
+		Data:      td.Doc,
+	}
+	eventID := server.GetEventID(td.Doc)
+
 	receivedTD := storage.TradeDocument{}
 	gomock.InOrder(
-		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil), // CreateTx for StoreEvent.
+		s.inboxStorage.EXPECT().StoreEvent(gomock.Any(), s.tx, gomock.Any(), eventID, event, "").Return(true, nil),
+		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil), // CreateTx for AddTradeDocument.
 		s.inboxStorage.EXPECT().AddTradeDocument(gomock.Any(), s.tx, gomock.Any()).
 			DoAndReturn(func(ctx context.Context, tx storage.Tx, tradeDoc storage.TradeDocument) error {
 				receivedTD = tradeDoc
 				return nil
 			}),
-		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
-		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
-
-		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
-		s.inboxStorage.EXPECT().UpdateRelayServerOffset(gomock.Any(), s.tx, "", int64(101)).Return(nil),
-		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
-		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),   // Commit for AddTradeDocument.
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil), // Rollback for AddTradeDocument.
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),   // Commit for StoreEvent.
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil), // Rollback for StoreEvent.
 	)
 
 	b, err := broker.NewBroker(
@@ -112,13 +120,6 @@ func (s *BrokerTestSuite) TestBrokerEventSinkPlain() {
 	)
 	s.Require().NoError(err)
 
-	td := loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_issued_ebl_jws.json")
-	event := relay.Event{
-		Timestamp: 1234567890,
-		Offset:    101,
-		Type:      int(relay.FileBasedBillOfLading),
-		Data:      td.Doc,
-	}
 	_, err = eventSink(b, s.ctx, event)
 	s.Require().NoError(err)
 
@@ -140,33 +141,6 @@ func (s *BrokerTestSuite) TestBrokerEventSinkEncrypted() {
 			{PrivateKey: clairAuth},
 		},
 	}
-	receivedTD := storage.TradeDocument{}
-	gomock.InOrder(
-		s.inboxStorage.EXPECT().CreateTx(gomock.Any()).Return(s.tx, s.ctx, nil),
-		s.inboxStorage.EXPECT().ListAuthentication(gomock.Any(), s.tx, listAuthenticationRequest).Return(listAuthenticationResult, nil),
-		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
-
-		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
-		s.inboxStorage.EXPECT().AddTradeDocument(gomock.Any(), s.tx, gomock.Any()).
-			DoAndReturn(func(ctx context.Context, tx storage.Tx, tradeDoc storage.TradeDocument) error {
-				receivedTD = tradeDoc
-				return nil
-			}),
-		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
-		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
-
-		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
-		s.inboxStorage.EXPECT().UpdateRelayServerOffset(gomock.Any(), s.tx, "", int64(101)).Return(nil),
-		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
-		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
-	)
-
-	b, err := broker.NewBroker(
-		broker.WithRelayClient(s.relayClient),
-		broker.WithInboxStore(s.inboxStorage),
-		broker.WithOutboxStore(s.outboxStorage),
-	)
-	s.Require().NoError(err)
 
 	td := loadTradeDocument("../../../testdata/bu_server/trade_document/file_based_ebl/shipper_issued_ebl_jws.json")
 	result, err := envelope.Encrypt(
@@ -194,6 +168,37 @@ func (s *BrokerTestSuite) TestBrokerEventSinkEncrypted() {
 		Type:      int(relay.EncryptedFileBasedBillOfLading),
 		Data:      encrypted,
 	}
+	eventID := server.GetEventID(encrypted)
+
+	receivedTD := storage.TradeDocument{}
+	gomock.InOrder(
+		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil), // CreateTx for StoreEvent.
+		s.inboxStorage.EXPECT().StoreEvent(gomock.Any(), s.tx, gomock.Any(), eventID, event, "").Return(true, nil),
+
+		s.inboxStorage.EXPECT().CreateTx(gomock.Any()).Return(s.tx, s.ctx, nil), // CreateTx for ListAuthentication.
+		s.inboxStorage.EXPECT().ListAuthentication(gomock.Any(), s.tx, listAuthenticationRequest).Return(listAuthenticationResult, nil),
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil), // Rollback for ListAuthentication.
+
+		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil), // CreateTx for AddTradeDocument.
+		s.inboxStorage.EXPECT().AddTradeDocument(gomock.Any(), s.tx, gomock.Any()).
+			DoAndReturn(func(ctx context.Context, tx storage.Tx, tradeDoc storage.TradeDocument) error {
+				receivedTD = tradeDoc
+				return nil
+			}),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),   // Commit for AddTradeDocument.
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil), // Rollback for AddTradeDocument.
+
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),   // Commit for StoreEvent.
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil), // Rollback for StoreEvent.
+	)
+
+	b, err := broker.NewBroker(
+		broker.WithRelayClient(s.relayClient),
+		broker.WithInboxStore(s.inboxStorage),
+		broker.WithOutboxStore(s.outboxStorage),
+	)
+	s.Require().NoError(err)
+
 	_, err = eventSink(b, s.ctx, event)
 	s.Require().NoError(err)
 
@@ -206,7 +211,7 @@ func (s *BrokerTestSuite) TestBrokerEventSinkEncrypted() {
 	s.Assert().EqualValues(td, receivedTD)
 }
 
-func (s *BrokerTestSuite) TestBrokerCertEvent() {
+func (s *BrokerTestSuite) TestBrokerEventSinkCert() {
 	ts := time.Now().Unix()
 	buCertRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert.crt")
 	s.Require().NoError(err)
@@ -225,20 +230,23 @@ func (s *BrokerTestSuite) TestBrokerCertEvent() {
 		Offset:    12345,
 		Data:      buCertRaw,
 	}
+	eventID := server.GetEventID(buCertRaw)
 
 	gomock.InOrder(
+		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil), // CreateTx for StoreEvent.
+		s.inboxStorage.EXPECT().StoreEvent(gomock.Any(), s.tx, gomock.Any(), eventID, evt, "").Return(true, nil),
+
 		s.buMgr.EXPECT().ActivateAuthentication(gomock.Any(), ts, buCertRaw).Return(model.BusinessUnitAuthentication{}, nil),
-		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
-		s.inboxStorage.EXPECT().UpdateRelayServerOffset(gomock.Any(), s.tx, "", int64(12345)).Return(nil),
-		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
-		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),   // Commit for StoreEvent.
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil), // Rollback for StoreEvent.
 	)
 
 	_, err = eventSink(b, s.ctx, evt)
 	s.Require().NoError(err)
 }
 
-func (s *BrokerTestSuite) TestBrokerCRLEvent() {
+func (s *BrokerTestSuite) TestBrokerEventSinkCRL() {
 	ts := time.Now().Unix()
 	crlRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/ca_cert.crl")
 	s.Require().NoError(err)
@@ -257,16 +265,47 @@ func (s *BrokerTestSuite) TestBrokerCRLEvent() {
 		Offset:    12345,
 		Data:      crlRaw,
 	}
+	eventID := server.GetEventID(crlRaw)
 
 	gomock.InOrder(
+		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil), // CreateTx for StoreEvent.
+		s.inboxStorage.EXPECT().StoreEvent(gomock.Any(), s.tx, gomock.Any(), eventID, evt, "").Return(true, nil),
+
 		s.certMgr.EXPECT().AddCRL(gomock.Any(), crlRaw).Return(nil),
-		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
-		s.inboxStorage.EXPECT().UpdateRelayServerOffset(gomock.Any(), s.tx, "", int64(12345)).Return(nil),
-		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
-		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),   // Commit for StoreEvent.
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil), // Rollback for StoreEvent.
 	)
 
 	_, err = eventSink(b, s.ctx, evt)
+	s.Require().NoError(err)
+}
+
+func (s *BrokerTestSuite) TestBrokerEventSinkDuplicated() {
+	ts := time.Now().Unix()
+	event := relay.Event{
+		Timestamp: ts,
+		Offset:    654321,
+		Type:      int(relay.X509Certificate),
+		Data:      []byte("fake cert"),
+	}
+	eventID := server.GetEventID(event.Data)
+
+	gomock.InOrder(
+		s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil), // CreateTx for StoreEvent.
+		s.inboxStorage.EXPECT().StoreEvent(gomock.Any(), s.tx, gomock.Any(), eventID, event, "").Return(false, nil),
+		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),   // Commit for StoreEvent.
+		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil), // Rollback for StoreEvent.
+	)
+
+	b, err := broker.NewBroker(
+		broker.WithRelayClient(s.relayClient),
+		broker.WithInboxStore(s.inboxStorage),
+		broker.WithOutboxStore(s.outboxStorage),
+	)
+	s.Require().NoError(err)
+
+	_, err = eventSink(b, s.ctx, event)
 	s.Require().NoError(err)
 }
 

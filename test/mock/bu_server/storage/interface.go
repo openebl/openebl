@@ -11,6 +11,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	model "github.com/openebl/openebl/pkg/bu_server/model"
 	storage "github.com/openebl/openebl/pkg/bu_server/storage"
+	relay "github.com/openebl/openebl/pkg/relay"
 )
 
 // MockTx is a mock of Tx interface.
@@ -753,31 +754,31 @@ func (mr *MockCertStorageMockRecorder) RevokeRootCert(ctx, tx, ts, fingerPrinter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeRootCert", reflect.TypeOf((*MockCertStorage)(nil).RevokeRootCert), ctx, tx, ts, fingerPrinter)
 }
 
-// MockOffsetStorage is a mock of OffsetStorage interface.
-type MockOffsetStorage struct {
+// MockRelayStorage is a mock of RelayStorage interface.
+type MockRelayStorage struct {
 	ctrl     *gomock.Controller
-	recorder *MockOffsetStorageMockRecorder
+	recorder *MockRelayStorageMockRecorder
 }
 
-// MockOffsetStorageMockRecorder is the mock recorder for MockOffsetStorage.
-type MockOffsetStorageMockRecorder struct {
-	mock *MockOffsetStorage
+// MockRelayStorageMockRecorder is the mock recorder for MockRelayStorage.
+type MockRelayStorageMockRecorder struct {
+	mock *MockRelayStorage
 }
 
-// NewMockOffsetStorage creates a new mock instance.
-func NewMockOffsetStorage(ctrl *gomock.Controller) *MockOffsetStorage {
-	mock := &MockOffsetStorage{ctrl: ctrl}
-	mock.recorder = &MockOffsetStorageMockRecorder{mock}
+// NewMockRelayStorage creates a new mock instance.
+func NewMockRelayStorage(ctrl *gomock.Controller) *MockRelayStorage {
+	mock := &MockRelayStorage{ctrl: ctrl}
+	mock.recorder = &MockRelayStorageMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockOffsetStorage) EXPECT() *MockOffsetStorageMockRecorder {
+func (m *MockRelayStorage) EXPECT() *MockRelayStorageMockRecorder {
 	return m.recorder
 }
 
 // CreateTx mocks base method.
-func (m *MockOffsetStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
+func (m *MockRelayStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx}
 	for _, a := range options {
@@ -791,14 +792,14 @@ func (m *MockOffsetStorage) CreateTx(ctx context.Context, options ...storage.Cre
 }
 
 // CreateTx indicates an expected call of CreateTx.
-func (mr *MockOffsetStorageMockRecorder) CreateTx(ctx interface{}, options ...interface{}) *gomock.Call {
+func (mr *MockRelayStorageMockRecorder) CreateTx(ctx interface{}, options ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx}, options...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTx", reflect.TypeOf((*MockOffsetStorage)(nil).CreateTx), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTx", reflect.TypeOf((*MockRelayStorage)(nil).CreateTx), varargs...)
 }
 
 // GetRelayServerOffset mocks base method.
-func (m *MockOffsetStorage) GetRelayServerOffset(ctx context.Context, tx storage.Tx, serverID string) (int64, error) {
+func (m *MockRelayStorage) GetRelayServerOffset(ctx context.Context, tx storage.Tx, serverID string) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRelayServerOffset", ctx, tx, serverID)
 	ret0, _ := ret[0].(int64)
@@ -807,13 +808,28 @@ func (m *MockOffsetStorage) GetRelayServerOffset(ctx context.Context, tx storage
 }
 
 // GetRelayServerOffset indicates an expected call of GetRelayServerOffset.
-func (mr *MockOffsetStorageMockRecorder) GetRelayServerOffset(ctx, tx, serverID interface{}) *gomock.Call {
+func (mr *MockRelayStorageMockRecorder) GetRelayServerOffset(ctx, tx, serverID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRelayServerOffset", reflect.TypeOf((*MockOffsetStorage)(nil).GetRelayServerOffset), ctx, tx, serverID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRelayServerOffset", reflect.TypeOf((*MockRelayStorage)(nil).GetRelayServerOffset), ctx, tx, serverID)
+}
+
+// StoreEvent mocks base method.
+func (m *MockRelayStorage) StoreEvent(ctx context.Context, tx storage.Tx, ts int64, eventID string, event relay.Event, serverID string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StoreEvent", ctx, tx, ts, eventID, event, serverID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StoreEvent indicates an expected call of StoreEvent.
+func (mr *MockRelayStorageMockRecorder) StoreEvent(ctx, tx, ts, eventID, event, serverID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreEvent", reflect.TypeOf((*MockRelayStorage)(nil).StoreEvent), ctx, tx, ts, eventID, event, serverID)
 }
 
 // UpdateRelayServerOffset mocks base method.
-func (m *MockOffsetStorage) UpdateRelayServerOffset(ctx context.Context, tx storage.Tx, serverID string, offset int64) error {
+func (m *MockRelayStorage) UpdateRelayServerOffset(ctx context.Context, tx storage.Tx, serverID string, offset int64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateRelayServerOffset", ctx, tx, serverID, offset)
 	ret0, _ := ret[0].(error)
@@ -821,9 +837,9 @@ func (m *MockOffsetStorage) UpdateRelayServerOffset(ctx context.Context, tx stor
 }
 
 // UpdateRelayServerOffset indicates an expected call of UpdateRelayServerOffset.
-func (mr *MockOffsetStorageMockRecorder) UpdateRelayServerOffset(ctx, tx, serverID, offset interface{}) *gomock.Call {
+func (mr *MockRelayStorageMockRecorder) UpdateRelayServerOffset(ctx, tx, serverID, offset interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRelayServerOffset", reflect.TypeOf((*MockOffsetStorage)(nil).UpdateRelayServerOffset), ctx, tx, serverID, offset)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRelayServerOffset", reflect.TypeOf((*MockRelayStorage)(nil).UpdateRelayServerOffset), ctx, tx, serverID, offset)
 }
 
 // MockTradeDocumentInboxStorage is a mock of TradeDocumentInboxStorage interface.

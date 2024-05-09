@@ -139,6 +139,19 @@ func (s *CertAuthorityTestSuite) TestAddRootCertificate() {
 	s.Assert().Equal(receivedCert, cert)
 }
 
+func (s *CertAuthorityTestSuite) TestAddRootCertificateWithNonCACert() {
+	rootCert, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert.crt")
+	s.Require().NoError(err)
+	ts := time.Now().Unix()
+	req := cert_authority.AddRootCertificateRequest{
+		Requester: "test",
+		Cert:      string(rootCert),
+	}
+
+	_, err = s.ca.AddRootCertificate(s.ctx, ts, req)
+	s.Assert().ErrorIs(err, model.ErrInvalidParameter)
+}
+
 func (s *CertAuthorityTestSuite) TestRevokeRootCertificate() {
 	ts := time.Now().Unix()
 	rootCert, err := os.ReadFile("../../../testdata/cert_server/cert_authority/root_cert.crt")

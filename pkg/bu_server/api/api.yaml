@@ -25,6 +25,16 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateBusinessUnitRequest'
+            examples:
+              CreateBU:
+                value: 
+                  requester: 'user1'
+                  name: 'Business Unit 1'
+                  addresses: ['Address 1', 'Address 2']
+                  country: US
+                  emails: ['abc@fffff.com']
+                  phone_numbers: ['1234567890']
+                  status: active
       responses:
         '201':
           description: Business unit created successfully
@@ -32,6 +42,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BusinessUnit'
+              examples:
+                Business Unit: 
+                  $ref: '#/components/examples/Business Unit'
         '400':
           description: Invalid request
         '500':
@@ -238,14 +251,22 @@ paths:
                   allOf:
                   - $ref: '#/components/schemas/PrivateKeyOption'
                   description: Option of the private key.
-                expired_after:
-                  type: integer
-                  format: int64
-                  description: How long (in second) the authentication/certificate will be valid.
               required:
                 - requester
                 - private_key_option
-                - expired_after
+            examples:
+              With RSA key pair:
+                value: 
+                  requester: 'user1'
+                  private_key_option:
+                    key_type: 'RSA'
+                    bit_length: 2048
+              With ECDSA key pair:
+                value: 
+                  requester: 'user1'
+                  private_key_option:
+                    key_type: 'ECDSA'
+                    curve_type: 'P-256'
       responses:
         '201':
           description: Authentication created successfully
@@ -430,6 +451,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/UpdateBillOfLadingRequest'
+            examples:
+              CreateEBL:
+                $ref: '#/components/examples/Update File Based EBL'
       responses:
         '201':
           description: eB/L created successfully
@@ -532,6 +556,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/UpdateBillOfLadingRequest'
+            examples:
+              UpdateEBL:
+                $ref: '#/components/examples/Update File Based EBL'
       responses:
         '200':
           description: eB/L updated successfully
@@ -1022,6 +1049,7 @@ components:
     BusinessUnitAuthenticationStatus:
       type: string
       enum:
+        - pending
         - active
         - revoked
       description: Status of the authentication.
@@ -1840,3 +1868,49 @@ components:
             - url
             - events
             - secret
+  examples:
+    Business Unit:
+      value:
+        id: "did:openebl:123456789abcdefghi"
+        version: 1
+        application_id: "app_123456"
+        status: "active"
+        name: "My Business Unit"
+        addresses: 
+          - "123 Main St"
+          - "456 Oak Rd"
+        country: "US"
+        emails: 
+          - "test@example.com"
+        phone_numbers: 
+          - "+1-123-456-7890"
+        created_at: 1619827200
+        created_by: "user_123456"
+        updated_at: 1619827200
+        updated_by: "user_123456"
+    Update File Based EBL:
+      value:
+        authentication_id: "auth_id_123456"
+        metadata:
+          key1: "value1"
+          key2: "value2"
+        file:
+          name: "file1.pdf"
+          type: "application/pdf"
+          content: "SGVsbG8gd29ybGQ="
+        bl_number: "BL123456"
+        bl_doc_type: "HouseBillOfLading"
+        to_order: false
+        pol:
+          locationName: "Taipei"
+          UNLocCode: "TWTPE"
+        pod:
+          locationName: "Los Angeles"
+          UNLocCode: "USLAX"
+        eta: "2022-12-31T23:59:59Z"
+        shipper: "did:openebl:shipper123"
+        consignee: "did:openebl:consignee123"
+        release_agent: "did:openebl:releaseagent123"
+        note: "This is a note."
+        draft: false
+        encrypt_content: false

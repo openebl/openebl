@@ -137,7 +137,16 @@ func (ca *_CertAuthority) AddRootCertificate(ctx context.Context, ts int64, req 
 
 	certs, err := eblpkix.ParseCertificate([]byte(req.Cert))
 	if err != nil {
-		return model.Cert{}, err
+		return model.Cert{}, fmt.Errorf("failed to parse certificate: %s%w", err.Error(), model.ErrInvalidParameter)
+	}
+	if len(certs) == 0 {
+		return model.Cert{}, fmt.Errorf("certificate is empty %w", model.ErrInvalidParameter)
+	}
+	if !certs[0].IsCA || !certs[0].BasicConstraintsValid {
+		return model.Cert{}, fmt.Errorf("certificate is not a valid CA certificate due to IsCA is false or BasicConstraintsValid is false %w", model.ErrInvalidParameter)
+	}
+	if certs[0].KeyUsage&(x509.KeyUsageCertSign|x509.KeyUsageCRLSign) == 0 {
+		return model.Cert{}, fmt.Errorf("certificate is not a CA certificate due to wrong KeyUsage %w", model.ErrInvalidParameter)
 	}
 
 	cert := model.Cert{

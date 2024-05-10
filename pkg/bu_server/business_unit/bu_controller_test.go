@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/openebl/openebl/pkg/envelope"
 	"github.com/openebl/openebl/pkg/pkix"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
+	"github.com/openebl/openebl/pkg/util"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
 	mock_cert "github.com/openebl/openebl/test/mock/bu_server/cert"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
@@ -171,6 +173,98 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 	newBu, err := s.buManager.UpdateBusinessUnit(s.ctx, ts, request)
 	s.NoError(err)
 	s.Assert().Equal(expectedBusinessUnit, newBu)
+}
+
+func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnitByExternalEvent() {
+	ts := time.Now().Unix()
+
+	buCertRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert.crt")
+	s.Require().NoError(err)
+	buCert, err := eblpkix.ParseCertificate(buCertRaw)
+	s.Require().NoError(err)
+	buPrivKeyRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert_priv_key.pem")
+	s.Require().NoError(err)
+	buPrivKey, err := eblpkix.ParsePrivateKey(buPrivKeyRaw)
+	s.Require().NoError(err)
+
+	bu := model.BusinessUnit{
+		ID:      did.MustParseDID("did:openebl:aaaabbbbcccc"),
+		Version: 2,
+		Status:  model.BusinessUnitStatusActive,
+		Name:    "name",
+	}
+
+	signedEvent, err := envelope.Sign([]byte(util.StructToJSON(bu)), envelope.SignatureAlgorithm(jwa.ES384), buPrivKey, buCert)
+	s.Require().NoError(err)
+
+	func() { // Test successful case
+		gomock.InOrder(
+			s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+			s.cv.EXPECT().VerifyCert(gomock.Any(), s.tx, buCert[0].NotBefore.Unix(), buCert).Return(nil),
+			s.storage.EXPECT().ListBusinessUnits(
+				gomock.Any(),
+				s.tx,
+				storage.ListBusinessUnitsRequest{
+					Limit:           1,
+					BusinessUnitIDs: []string{"did:openebl:aaaabbbbcccc"},
+				},
+			).Return(storage.ListBusinessUnitsResult{}, nil),
+			s.storage.EXPECT().StoreBusinessUnit(gomock.Any(), s.tx, bu).Return(nil),
+			s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+		)
+
+		err := s.buManager.UpdateBusinessUnitByExternalEvent(s.ctx, ts, signedEvent)
+		s.Require().NoError(err)
+	}()
+
+	func() { // Test with old business unit
+		oldBU := bu
+		gomock.InOrder(
+			s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+			s.cv.EXPECT().VerifyCert(gomock.Any(), s.tx, buCert[0].NotBefore.Unix(), buCert).Return(nil),
+			s.storage.EXPECT().ListBusinessUnits(
+				gomock.Any(),
+				s.tx,
+				storage.ListBusinessUnitsRequest{
+					Limit:           1,
+					BusinessUnitIDs: []string{"did:openebl:aaaabbbbcccc"},
+				},
+			).Return(
+				storage.ListBusinessUnitsResult{
+					Total: 1,
+					Records: []storage.ListBusinessUnitsRecord{
+						{
+							BusinessUnit: oldBU,
+						},
+					},
+				},
+				nil,
+			),
+			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+		)
+
+		err := s.buManager.UpdateBusinessUnitByExternalEvent(s.ctx, ts, signedEvent)
+		s.Require().NoError(err)
+	}()
+
+	func() { // Test with invalid certificate
+		gomock.InOrder(
+			s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+			s.cv.EXPECT().VerifyCert(gomock.Any(), s.tx, buCert[0].NotBefore.Unix(), buCert).Return(model.ErrCertInvalid),
+			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+		)
+		err := s.buManager.UpdateBusinessUnitByExternalEvent(s.ctx, ts, signedEvent)
+		s.Require().ErrorIs(err, model.ErrInvalidParameter)
+	}()
+
+	func() { // Test with the event is not well signed.
+		badEvent := signedEvent
+		badEvent.Payload = envelope.Base64URLEncode([]byte("another payload"))
+
+		err := s.buManager.UpdateBusinessUnitByExternalEvent(s.ctx, ts, badEvent)
+		s.Require().ErrorIs(err, model.ErrInvalidParameter)
+	}()
 }
 
 func (s *BusinessUnitManagerTestSuite) TestListBusinessUnits() {
@@ -451,6 +545,114 @@ func (s *BusinessUnitManagerTestSuite) TestActivateAuthentication() {
 	s.Assert().Empty(result.PrivateKey)
 	result.PrivateKey = expectedBuAuth.PrivateKey
 	s.Assert().Equal(expectedBuAuth, result)
+}
+
+func (s *BusinessUnitManagerTestSuite) TestUpdateAuthenticationByExternalEvent() {
+	buCertRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert.crt")
+	s.Require().NoError(err)
+	buCert, err := eblpkix.ParseCertificate(buCertRaw)
+	s.Require().NoError(err)
+
+	buPrivateKeyRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert_priv_key.pem")
+	s.Require().NoError(err)
+	buPrivateKey, err := eblpkix.ParsePrivateKey(buPrivateKeyRaw)
+	s.Require().NoError(err)
+
+	ts := time.Now().Unix()
+	buAuth := model.BusinessUnitAuthentication{
+		ID:                      "authentication-id",
+		Version:                 2,
+		BusinessUnit:            did.MustParseDID("did:openebl:aaaabbbbcccc"),
+		Status:                  model.BusinessUnitAuthenticationStatusActive,
+		CreatedAt:               12345,
+		CreatedBy:               "requester",
+		Certificate:             string(buCertRaw),
+		PublicKeyID:             eblpkix.GetPublicKeyID(buCert[0].PublicKey),
+		IssuerKeyID:             hex.EncodeToString(buCert[0].AuthorityKeyId),
+		CertFingerPrint:         eblpkix.GetFingerPrintFromCertificate(buCert[0]),
+		CertificateSerialNumber: buCert[0].SerialNumber.String(),
+	}
+	signedEvent, err := envelope.Sign([]byte(util.StructToJSON(buAuth)), envelope.SignatureAlgorithm(jwa.ES384), buPrivateKey, buCert)
+	s.Require().NoError(err)
+
+	func() { // Test successful case
+		gomock.InOrder(
+			s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+			s.cv.EXPECT().VerifyCert(gomock.Any(), s.tx, buCert[0].NotBefore.Unix(), buCert).Return(nil),
+			s.storage.EXPECT().ListAuthentication(
+				gomock.Any(),
+				s.tx,
+				storage.ListAuthenticationRequest{
+					Limit:             1,
+					BusinessUnitID:    buAuth.BusinessUnit.String(),
+					AuthenticationIDs: []string{buAuth.ID},
+				},
+			).Return(storage.ListAuthenticationResult{}, nil),
+			s.storage.EXPECT().StoreAuthentication(gomock.Any(), s.tx, buAuth).Return(nil),
+			s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+		)
+
+		err = s.buManager.UpdateAuthenticationByExternalEvent(s.ctx, ts, signedEvent)
+		s.Require().NoError(err)
+	}()
+
+	func() { // Test case when the event is an old one.
+		gomock.InOrder(
+			s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+			s.cv.EXPECT().VerifyCert(gomock.Any(), s.tx, buCert[0].NotBefore.Unix(), buCert).Return(nil),
+			s.storage.EXPECT().ListAuthentication(
+				gomock.Any(),
+				s.tx,
+				storage.ListAuthenticationRequest{
+					Limit:             1,
+					BusinessUnitID:    buAuth.BusinessUnit.String(),
+					AuthenticationIDs: []string{buAuth.ID},
+				},
+			).Return(
+				storage.ListAuthenticationResult{
+					Total: 1,
+					Records: []model.BusinessUnitAuthentication{
+						{
+							ID:      buAuth.ID,
+							Version: buAuth.Version,
+						},
+					},
+				},
+				nil,
+			),
+			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+		)
+		err = s.buManager.UpdateAuthenticationByExternalEvent(s.ctx, ts, signedEvent)
+		s.Require().NoError(err)
+	}()
+
+	func() { // Test case when the certificate is not valid
+		gomock.InOrder(
+			s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+			s.cv.EXPECT().VerifyCert(gomock.Any(), s.tx, buCert[0].NotBefore.Unix(), buCert).Return(model.ErrCertInvalid),
+			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+		)
+
+		err = s.buManager.UpdateAuthenticationByExternalEvent(s.ctx, ts, signedEvent)
+		s.Require().ErrorIs(err, model.ErrInvalidParameter)
+	}()
+
+	func() { // Test case when the certificates in JWS is not the same as BusinessUnitAuthentication.Certificate
+		badAuth := buAuth
+		badAuth.Certificate = fmt.Sprintf("%s%s", badAuth.Certificate, badAuth.Certificate)
+		badEvent := signedEvent
+		badEvent.Payload = envelope.Base64URLEncode([]byte(util.StructToJSON(badAuth)))
+		err = s.buManager.UpdateAuthenticationByExternalEvent(s.ctx, ts, badEvent)
+		s.Require().ErrorIs(err, model.ErrInvalidParameter)
+	}()
+
+	func() { // Test case when the event is not well signed.
+		badEvent := signedEvent
+		badEvent.Payload = envelope.Base64URLEncode([]byte("another payload"))
+		err = s.buManager.UpdateAuthenticationByExternalEvent(s.ctx, ts, badEvent)
+		s.Require().ErrorIs(err, model.ErrInvalidParameter)
+	}()
 }
 
 func (s *BusinessUnitManagerTestSuite) TestRevokeAuthentication() {

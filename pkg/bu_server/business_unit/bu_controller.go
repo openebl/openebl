@@ -469,6 +469,11 @@ func (m *_BusinessUnitManager) ActivateAuthentication(ctx context.Context, ts in
 	if buAuth.Status != model.BusinessUnitAuthenticationStatusPending {
 		return model.BusinessUnitAuthentication{}, model.ErrAuthenticationNotPending
 	}
+	if buAuth.PrivateKey == "" {
+		// If the private key is not available, it means that the authentication is not created by this bu server.
+		// Report to the caller as if the authentication is not found.
+		return model.BusinessUnitAuthentication{}, model.ErrAuthenticationNotFound
+	}
 
 	buAuth.Version += 1
 	buAuth.Status = model.BusinessUnitAuthenticationStatusActive

@@ -514,37 +514,66 @@ func (s *BusinessUnitManagerTestSuite) TestActivateAuthentication() {
 	expectedBuAuth.CertificateSerialNumber = buCert[0].SerialNumber.String()
 	expectedBuAuth.CertFingerPrint = "sha1:c22d268faa8895e02d8be8ffbcfd80e03a204f30"
 
-	gomock.InOrder(
-		s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
-		s.cv.EXPECT().VerifyCert(gomock.Any(), s.tx, gomock.Any(), buCert).Return(nil),
-		s.storage.EXPECT().ListAuthentication(
-			gomock.Any(),
-			s.tx,
-			storage.ListAuthenticationRequest{
-				Limit:        1,
-				PublicKeyIDs: []string{certPublicKeyID},
-			},
-		).Return(
-			storage.ListAuthenticationResult{
-				Total:   1,
-				Records: []model.BusinessUnitAuthentication{oldBuAuth},
-			},
-			nil,
-		),
-		s.storage.EXPECT().StoreAuthentication(
-			gomock.Any(),
-			s.tx,
-			expectedBuAuth,
-		).Return(nil),
-		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
-		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
-	)
+	func() { // Test successful case
+		gomock.InOrder(
+			s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+			s.cv.EXPECT().VerifyCert(gomock.Any(), s.tx, gomock.Any(), buCert).Return(nil),
+			s.storage.EXPECT().ListAuthentication(
+				gomock.Any(),
+				s.tx,
+				storage.ListAuthenticationRequest{
+					Limit:        1,
+					PublicKeyIDs: []string{certPublicKeyID},
+				},
+			).Return(
+				storage.ListAuthenticationResult{
+					Total:   1,
+					Records: []model.BusinessUnitAuthentication{oldBuAuth},
+				},
+				nil,
+			),
+			s.storage.EXPECT().StoreAuthentication(
+				gomock.Any(),
+				s.tx,
+				expectedBuAuth,
+			).Return(nil),
+			s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
+			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+		)
 
-	result, err := s.buManager.ActivateAuthentication(s.ctx, ts, buCertRaw)
-	s.Require().NoError(err)
-	s.Assert().Empty(result.PrivateKey)
-	result.PrivateKey = expectedBuAuth.PrivateKey
-	s.Assert().Equal(expectedBuAuth, result)
+		result, err := s.buManager.ActivateAuthentication(s.ctx, ts, buCertRaw)
+		s.Require().NoError(err)
+		s.Assert().Empty(result.PrivateKey)
+		result.PrivateKey = expectedBuAuth.PrivateKey
+		s.Assert().Equal(expectedBuAuth, result)
+	}()
+
+	func() { // Test case of bu authentication without private key.
+		emptyPrivKeyAuth := oldBuAuth
+		emptyPrivKeyAuth.PrivateKey = ""
+		gomock.InOrder(
+			s.storage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil),
+			s.cv.EXPECT().VerifyCert(gomock.Any(), s.tx, gomock.Any(), buCert).Return(nil),
+			s.storage.EXPECT().ListAuthentication(
+				gomock.Any(),
+				s.tx,
+				storage.ListAuthenticationRequest{
+					Limit:        1,
+					PublicKeyIDs: []string{certPublicKeyID},
+				},
+			).Return(
+				storage.ListAuthenticationResult{
+					Total:   1,
+					Records: []model.BusinessUnitAuthentication{emptyPrivKeyAuth},
+				},
+				nil,
+			),
+			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
+		)
+
+		_, err := s.buManager.ActivateAuthentication(s.ctx, ts, buCertRaw)
+		s.Require().ErrorIs(err, model.ErrAuthenticationNotFound)
+	}()
 }
 
 func (s *BusinessUnitManagerTestSuite) TestUpdateAuthenticationByExternalEvent() {

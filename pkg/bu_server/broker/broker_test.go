@@ -5,6 +5,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,7 +15,9 @@ import (
 	_ "unsafe"
 
 	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/broker"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
@@ -23,6 +27,7 @@ import (
 	"github.com/openebl/openebl/pkg/pkix"
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/relay/server"
+	"github.com/openebl/openebl/pkg/util"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
 	mock_cert "github.com/openebl/openebl/test/mock/bu_server/cert"
 	mock_storage "github.com/openebl/openebl/test/mock/bu_server/storage"
@@ -279,6 +284,178 @@ func (s *BrokerTestSuite) TestBrokerEventSinkCRL() {
 
 	_, err = eventSink(b, s.ctx, evt)
 	s.Require().NoError(err)
+}
+
+func (s *BrokerTestSuite) TestBrokerEventSinkBusinessUnit() {
+	ts := time.Now().Unix()
+	buCertRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert.crt")
+	s.Require().NoError(err)
+	buCert, err := pkix.ParseCertificate(buCertRaw)
+	s.Require().NoError(err)
+	buPrivKeyRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert_priv_key.pem")
+	s.Require().NoError(err)
+	buPrivKey, err := pkix.ParsePrivateKey(buPrivKeyRaw)
+	s.Require().NoError(err)
+
+	b, err := broker.NewBroker(
+		broker.WithRelayClient(s.relayClient),
+		broker.WithInboxStore(s.inboxStorage),
+		broker.WithOutboxStore(s.outboxStorage),
+		broker.WithCertManager(s.certMgr),
+		broker.WithBUManager(s.buMgr),
+	)
+	s.Require().NoError(err)
+
+	bu := model.BusinessUnit{
+		ID:            did.MustParseDID(fmt.Sprintf("did:openebl:%s", uuid.NewString())),
+		Version:       100,
+		ApplicationID: fmt.Sprintf("app_%s", uuid.NewString()),
+		Name:          "Test Business Unit",
+		Country:       "US",
+	}
+
+	jwsEnvelope, err := envelope.Sign([]byte(util.StructToJSON(bu)), envelope.SignatureAlgorithm(jwa.ES384), buPrivKey, buCert)
+	s.Require().NoError(err)
+
+	evt := relay.Event{
+		Timestamp: ts,
+		Type:      int(relay.BusinessUnit),
+		Offset:    12345,
+		Data:      []byte(util.StructToJSON(jwsEnvelope)),
+	}
+	eventID := server.GetEventID(evt.Data)
+
+	func() { // Test successful case.
+		gomock.InOrder(
+			s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil), // CreateTx for StoreEvent.
+			s.inboxStorage.EXPECT().StoreEvent(gomock.Any(), s.tx, gomock.Any(), eventID, evt, "").Return(true, nil),
+
+			s.buMgr.EXPECT().UpdateBusinessUnitByExternalEvent(gomock.Any(), gomock.Any(), jwsEnvelope).Return(nil),
+
+			s.tx.EXPECT().Commit(gomock.Any()).Return(nil),   // Commit for StoreEvent.
+			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil), // Rollback for StoreEvent.
+		)
+
+		_, err = eventSink(b, s.ctx, evt)
+		s.Require().NoError(err)
+	}()
+
+	func() { // Test ErrInvalidParameter error.
+		gomock.InOrder(
+			s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil), // CreateTx for StoreEvent.
+			s.inboxStorage.EXPECT().StoreEvent(gomock.Any(), s.tx, gomock.Any(), eventID, evt, "").Return(true, nil),
+
+			s.buMgr.EXPECT().UpdateBusinessUnitByExternalEvent(gomock.Any(), gomock.Any(), jwsEnvelope).Return(model.ErrInvalidParameter),
+
+			s.tx.EXPECT().Commit(gomock.Any()).Return(nil),   // Commit for StoreEvent.
+			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil), // Rollback for StoreEvent.
+		)
+
+		_, err = eventSink(b, s.ctx, evt)
+		s.Require().NoError(err)
+	}()
+
+	func() { // Test other error.
+		expectedError := errors.New("unexpected error")
+
+		gomock.InOrder(
+			s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil), // CreateTx for StoreEvent.
+			s.inboxStorage.EXPECT().StoreEvent(gomock.Any(), s.tx, gomock.Any(), eventID, evt, "").Return(true, nil),
+
+			s.buMgr.EXPECT().UpdateBusinessUnitByExternalEvent(gomock.Any(), gomock.Any(), jwsEnvelope).Return(expectedError),
+
+			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil), // Rollback for StoreEvent.
+		)
+
+		_, err = eventSink(b, s.ctx, evt)
+		s.Require().ErrorIs(err, expectedError)
+	}()
+}
+
+func (s *BrokerTestSuite) TestBrokerEventSinkBusinessUnitAuthentication() {
+	ts := time.Now().Unix()
+	buCertRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert.crt")
+	s.Require().NoError(err)
+	buCert, err := pkix.ParseCertificate(buCertRaw)
+	s.Require().NoError(err)
+	buPrivKeyRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert_priv_key.pem")
+	s.Require().NoError(err)
+	buPrivKey, err := pkix.ParsePrivateKey(buPrivKeyRaw)
+	s.Require().NoError(err)
+
+	b, err := broker.NewBroker(
+		broker.WithRelayClient(s.relayClient),
+		broker.WithInboxStore(s.inboxStorage),
+		broker.WithOutboxStore(s.outboxStorage),
+		broker.WithCertManager(s.certMgr),
+		broker.WithBUManager(s.buMgr),
+	)
+	s.Require().NoError(err)
+
+	buAuth := model.BusinessUnitAuthentication{
+		ID:           fmt.Sprintf("auth_%s", uuid.NewString()),
+		Version:      100,
+		BusinessUnit: did.MustParseDID(fmt.Sprintf("did:openebl:%s", uuid.NewString())),
+		Certificate:  string(buCertRaw),
+	}
+
+	jwsEnvelope, err := envelope.Sign([]byte(util.StructToJSON(buAuth)), envelope.SignatureAlgorithm(jwa.ES384), buPrivKey, buCert)
+	s.Require().NoError(err)
+
+	evt := relay.Event{
+		Timestamp: ts,
+		Type:      int(relay.BusinessUnitAuthentication),
+		Offset:    12345,
+		Data:      []byte(util.StructToJSON(jwsEnvelope)),
+	}
+	eventID := server.GetEventID(evt.Data)
+
+	func() { // Test successful case.
+		gomock.InOrder(
+			s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil), // CreateTx for StoreEvent.
+			s.inboxStorage.EXPECT().StoreEvent(gomock.Any(), s.tx, gomock.Any(), eventID, evt, "").Return(true, nil),
+
+			s.buMgr.EXPECT().UpdateAuthenticationByExternalEvent(gomock.Any(), gomock.Any(), jwsEnvelope).Return(nil),
+
+			s.tx.EXPECT().Commit(gomock.Any()).Return(nil),   // Commit for StoreEvent.
+			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil), // Rollback for StoreEvent.
+		)
+
+		_, err = eventSink(b, s.ctx, evt)
+		s.Require().NoError(err)
+	}()
+
+	func() { // Test ErrInvalidParameter error.
+		gomock.InOrder(
+			s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil), // CreateTx for StoreEvent.
+			s.inboxStorage.EXPECT().StoreEvent(gomock.Any(), s.tx, gomock.Any(), eventID, evt, "").Return(true, nil),
+
+			s.buMgr.EXPECT().UpdateAuthenticationByExternalEvent(gomock.Any(), gomock.Any(), jwsEnvelope).Return(model.ErrInvalidParameter),
+
+			s.tx.EXPECT().Commit(gomock.Any()).Return(nil),   // Commit for StoreEvent.
+			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil), // Rollback for StoreEvent.
+		)
+
+		_, err = eventSink(b, s.ctx, evt)
+		s.Require().NoError(err)
+	}()
+
+	func() { // Test other error.
+		expectedError := errors.New("unexpected error")
+
+		gomock.InOrder(
+			s.inboxStorage.EXPECT().CreateTx(gomock.Any(), gomock.Len(2)).Return(s.tx, s.ctx, nil), // CreateTx for StoreEvent.
+			s.inboxStorage.EXPECT().StoreEvent(gomock.Any(), s.tx, gomock.Any(), eventID, evt, "").Return(true, nil),
+
+			s.buMgr.EXPECT().UpdateAuthenticationByExternalEvent(gomock.Any(), gomock.Any(), jwsEnvelope).Return(expectedError),
+
+			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil), // Rollback for StoreEvent.
+		)
+
+		_, err = eventSink(b, s.ctx, evt)
+		s.Require().ErrorIs(err, expectedError)
+	}()
+
 }
 
 func (s *BrokerTestSuite) TestBrokerEventSinkDuplicated() {

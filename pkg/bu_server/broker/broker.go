@@ -211,6 +211,28 @@ func (b *Broker) eventSink(ctx context.Context, event relay.Event) (string, erro
 			if err := storeCertificateRevocation(ctx, event.Data); err != nil {
 				return fmt.Errorf("failed to store certificate revocation: %w", err)
 			}
+		case relay.BusinessUnit:
+			jwsEvent, err := jwsFromEvent(event.Data)
+			if err != nil {
+				return err
+			}
+			if err := b.buMgr.UpdateBusinessUnitByExternalEvent(ctx, ts, jwsEvent); errors.Is(err, model.ErrInvalidParameter) {
+				logrus.Warnf("Failed to update business unit: %v", err)
+				return nil
+			} else if err != nil {
+				return fmt.Errorf("failed to store business unit: %w", err)
+			}
+		case relay.BusinessUnitAuthentication:
+			jwsEvent, err := jwsFromEvent(event.Data)
+			if err != nil {
+				return err
+			}
+			if err := b.buMgr.UpdateAuthenticationByExternalEvent(ctx, ts, jwsEvent); errors.Is(err, model.ErrInvalidParameter) {
+				logrus.Warnf("Failed to update business unit authentication: %v", err)
+				return nil
+			} else if err != nil {
+				return fmt.Errorf("failed to store business unit authentication: %w", err)
+			}
 		default:
 			log.Debugf("Unwanted event type: %d", event.Type)
 		}
@@ -242,9 +264,9 @@ func (b *Broker) eventSink(ctx context.Context, event relay.Event) (string, erro
 }
 
 func tradeDocumentFromEvent(data []byte) (storage.TradeDocument, error) {
-	doc := envelope.JWS{}
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return storage.TradeDocument{}, fmt.Errorf("failed to unmarshal JWS: %w", err)
+	doc, err := jwsFromEvent(data)
+	if err != nil {
+		return storage.TradeDocument{}, err
 	}
 	if err := doc.VerifySignature(); err != nil {
 		return storage.TradeDocument{}, fmt.Errorf("failed to verify signature: %w", err)
@@ -279,6 +301,14 @@ func tradeDocumentFromEvent(data []byte) (storage.TradeDocument, error) {
 		td.DocReference = bl.BillOfLading.TransportDocumentReference
 	}
 	return td, nil
+}
+
+func jwsFromEvent(data []byte) (envelope.JWS, error) {
+	doc := envelope.JWS{}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return envelope.JWS{}, fmt.Errorf("failed to unmarshal JWS: %w", err)
+	}
+	return doc, nil
 }
 
 func (b *Broker) decryptTradeDocument(ctx context.Context, data []byte) (storage.TradeDocument, error) {

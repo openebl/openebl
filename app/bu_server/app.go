@@ -254,10 +254,29 @@ func (a *App) runMigrate(cli CLI) {
 }
 
 func (a *App) runBroker(cli CLI) {
+	ctx := context.Background()
+
 	var appConfig Config
 	if err := config.FromFile(cli.Config, &appConfig); err != nil {
 		logrus.Errorf("failed to load config: %v", err)
 		os.Exit(128)
+	}
+
+	if endpoint := appConfig.OTLPEndpoint; endpoint != "" {
+		exporter, err := otlp_util.InitExporter(
+			otlp_util.WithContext(ctx),
+			otlp_util.WithEndPoint(endpoint),
+			otlp_util.WithServiceName(appName),
+			otlp_util.WithInSecure(),
+			otlp_util.WithErrorHandler(func(err error) {
+				logrus.Warnf("OTLP error: %v", err)
+			}),
+		)
+		if err != nil {
+			logrus.Errorf("failed to initialize OTLP exporter: %v", err)
+			os.Exit(128)
+		}
+		defer func() { _ = exporter.Shutdown(ctx) }()
 	}
 
 	dbStorage, err := postgres.NewStorageWithConfig(appConfig.Database)
@@ -285,7 +304,7 @@ func (a *App) runBroker(cli CLI) {
 		os.Exit(128)
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	wg := &sync.WaitGroup{}

@@ -540,7 +540,7 @@ func (m *_BusinessUnitManager) GetJWSSigner(ctx context.Context, req GetJWSSigne
 }
 
 func (m *_BusinessUnitManager) GetJWEEncryptors(ctx context.Context, req GetJWEEncryptorsRequest) ([]JWEEncryptor, error) {
-	getAuthentications := func(ctx context.Context, businessUnitIDs []string) (map[string]model.BusinessUnitAuthentication, error) {
+	getAuthentications := func(ctx context.Context, businessUnitIDs []string) ([]model.BusinessUnitAuthentication, error) {
 		tx, ctx, err := m.storage.CreateTx(ctx)
 		if err != nil {
 			return nil, err
@@ -557,11 +557,11 @@ func (m *_BusinessUnitManager) GetJWEEncryptors(ctx context.Context, req GetJWEE
 		}
 
 		// find latest active authentications
-		authenticates := make(map[string]model.BusinessUnitAuthentication)
+		authenticates := make([]model.BusinessUnitAuthentication, 0, len(result.Records))
 		for _, record := range result.Records {
 			for i := len(record.Authentications) - 1; i >= 0; i-- {
 				if record.Authentications[i].Status == model.BusinessUnitAuthenticationStatusActive {
-					authenticates[record.BusinessUnit.ID.String()] = record.Authentications[i]
+					authenticates = append(authenticates, record.Authentications[i])
 					break
 				}
 			}

@@ -24,6 +24,8 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/webhook"
 	"github.com/openebl/openebl/pkg/envelope"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
+	"github.com/openebl/openebl/pkg/relay"
+	"github.com/openebl/openebl/pkg/util"
 	"github.com/sirupsen/logrus"
 )
 
@@ -147,12 +149,17 @@ type _BusinessUnitManager struct {
 }
 
 func NewBusinessUnitManager(storage storage.BusinessUnitStorage, cv cert.CertVerifier, webhookCtrl webhook.WebhookController, jwtFactory JWTFactory) BusinessUnitManager {
-	return &_BusinessUnitManager{
+	buMgr := &_BusinessUnitManager{
 		cv:          cv,
 		storage:     storage,
 		webhookCtrl: webhookCtrl,
 		jwtFactory:  jwtFactory,
 	}
+
+	if buMgr.jwtFactory == nil {
+		buMgr.jwtFactory = DefaultJWTFactory
+	}
+	return buMgr
 }
 
 func (m *_BusinessUnitManager) CreateBusinessUnit(ctx context.Context, ts int64, req CreateBusinessUnitRequest) (model.BusinessUnit, error) {
@@ -486,6 +493,21 @@ func (m *_BusinessUnitManager) ActivateAuthentication(ctx context.Context, ts in
 	if err := m.storage.StoreAuthentication(ctx, tx, buAuth); err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
+	signer, err := m.jwtFactory.NewJWSSigner(buAuth)
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+	if err := m.publishBUEvent(ctx, tx, ts, signer, buAuth); err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+	bu, err := m.getBusinessUnit(ctx, tx, "", buAuth.BusinessUnit)
+	if err == nil {
+		if err := m.publishBUEvent(ctx, tx, ts, signer, bu); err != nil {
+			return model.BusinessUnitAuthentication{}, err
+		}
+	} else if err != nil && !errors.Is(err, model.ErrBusinessUnitNotFound) {
+		return model.BusinessUnitAuthentication{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
@@ -680,13 +702,10 @@ func (m *_BusinessUnitManager) GetJWSSigner(ctx context.Context, req GetJWSSigne
 		return nil, err
 	}
 
-	if auth.Status != model.BusinessUnitAuthenticationStatusActive {
+	if auth.Status != model.BusinessUnitAuthenticationStatusActive || auth.PrivateKey == "" {
 		return nil, model.ErrAuthenticationNotActive
 	}
 
-	if m.jwtFactory == nil {
-		return DefaultJWTFactory.NewJWSSigner(auth)
-	}
 	return m.jwtFactory.NewJWSSigner(auth)
 }
 
@@ -731,13 +750,9 @@ func (m *_BusinessUnitManager) GetJWEEncryptors(ctx context.Context, req GetJWEE
 		return nil, model.ErrAuthenticationNotActive
 	}
 
-	factory := m.jwtFactory
-	if factory == nil {
-		factory = DefaultJWTFactory
-	}
 	encryptors := make([]JWEEncryptor, 0, len(authenticates))
 	for _, auth := range authenticates {
-		encryptor, err := factory.NewJWEEncryptor(auth)
+		encryptor, err := m.jwtFactory.NewJWEEncryptor(auth)
 		if err != nil {
 			return nil, err
 		}
@@ -770,6 +785,31 @@ func (m *_BusinessUnitManager) getBusinessUnit(ctx context.Context, tx storage.T
 		return model.BusinessUnit{}, model.ErrBusinessUnitNotFound
 	}
 	return result.Records[0].BusinessUnit, nil
+}
+
+func (m *_BusinessUnitManager) publishBUEvent(ctx context.Context, tx storage.Tx, ts int64, signer JWSSigner, data any) error {
+	jwsEvt, err := envelope.Sign([]byte(util.StructToJSON(data)), signer.AvailableJWSSignAlgorithms()[0], signer, signer.Cert())
+	if err != nil {
+		return err
+	}
+
+	var key string
+	var eventType int
+	switch v := data.(type) {
+	case model.BusinessUnit:
+		key = v.ID.String()
+		eventType = int(relay.BusinessUnit)
+	case model.BusinessUnitAuthentication:
+		key = v.ID
+		eventType = int(relay.BusinessUnitAuthentication)
+	default:
+		panic("unsupported data type")
+	}
+
+	if err := m.storage.AddTradeDocumentOutbox(ctx, tx, ts, key, eventType, []byte(util.StructToJSON(jwsEvt))); err != nil {
+		return err
+	}
+	return nil
 }
 
 // createPrivateKey will return a private key. The type will be *rsa.PrivateKey or *ecdsa.PrivateKey.

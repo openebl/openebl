@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	"github.com/openebl/openebl/pkg/envelope"
 	"github.com/openebl/openebl/pkg/pkix"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
+	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/util"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
 	mock_cert "github.com/openebl/openebl/test/mock/bu_server/cert"
@@ -503,6 +505,7 @@ func (s *BusinessUnitManagerTestSuite) TestActivateAuthentication() {
 		PrivateKey:                string(privateKeyRaw),
 		CertificateSigningRequest: string(buCSRRaw),
 		PublicKeyID:               eblpkix.GetPublicKeyID(eblpkix.GetPublicKey(privateKey)),
+		Certificate:               string(buCertRaw),
 	}
 
 	expectedBuAuth := oldBuAuth
@@ -513,6 +516,12 @@ func (s *BusinessUnitManagerTestSuite) TestActivateAuthentication() {
 	expectedBuAuth.IssuerKeyID = hex.EncodeToString(buCert[0].AuthorityKeyId)
 	expectedBuAuth.CertificateSerialNumber = buCert[0].SerialNumber.String()
 	expectedBuAuth.CertFingerPrint = "sha1:c22d268faa8895e02d8be8ffbcfd80e03a204f30"
+
+	bu := model.BusinessUnit{
+		ID:      did.MustParseDID(buID),
+		Version: 1,
+		Status:  model.BusinessUnitStatusActive,
+	}
 
 	func() { // Test successful case
 		gomock.InOrder(
@@ -537,6 +546,72 @@ func (s *BusinessUnitManagerTestSuite) TestActivateAuthentication() {
 				s.tx,
 				expectedBuAuth,
 			).Return(nil),
+			s.jwtFactory.EXPECT().NewJWSSigner(expectedBuAuth).Return(business_unit.DefaultJWTFactory.NewJWSSigner(expectedBuAuth)),
+			s.storage.EXPECT().AddTradeDocumentOutbox(
+				gomock.Any(),
+				s.tx,
+				gomock.Any(),
+				expectedBuAuth.ID,
+				int(relay.BusinessUnitAuthentication),
+				gomock.Any(),
+			).DoAndReturn(
+				func(ctx context.Context, tx storage.Tx, ts int64, authenticationID string, documentType int, document []byte) error {
+					jwsEvt := envelope.JWS{}
+					err := json.Unmarshal(document, &jwsEvt)
+					s.Require().NoError(err)
+					err = jwsEvt.VerifySignature()
+					s.Require().NoError(err)
+
+					payload, err := jwsEvt.GetPayload()
+					s.Require().NoError(err)
+					receivedAuth := model.BusinessUnitAuthentication{}
+					err = json.Unmarshal(payload, &receivedAuth)
+					s.Require().NoError(err)
+					s.Require().Equal(expectedBuAuth, receivedAuth)
+					return nil
+				},
+			),
+			s.storage.EXPECT().ListBusinessUnits(
+				gomock.Any(),
+				s.tx,
+				storage.ListBusinessUnitsRequest{
+					Limit:           1,
+					BusinessUnitIDs: []string{buID},
+				},
+			).Return(
+				storage.ListBusinessUnitsResult{
+					Total: 1,
+					Records: []storage.ListBusinessUnitsRecord{
+						{
+							BusinessUnit: bu,
+						},
+					},
+				},
+				nil,
+			),
+			s.storage.EXPECT().AddTradeDocumentOutbox(
+				gomock.Any(),
+				s.tx,
+				gomock.Any(),
+				bu.ID.String(),
+				int(relay.BusinessUnit),
+				gomock.Any(),
+			).DoAndReturn(
+				func(ctx context.Context, tx storage.Tx, ts int64, authenticationID string, documentType int, document []byte) error {
+					jwsEvt := envelope.JWS{}
+					err := json.Unmarshal(document, &jwsEvt)
+					s.Require().NoError(err)
+					err = jwsEvt.VerifySignature()
+					s.Require().NoError(err)
+					payload, err := jwsEvt.GetPayload()
+					s.Require().NoError(err)
+					receivedBU := model.BusinessUnit{}
+					err = json.Unmarshal(payload, &receivedBU)
+					s.Require().NoError(err)
+					s.Require().Equal(bu, receivedBU)
+					return nil
+				},
+			),
 			s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 		)

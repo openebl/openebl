@@ -110,6 +110,8 @@ type BusinessUnitStorage interface {
 	ListBusinessUnits(ctx context.Context, tx Tx, req ListBusinessUnitsRequest) (ListBusinessUnitsResult, error)
 	StoreAuthentication(ctx context.Context, tx Tx, auth model.BusinessUnitAuthentication) error
 	ListAuthentication(ctx context.Context, tx Tx, req ListAuthenticationRequest) (ListAuthenticationResult, error)
+
+	AddTradeDocumentOutbox(ctx context.Context, tx Tx, ts int64, key string, kind int, payload []byte) error
 }
 
 type TradeDocument struct {

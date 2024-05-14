@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
@@ -236,6 +237,16 @@ func (m *_BusinessUnitManager) UpdateBusinessUnit(ctx context.Context, ts int64,
 
 	if err = m.webhookCtrl.SendWebhookEvent(ctx, tx, ts, req.ApplicationID, bu.ID.String(), model.WebhookEventBUUpdated); err != nil {
 		return model.BusinessUnit{}, err
+	}
+
+	signer, err := m.getBUSigner(ctx, tx, ts, bu.ID.String())
+	if err != nil {
+		return model.BusinessUnit{}, err
+	}
+	if signer != nil {
+		if err := m.publishBUEvent(ctx, tx, ts, signer, bu); err != nil {
+			return model.BusinessUnit{}, err
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -505,7 +516,7 @@ func (m *_BusinessUnitManager) ActivateAuthentication(ctx context.Context, ts in
 		if err := m.publishBUEvent(ctx, tx, ts, signer, bu); err != nil {
 			return model.BusinessUnitAuthentication{}, err
 		}
-	} else if err != nil && !errors.Is(err, model.ErrBusinessUnitNotFound) {
+	} else if !errors.Is(err, model.ErrBusinessUnitNotFound) {
 		return model.BusinessUnitAuthentication{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -707,6 +718,69 @@ func (m *_BusinessUnitManager) GetJWSSigner(ctx context.Context, req GetJWSSigne
 	}
 
 	return m.jwtFactory.NewJWSSigner(auth)
+}
+
+// getBUSigner returns a JWSSigner for the given business unit at the given time.
+// If the given time is not within the validity period of any authentication, the latest one is returned.
+func (m *_BusinessUnitManager) getBUSigner(ctx context.Context, tx storage.Tx, ts int64, buID string) (JWSSigner, error) {
+	req := storage.ListAuthenticationRequest{
+		Limit:          100,
+		BusinessUnitID: buID,
+		Statuses: []model.BusinessUnitAuthenticationStatus{
+			model.BusinessUnitAuthenticationStatusActive,
+		},
+	}
+
+	signers := make([]JWSSigner, 0, 100)
+	for {
+		result, err := m.storage.ListAuthentication(ctx, tx, req)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, auth := range result.Records {
+			if auth.PrivateKey == "" {
+				continue
+			}
+			signer, err := m.jwtFactory.NewJWSSigner(auth)
+			if err != nil {
+				return nil, err
+			}
+			signers = append(signers, signer)
+		}
+
+		if len(result.Records) < req.Limit {
+			break
+		}
+		req.Offset += req.Limit
+	}
+
+	if len(signers) == 0 {
+		return nil, nil
+	}
+
+	slices.SortFunc(
+		signers,
+		func(a, b JWSSigner) int {
+			aTs := a.Cert()[0].NotBefore.Unix()
+			bTs := b.Cert()[0].NotBefore.Unix()
+			if aTs < bTs {
+				return -1
+			}
+			if aTs > bTs {
+				return 1
+			}
+			return 0
+		},
+	)
+
+	for i := range signers {
+		if signers[i].Cert()[0].NotBefore.Unix() <= ts && signers[i].Cert()[0].NotAfter.Unix() >= ts {
+			return signers[i], nil
+		}
+	}
+
+	return signers[len(signers)-1], nil
 }
 
 func (m *_BusinessUnitManager) GetJWEEncryptors(ctx context.Context, req GetJWEEncryptorsRequest) ([]JWEEncryptor, error) {

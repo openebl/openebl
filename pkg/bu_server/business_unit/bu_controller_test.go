@@ -108,6 +108,19 @@ func (s *BusinessUnitManagerTestSuite) TestCreateBusinessUnit() {
 func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 	ts := time.Now().Unix()
 
+	buCertRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert.crt")
+	s.Require().NoError(err)
+	buPrivKeyRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert_priv_key.pem")
+	s.Require().NoError(err)
+	buAuth := model.BusinessUnitAuthentication{
+		ID:           "authentication-id",
+		BusinessUnit: did.MustParseDID("did:openebl:u0e2345"),
+		Version:      1,
+		Status:       model.BusinessUnitAuthenticationStatusActive,
+		PrivateKey:   string(buPrivKeyRaw),
+		Certificate:  string(buCertRaw),
+	}
+
 	request := business_unit.UpdateBusinessUnitRequest{
 		Requester:     "requester",
 		ApplicationID: "application-id",
@@ -168,6 +181,46 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 		}, nil),
 		s.storage.EXPECT().StoreBusinessUnit(gomock.Any(), s.tx, expectedBusinessUnit).Return(nil),
 		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "application-id", "did:openebl:u0e2345", model.WebhookEventBUUpdated).Return(nil),
+		s.storage.EXPECT().ListAuthentication(
+			gomock.Any(),
+			s.tx,
+			storage.ListAuthenticationRequest{
+				Limit:          100,
+				BusinessUnitID: "did:openebl:u0e2345",
+				Statuses:       []model.BusinessUnitAuthenticationStatus{model.BusinessUnitAuthenticationStatusActive},
+			},
+		).Return(
+			storage.ListAuthenticationResult{
+				Total:   1,
+				Records: []model.BusinessUnitAuthentication{buAuth},
+			},
+			nil,
+		),
+		s.jwtFactory.EXPECT().NewJWSSigner(buAuth).Return(business_unit.DefaultJWTFactory.NewJWSSigner(buAuth)),
+		s.storage.EXPECT().AddTradeDocumentOutbox(
+			gomock.Any(),
+			s.tx,
+			gomock.Any(),
+			"did:openebl:u0e2345",
+			int(relay.BusinessUnit),
+			gomock.Any(),
+		).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, buID string, buType int, document []byte) error {
+				jwsEvt := envelope.JWS{}
+				err := json.Unmarshal(document, &jwsEvt)
+				s.Require().NoError(err)
+				err = jwsEvt.VerifySignature()
+				s.Require().NoError(err)
+
+				payload, err := jwsEvt.GetPayload()
+				s.Require().NoError(err)
+				receivedBU := model.BusinessUnit{}
+				err = json.Unmarshal(payload, &receivedBU)
+				s.Require().NoError(err)
+				s.Require().Equal(expectedBusinessUnit, receivedBU)
+				return nil
+			},
+		),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)

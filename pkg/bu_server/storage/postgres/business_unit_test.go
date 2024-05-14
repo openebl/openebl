@@ -251,4 +251,17 @@ func (s *BusinessUnitStorageTestSuite) TestListAuthentication() {
 	s.Require().Equal(1, len(result.Records))
 	s.Assert().Equal("bu2_auth1", result.Records[0].ID)
 	// End of Test Filter by IssuerKeyIDs
+
+	// Test Filter by Statuses
+	req = storage.ListAuthenticationRequest{
+		Limit:         10,
+		ApplicationID: "app1",
+		Statuses:      []model.BusinessUnitAuthenticationStatus{model.BusinessUnitAuthenticationStatusRevoked},
+	}
+	result, err = s.storage.ListAuthentication(ctx, tx, req)
+	s.Require().NoError(err)
+	s.Assert().Equal(1, result.Total)
+	s.Require().Equal(1, len(result.Records))
+	s.Assert().Equal("bu1_auth2", result.Records[0].ID)
+	// End of Test Filter by Statuses
 }

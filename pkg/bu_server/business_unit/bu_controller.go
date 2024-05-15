@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
@@ -24,6 +25,8 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/webhook"
 	"github.com/openebl/openebl/pkg/envelope"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
+	"github.com/openebl/openebl/pkg/relay"
+	"github.com/openebl/openebl/pkg/util"
 	"github.com/sirupsen/logrus"
 )
 
@@ -147,12 +150,17 @@ type _BusinessUnitManager struct {
 }
 
 func NewBusinessUnitManager(storage storage.BusinessUnitStorage, cv cert.CertVerifier, webhookCtrl webhook.WebhookController, jwtFactory JWTFactory) BusinessUnitManager {
-	return &_BusinessUnitManager{
+	buMgr := &_BusinessUnitManager{
 		cv:          cv,
 		storage:     storage,
 		webhookCtrl: webhookCtrl,
 		jwtFactory:  jwtFactory,
 	}
+
+	if buMgr.jwtFactory == nil {
+		buMgr.jwtFactory = DefaultJWTFactory
+	}
+	return buMgr
 }
 
 func (m *_BusinessUnitManager) CreateBusinessUnit(ctx context.Context, ts int64, req CreateBusinessUnitRequest) (model.BusinessUnit, error) {
@@ -229,6 +237,16 @@ func (m *_BusinessUnitManager) UpdateBusinessUnit(ctx context.Context, ts int64,
 
 	if err = m.webhookCtrl.SendWebhookEvent(ctx, tx, ts, req.ApplicationID, bu.ID.String(), model.WebhookEventBUUpdated); err != nil {
 		return model.BusinessUnit{}, err
+	}
+
+	signer, err := m.getBUSigner(ctx, tx, ts, bu.ID.String())
+	if err != nil {
+		return model.BusinessUnit{}, err
+	}
+	if signer != nil {
+		if err := m.publishBUEvent(ctx, tx, ts, signer, bu); err != nil {
+			return model.BusinessUnit{}, err
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -486,6 +504,21 @@ func (m *_BusinessUnitManager) ActivateAuthentication(ctx context.Context, ts in
 	if err := m.storage.StoreAuthentication(ctx, tx, buAuth); err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
+	signer, err := m.jwtFactory.NewJWSSigner(buAuth)
+	if err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+	if err := m.publishBUEvent(ctx, tx, ts, signer, buAuth); err != nil {
+		return model.BusinessUnitAuthentication{}, err
+	}
+	bu, err := m.getBusinessUnit(ctx, tx, "", buAuth.BusinessUnit)
+	if err == nil {
+		if err := m.publishBUEvent(ctx, tx, ts, signer, bu); err != nil {
+			return model.BusinessUnitAuthentication{}, err
+		}
+	} else if !errors.Is(err, model.ErrBusinessUnitNotFound) {
+		return model.BusinessUnitAuthentication{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return model.BusinessUnitAuthentication{}, err
 	}
@@ -680,14 +713,74 @@ func (m *_BusinessUnitManager) GetJWSSigner(ctx context.Context, req GetJWSSigne
 		return nil, err
 	}
 
-	if auth.Status != model.BusinessUnitAuthenticationStatusActive {
+	if auth.Status != model.BusinessUnitAuthenticationStatusActive || auth.PrivateKey == "" {
 		return nil, model.ErrAuthenticationNotActive
 	}
 
-	if m.jwtFactory == nil {
-		return DefaultJWTFactory.NewJWSSigner(auth)
-	}
 	return m.jwtFactory.NewJWSSigner(auth)
+}
+
+// getBUSigner returns a JWSSigner for the given business unit at the given time.
+// If the given time is not within the validity period of any authentication, the latest one is returned.
+func (m *_BusinessUnitManager) getBUSigner(ctx context.Context, tx storage.Tx, ts int64, buID string) (JWSSigner, error) {
+	req := storage.ListAuthenticationRequest{
+		Limit:          100,
+		BusinessUnitID: buID,
+		Statuses: []model.BusinessUnitAuthenticationStatus{
+			model.BusinessUnitAuthenticationStatusActive,
+		},
+	}
+
+	signers := make([]JWSSigner, 0, 100)
+	for {
+		result, err := m.storage.ListAuthentication(ctx, tx, req)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, auth := range result.Records {
+			if auth.PrivateKey == "" {
+				continue
+			}
+			signer, err := m.jwtFactory.NewJWSSigner(auth)
+			if err != nil {
+				return nil, err
+			}
+			signers = append(signers, signer)
+		}
+
+		if len(result.Records) < req.Limit {
+			break
+		}
+		req.Offset += req.Limit
+	}
+
+	if len(signers) == 0 {
+		return nil, nil
+	}
+
+	slices.SortFunc(
+		signers,
+		func(a, b JWSSigner) int {
+			aTs := a.Cert()[0].NotBefore.Unix()
+			bTs := b.Cert()[0].NotBefore.Unix()
+			if aTs < bTs {
+				return -1
+			}
+			if aTs > bTs {
+				return 1
+			}
+			return 0
+		},
+	)
+
+	for i := range signers {
+		if signers[i].Cert()[0].NotBefore.Unix() <= ts && signers[i].Cert()[0].NotAfter.Unix() >= ts {
+			return signers[i], nil
+		}
+	}
+
+	return signers[len(signers)-1], nil
 }
 
 func (m *_BusinessUnitManager) GetJWEEncryptors(ctx context.Context, req GetJWEEncryptorsRequest) ([]JWEEncryptor, error) {
@@ -731,13 +824,9 @@ func (m *_BusinessUnitManager) GetJWEEncryptors(ctx context.Context, req GetJWEE
 		return nil, model.ErrAuthenticationNotActive
 	}
 
-	factory := m.jwtFactory
-	if factory == nil {
-		factory = DefaultJWTFactory
-	}
 	encryptors := make([]JWEEncryptor, 0, len(authenticates))
 	for _, auth := range authenticates {
-		encryptor, err := factory.NewJWEEncryptor(auth)
+		encryptor, err := m.jwtFactory.NewJWEEncryptor(auth)
 		if err != nil {
 			return nil, err
 		}
@@ -770,6 +859,31 @@ func (m *_BusinessUnitManager) getBusinessUnit(ctx context.Context, tx storage.T
 		return model.BusinessUnit{}, model.ErrBusinessUnitNotFound
 	}
 	return result.Records[0].BusinessUnit, nil
+}
+
+func (m *_BusinessUnitManager) publishBUEvent(ctx context.Context, tx storage.Tx, ts int64, signer JWSSigner, data any) error {
+	jwsEvt, err := envelope.Sign([]byte(util.StructToJSON(data)), signer.AvailableJWSSignAlgorithms()[0], signer, signer.Cert())
+	if err != nil {
+		return err
+	}
+
+	var key string
+	var eventType int
+	switch v := data.(type) {
+	case model.BusinessUnit:
+		key = v.ID.String()
+		eventType = int(relay.BusinessUnit)
+	case model.BusinessUnitAuthentication:
+		key = v.ID
+		eventType = int(relay.BusinessUnitAuthentication)
+	default:
+		panic("unsupported data type")
+	}
+
+	if err := m.storage.AddTradeDocumentOutbox(ctx, tx, ts, key, eventType, []byte(util.StructToJSON(jwsEvt))); err != nil {
+		return err
+	}
+	return nil
 }
 
 // createPrivateKey will return a private key. The type will be *rsa.PrivateKey or *ecdsa.PrivateKey.

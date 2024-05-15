@@ -156,7 +156,8 @@ WITH filtered_record AS (
 		($4 = '' OR ba.business_unit_id = $4) AND
 		(COALESCE(array_length($5::TEXT[], 1), 0) = 0 OR ba.id = ANY($5)) AND
 		(COALESCE(array_length($6::TEXT[], 1), 0) = 0 OR ba.cert_public_key_id = ANY($6)) AND
-		(COALESCE(array_length($7::TEXT[], 1), 0) = 0 OR ba.cert_issuer_key_id = ANY($7))
+		(COALESCE(array_length($7::TEXT[], 1), 0) = 0 OR ba.cert_issuer_key_id = ANY($7)) AND
+		(COALESCE(array_length($8::TEXT[], 1), 0) = 0 OR ba."status" = ANY($8))
 )
 SELECT
 	total,
@@ -165,7 +166,18 @@ FROM (SELECT COUNT(*) AS total FROM filtered_record) AS report
 FULL OUTER JOIN (SELECT authentication FROM filtered_record ORDER BY rec_id ASC OFFSET $1 LIMIT $2) AS record ON FALSE
 `
 
-	rows, err := tx.Query(ctx, query, req.Offset, req.Limit, req.ApplicationID, req.BusinessUnitID, req.AuthenticationIDs, req.PublicKeyIDs, req.IssuerKeyIDs)
+	rows, err := tx.Query(
+		ctx,
+		query,
+		req.Offset,
+		req.Limit,
+		req.ApplicationID,
+		req.BusinessUnitID,
+		req.AuthenticationIDs,
+		req.PublicKeyIDs,
+		req.IssuerKeyIDs,
+		req.Statuses,
+	)
 	if err != nil {
 		return storage.ListAuthenticationResult{}, err
 	}

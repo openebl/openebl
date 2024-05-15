@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	"github.com/openebl/openebl/pkg/envelope"
 	"github.com/openebl/openebl/pkg/pkix"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
+	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/util"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
 	mock_cert "github.com/openebl/openebl/test/mock/bu_server/cert"
@@ -106,6 +108,19 @@ func (s *BusinessUnitManagerTestSuite) TestCreateBusinessUnit() {
 func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 	ts := time.Now().Unix()
 
+	buCertRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert.crt")
+	s.Require().NoError(err)
+	buPrivKeyRaw, err := os.ReadFile("../../../testdata/cert_server/cert_authority/bu_cert_priv_key.pem")
+	s.Require().NoError(err)
+	buAuth := model.BusinessUnitAuthentication{
+		ID:           "authentication-id",
+		BusinessUnit: did.MustParseDID("did:openebl:u0e2345"),
+		Version:      1,
+		Status:       model.BusinessUnitAuthenticationStatusActive,
+		PrivateKey:   string(buPrivKeyRaw),
+		Certificate:  string(buCertRaw),
+	}
+
 	request := business_unit.UpdateBusinessUnitRequest{
 		Requester:     "requester",
 		ApplicationID: "application-id",
@@ -166,6 +181,46 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 		}, nil),
 		s.storage.EXPECT().StoreBusinessUnit(gomock.Any(), s.tx, expectedBusinessUnit).Return(nil),
 		s.webhookCtrl.EXPECT().SendWebhookEvent(gomock.Any(), s.tx, ts, "application-id", "did:openebl:u0e2345", model.WebhookEventBUUpdated).Return(nil),
+		s.storage.EXPECT().ListAuthentication(
+			gomock.Any(),
+			s.tx,
+			storage.ListAuthenticationRequest{
+				Limit:          100,
+				BusinessUnitID: "did:openebl:u0e2345",
+				Statuses:       []model.BusinessUnitAuthenticationStatus{model.BusinessUnitAuthenticationStatusActive},
+			},
+		).Return(
+			storage.ListAuthenticationResult{
+				Total:   1,
+				Records: []model.BusinessUnitAuthentication{buAuth},
+			},
+			nil,
+		),
+		s.jwtFactory.EXPECT().NewJWSSigner(buAuth).Return(business_unit.DefaultJWTFactory.NewJWSSigner(buAuth)),
+		s.storage.EXPECT().AddTradeDocumentOutbox(
+			gomock.Any(),
+			s.tx,
+			gomock.Any(),
+			"did:openebl:u0e2345",
+			int(relay.BusinessUnit),
+			gomock.Any(),
+		).DoAndReturn(
+			func(ctx context.Context, tx storage.Tx, ts int64, buID string, buType int, document []byte) error {
+				jwsEvt := envelope.JWS{}
+				err := json.Unmarshal(document, &jwsEvt)
+				s.Require().NoError(err)
+				err = jwsEvt.VerifySignature()
+				s.Require().NoError(err)
+
+				payload, err := jwsEvt.GetPayload()
+				s.Require().NoError(err)
+				receivedBU := model.BusinessUnit{}
+				err = json.Unmarshal(payload, &receivedBU)
+				s.Require().NoError(err)
+				s.Require().Equal(expectedBusinessUnit, receivedBU)
+				return nil
+			},
+		),
 		s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 		s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 	)
@@ -503,6 +558,7 @@ func (s *BusinessUnitManagerTestSuite) TestActivateAuthentication() {
 		PrivateKey:                string(privateKeyRaw),
 		CertificateSigningRequest: string(buCSRRaw),
 		PublicKeyID:               eblpkix.GetPublicKeyID(eblpkix.GetPublicKey(privateKey)),
+		Certificate:               string(buCertRaw),
 	}
 
 	expectedBuAuth := oldBuAuth
@@ -513,6 +569,12 @@ func (s *BusinessUnitManagerTestSuite) TestActivateAuthentication() {
 	expectedBuAuth.IssuerKeyID = hex.EncodeToString(buCert[0].AuthorityKeyId)
 	expectedBuAuth.CertificateSerialNumber = buCert[0].SerialNumber.String()
 	expectedBuAuth.CertFingerPrint = "sha1:c22d268faa8895e02d8be8ffbcfd80e03a204f30"
+
+	bu := model.BusinessUnit{
+		ID:      did.MustParseDID(buID),
+		Version: 1,
+		Status:  model.BusinessUnitStatusActive,
+	}
 
 	func() { // Test successful case
 		gomock.InOrder(
@@ -537,6 +599,72 @@ func (s *BusinessUnitManagerTestSuite) TestActivateAuthentication() {
 				s.tx,
 				expectedBuAuth,
 			).Return(nil),
+			s.jwtFactory.EXPECT().NewJWSSigner(expectedBuAuth).Return(business_unit.DefaultJWTFactory.NewJWSSigner(expectedBuAuth)),
+			s.storage.EXPECT().AddTradeDocumentOutbox(
+				gomock.Any(),
+				s.tx,
+				gomock.Any(),
+				expectedBuAuth.ID,
+				int(relay.BusinessUnitAuthentication),
+				gomock.Any(),
+			).DoAndReturn(
+				func(ctx context.Context, tx storage.Tx, ts int64, authenticationID string, documentType int, document []byte) error {
+					jwsEvt := envelope.JWS{}
+					err := json.Unmarshal(document, &jwsEvt)
+					s.Require().NoError(err)
+					err = jwsEvt.VerifySignature()
+					s.Require().NoError(err)
+
+					payload, err := jwsEvt.GetPayload()
+					s.Require().NoError(err)
+					receivedAuth := model.BusinessUnitAuthentication{}
+					err = json.Unmarshal(payload, &receivedAuth)
+					s.Require().NoError(err)
+					s.Require().Equal(expectedBuAuth, receivedAuth)
+					return nil
+				},
+			),
+			s.storage.EXPECT().ListBusinessUnits(
+				gomock.Any(),
+				s.tx,
+				storage.ListBusinessUnitsRequest{
+					Limit:           1,
+					BusinessUnitIDs: []string{buID},
+				},
+			).Return(
+				storage.ListBusinessUnitsResult{
+					Total: 1,
+					Records: []storage.ListBusinessUnitsRecord{
+						{
+							BusinessUnit: bu,
+						},
+					},
+				},
+				nil,
+			),
+			s.storage.EXPECT().AddTradeDocumentOutbox(
+				gomock.Any(),
+				s.tx,
+				gomock.Any(),
+				bu.ID.String(),
+				int(relay.BusinessUnit),
+				gomock.Any(),
+			).DoAndReturn(
+				func(ctx context.Context, tx storage.Tx, ts int64, authenticationID string, documentType int, document []byte) error {
+					jwsEvt := envelope.JWS{}
+					err := json.Unmarshal(document, &jwsEvt)
+					s.Require().NoError(err)
+					err = jwsEvt.VerifySignature()
+					s.Require().NoError(err)
+					payload, err := jwsEvt.GetPayload()
+					s.Require().NoError(err)
+					receivedBU := model.BusinessUnit{}
+					err = json.Unmarshal(payload, &receivedBU)
+					s.Require().NoError(err)
+					s.Require().Equal(bu, receivedBU)
+					return nil
+				},
+			),
 			s.tx.EXPECT().Commit(gomock.Any()).Return(nil),
 			s.tx.EXPECT().Rollback(gomock.Any()).Return(nil),
 		)

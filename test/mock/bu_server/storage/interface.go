@@ -351,6 +351,20 @@ func (m *MockBusinessUnitStorage) EXPECT() *MockBusinessUnitStorageMockRecorder 
 	return m.recorder
 }
 
+// AddTradeDocumentOutbox mocks base method.
+func (m *MockBusinessUnitStorage) AddTradeDocumentOutbox(ctx context.Context, tx storage.Tx, ts int64, key string, kind int, payload []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddTradeDocumentOutbox", ctx, tx, ts, key, kind, payload)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddTradeDocumentOutbox indicates an expected call of AddTradeDocumentOutbox.
+func (mr *MockBusinessUnitStorageMockRecorder) AddTradeDocumentOutbox(ctx, tx, ts, key, kind, payload interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTradeDocumentOutbox", reflect.TypeOf((*MockBusinessUnitStorage)(nil).AddTradeDocumentOutbox), ctx, tx, ts, key, kind, payload)
+}
+
 // CreateTx mocks base method.
 func (m *MockBusinessUnitStorage) CreateTx(ctx context.Context, options ...storage.CreateTxOption) (storage.Tx, context.Context, error) {
 	m.ctrl.T.Helper()

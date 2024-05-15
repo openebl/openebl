@@ -27,6 +27,8 @@ func (_JWTFactory) NewJWSSigner(authentication model.BusinessUnitAuthentication)
 	certs, err := pkix.ParseCertificate([]byte(authentication.Certificate))
 	if err != nil {
 		return nil, err
+	} else if len(certs) == 0 {
+		return nil, fmt.Errorf("no certificate for JWS Signer")
 	}
 
 	switch pk := privateKey.(type) {

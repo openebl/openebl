@@ -85,11 +85,12 @@ type ListAuthenticationRequest struct {
 	Limit  int `json:"limit"`  // Limit of the authentications to be listed.
 
 	// Filters
-	ApplicationID     string   `json:"application_id"`     // The ID of the application this BusinessUnit belongs to.
-	BusinessUnitID    string   `json:"id"`                 // Unique DID of a BusinessUnit.
-	AuthenticationIDs []string `json:"authentication_ids"` // Unique IDs of the authentications.
-	PublicKeyIDs      []string `json:"public_key_ids"`     // Public Key IDs of the authentications.
-	IssuerKeyIDs      []string `json:"issuer_key_ids"`     // Issuer Key IDs of the authentications.
+	ApplicationID     string                                   `json:"application_id"`     // The ID of the application this BusinessUnit belongs to.
+	BusinessUnitID    string                                   `json:"id"`                 // Unique DID of a BusinessUnit.
+	AuthenticationIDs []string                                 `json:"authentication_ids"` // Unique IDs of the authentications.
+	PublicKeyIDs      []string                                 `json:"public_key_ids"`     // Public Key IDs of the authentications.
+	IssuerKeyIDs      []string                                 `json:"issuer_key_ids"`     // Issuer Key IDs of the authentications.
+	Statuses          []model.BusinessUnitAuthenticationStatus `json:"statuses"`           // Statuses of the authentications.
 }
 
 // ListAuthenticationResult is the result of listing authentications.
@@ -110,6 +111,8 @@ type BusinessUnitStorage interface {
 	ListBusinessUnits(ctx context.Context, tx Tx, req ListBusinessUnitsRequest) (ListBusinessUnitsResult, error)
 	StoreAuthentication(ctx context.Context, tx Tx, auth model.BusinessUnitAuthentication) error
 	ListAuthentication(ctx context.Context, tx Tx, req ListAuthenticationRequest) (ListAuthenticationResult, error)
+
+	AddTradeDocumentOutbox(ctx context.Context, tx Tx, ts int64, key string, kind int, payload []byte) error
 }
 
 type TradeDocument struct {

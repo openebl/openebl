@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/openebl/openebl/pkg/bu_server/model"
+	"github.com/openebl/openebl/pkg/relay"
 )
 
 type StorageContextKey string
@@ -217,10 +218,15 @@ type CertStorage interface {
 	GetCRL(ctx context.Context, tx Tx, req GetCRLRequest) (GetCRLResult, error)
 }
 
-type OffsetStorage interface {
+type RelayStorage interface {
 	CreateTx(ctx context.Context, options ...CreateTxOption) (Tx, context.Context, error)
 	GetRelayServerOffset(ctx context.Context, tx Tx, serverID string) (int64, error)
 	UpdateRelayServerOffset(ctx context.Context, tx Tx, serverID string, offset int64) error
+
+	// StoreEvent stores the event from the relay server.
+	// Return true if the event is stored successfully.
+	// Return false if the event is already stored.
+	StoreEvent(ctx context.Context, tx Tx, ts int64, eventID string, event relay.Event, serverID string) (bool, error)
 }
 
 type TradeDocumentInboxStorage interface {
@@ -229,6 +235,11 @@ type TradeDocumentInboxStorage interface {
 	AddTradeDocument(ctx context.Context, tx Tx, tradeDoc TradeDocument) error
 	GetRelayServerOffset(ctx context.Context, tx Tx, serverID string) (int64, error)
 	UpdateRelayServerOffset(ctx context.Context, tx Tx, serverID string, offset int64) error
+
+	// StoreEvent stores the event from the relay server.
+	// Return true if the event is stored successfully.
+	// Return false if the event is already stored.
+	StoreEvent(ctx context.Context, tx Tx, ts int64, eventID string, event relay.Event, serverID string) (bool, error)
 }
 
 type TradeDocumentOutboxStorage interface {

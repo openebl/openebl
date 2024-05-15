@@ -116,6 +116,20 @@ func (b *Broker) eventSink(ctx context.Context, event relay.Event) (string, erro
 	log := logrus.WithFields(logrus.Fields{"timestamp": event.Timestamp, "offset": event.Offset, "type": event.Type})
 	log.Debugf("Received event")
 
+	if len(event.Data) == 0 {
+		log.Warn("Empty event data")
+		return "", nil
+	}
+
+	ts := time.Now().Unix()
+	rawID := server.GetEventID(event.Data)
+	tx, ctx, err := b.inboxStore.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	if err != nil {
+		log.Warnf("Failed to create transaction: %v", err)
+		return "", err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
 	storeTradeDocument := func(ctx context.Context, td storage.TradeDocument) error {
 		tx, ctx, err := b.inboxStore.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
 		if err != nil {
@@ -134,7 +148,6 @@ func (b *Broker) eventSink(ctx context.Context, event relay.Event) (string, erro
 	}
 
 	storeCertificate := func(ctx context.Context, certRaw []byte) error {
-		ts := time.Now().Unix()
 		_, err := b.buMgr.ActivateAuthentication(ctx, ts, certRaw)
 		if errors.Is(err, model.ErrAuthenticationNotFound) {
 			return nil
@@ -160,21 +173,12 @@ func (b *Broker) eventSink(ctx context.Context, event relay.Event) (string, erro
 		}
 		return nil
 	}
-	commitOffset := func(ctx context.Context, serverID string, offset int64) error {
-		tx, ctx, err := b.inboxStore.CreateTx(ctx, storage.TxOptionWithWrite(true), storage.TxOptionWithIsolationLevel(sql.LevelSerializable))
+	deDuplicateEvent := func(ctx context.Context, serverID string) (bool, error) {
+		isNew, err := b.inboxStore.StoreEvent(ctx, tx, ts, rawID, event, serverID)
 		if err != nil {
-			return fmt.Errorf("failed to create transaction: %w", err)
+			return false, err
 		}
-		defer func() { _ = tx.Rollback(ctx) }()
-
-		if err := b.inboxStore.UpdateRelayServerOffset(ctx, tx, serverID, offset); err != nil {
-			return fmt.Errorf("failed to set relay server offset: %w", err)
-		}
-
-		if err := tx.Commit(ctx); err != nil {
-			return fmt.Errorf("failed to commit transaction: %w", err)
-		}
-		return nil
+		return isNew, err
 	}
 	processEvent := func(ctx context.Context, event relay.Event) error {
 		switch relay.EventType(event.Type) {
@@ -193,7 +197,7 @@ func (b *Broker) eventSink(ctx context.Context, event relay.Event) (string, erro
 				log.Warnf("Failed to decrypt trade document: %v", err)
 				return nil
 			}
-			td.RawID = server.GetEventID(event.Data)
+			td.RawID = rawID
 			td.Kind = int(relay.EncryptedFileBasedBillOfLading)
 			td.DecryptedDoc, td.Doc = td.Doc, event.Data
 			if err := storeTradeDocument(ctx, td); err != nil {
@@ -207,6 +211,28 @@ func (b *Broker) eventSink(ctx context.Context, event relay.Event) (string, erro
 			if err := storeCertificateRevocation(ctx, event.Data); err != nil {
 				return fmt.Errorf("failed to store certificate revocation: %w", err)
 			}
+		case relay.BusinessUnit:
+			jwsEvent, err := jwsFromEvent(event.Data)
+			if err != nil {
+				return err
+			}
+			if err := b.buMgr.UpdateBusinessUnitByExternalEvent(ctx, ts, jwsEvent); errors.Is(err, model.ErrInvalidParameter) {
+				logrus.Warnf("Failed to update business unit: %v", err)
+				return nil
+			} else if err != nil {
+				return fmt.Errorf("failed to store business unit: %w", err)
+			}
+		case relay.BusinessUnitAuthentication:
+			jwsEvent, err := jwsFromEvent(event.Data)
+			if err != nil {
+				return err
+			}
+			if err := b.buMgr.UpdateAuthenticationByExternalEvent(ctx, ts, jwsEvent); errors.Is(err, model.ErrInvalidParameter) {
+				logrus.Warnf("Failed to update business unit authentication: %v", err)
+				return nil
+			} else if err != nil {
+				return fmt.Errorf("failed to store business unit authentication: %w", err)
+			}
 		default:
 			log.Debugf("Unwanted event type: %d", event.Type)
 		}
@@ -214,22 +240,33 @@ func (b *Broker) eventSink(ctx context.Context, event relay.Event) (string, erro
 	}
 
 	b.receivedCount.Add(ctx, 1, metric.WithAttributes(attribute.Int("kind", event.Type)))
+
+	if isNew, err := deDuplicateEvent(ctx, b.relayServerID); err != nil {
+		log.Warnf("Failed to store event: %v", err)
+		return "", err
+	} else if !isNew {
+		log.Debugf("Event already exists")
+		if err := tx.Commit(ctx); err != nil {
+			log.Warnf("Failed to commit transaction: %v", err)
+		}
+		return "", nil
+	}
+
 	if err := processEvent(ctx, event); err != nil {
 		log.Warnf("Failed to process event: %v", err)
 		return "", err
 	}
-	if err := commitOffset(ctx, b.relayServerID, event.Offset); err != nil {
-		log.Warnf("Failed to commit offset: %v", err)
-		return "", err
-	}
 
+	if err := tx.Commit(ctx); err != nil {
+		log.Warnf("Failed to commit transaction: %v", err)
+	}
 	return "", nil
 }
 
 func tradeDocumentFromEvent(data []byte) (storage.TradeDocument, error) {
-	doc := envelope.JWS{}
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return storage.TradeDocument{}, fmt.Errorf("failed to unmarshal JWS: %w", err)
+	doc, err := jwsFromEvent(data)
+	if err != nil {
+		return storage.TradeDocument{}, err
 	}
 	if err := doc.VerifySignature(); err != nil {
 		return storage.TradeDocument{}, fmt.Errorf("failed to verify signature: %w", err)
@@ -264,6 +301,14 @@ func tradeDocumentFromEvent(data []byte) (storage.TradeDocument, error) {
 		td.DocReference = bl.BillOfLading.TransportDocumentReference
 	}
 	return td, nil
+}
+
+func jwsFromEvent(data []byte) (envelope.JWS, error) {
+	doc := envelope.JWS{}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return envelope.JWS{}, fmt.Errorf("failed to unmarshal JWS: %w", err)
+	}
+	return doc, nil
 }
 
 func (b *Broker) decryptTradeDocument(ctx context.Context, data []byte) (storage.TradeDocument, error) {

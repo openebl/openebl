@@ -47,7 +47,7 @@ type BusinessUnitAuthentication struct {
 	RevokedAt   int64  `json:"revoked_at"`   // Unix Time (in second) when the authentication was revoked.
 	RevokedBy   string `json:"revoked_by"`   // User who revoked the authentication.
 
-	PrivateKey                string `json:"private_key"`                 // PEM encoded private key.
+	PrivateKey                string `json:"private_key,omitempty"`       // PEM encoded private key.
 	CertificateSigningRequest string `json:"certificate_signing_request"` // PEM encoded certificate signing request (CSR).
 	Certificate               string `json:"certificate"`                 // PEM encoded certificate. It may contains multiple certificates. The first certificate is the leaf certificate. Others are intermediate certificates.
 	CertFingerPrint           string `json:"cert_fingerprint"`            // Fingerprint of the leaf certificate. The format is [HASH_ALGORITHM]:[FINGERPRINT_HEX_ENCODED].

@@ -176,6 +176,20 @@ func (mr *MockBusinessUnitManagerMockRecorder) SetStatus(ctx, ts, req interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetStatus", reflect.TypeOf((*MockBusinessUnitManager)(nil).SetStatus), ctx, ts, req)
 }
 
+// UpdateAuthenticationByExternalEvent mocks base method.
+func (m *MockBusinessUnitManager) UpdateAuthenticationByExternalEvent(ctx context.Context, ts int64, signedEvt envelope.JWS) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateAuthenticationByExternalEvent", ctx, ts, signedEvt)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateAuthenticationByExternalEvent indicates an expected call of UpdateAuthenticationByExternalEvent.
+func (mr *MockBusinessUnitManagerMockRecorder) UpdateAuthenticationByExternalEvent(ctx, ts, signedEvt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateAuthenticationByExternalEvent", reflect.TypeOf((*MockBusinessUnitManager)(nil).UpdateAuthenticationByExternalEvent), ctx, ts, signedEvt)
+}
+
 // UpdateBusinessUnit mocks base method.
 func (m *MockBusinessUnitManager) UpdateBusinessUnit(ctx context.Context, ts int64, req business_unit.UpdateBusinessUnitRequest) (model.BusinessUnit, error) {
 	m.ctrl.T.Helper()
@@ -189,6 +203,20 @@ func (m *MockBusinessUnitManager) UpdateBusinessUnit(ctx context.Context, ts int
 func (mr *MockBusinessUnitManagerMockRecorder) UpdateBusinessUnit(ctx, ts, req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBusinessUnit", reflect.TypeOf((*MockBusinessUnitManager)(nil).UpdateBusinessUnit), ctx, ts, req)
+}
+
+// UpdateBusinessUnitByExternalEvent mocks base method.
+func (m *MockBusinessUnitManager) UpdateBusinessUnitByExternalEvent(ctx context.Context, ts int64, signedEvt envelope.JWS) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateBusinessUnitByExternalEvent", ctx, ts, signedEvt)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateBusinessUnitByExternalEvent indicates an expected call of UpdateBusinessUnitByExternalEvent.
+func (mr *MockBusinessUnitManagerMockRecorder) UpdateBusinessUnitByExternalEvent(ctx, ts, signedEvt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBusinessUnitByExternalEvent", reflect.TypeOf((*MockBusinessUnitManager)(nil).UpdateBusinessUnitByExternalEvent), ctx, ts, signedEvt)
 }
 
 // MockJWSSigner is a mock of JWSSigner interface.

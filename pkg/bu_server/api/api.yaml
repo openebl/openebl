@@ -6,16 +6,17 @@ servers:
   - url: http://localhost:9200
     description: Local server
 tags:
-  - name: business_unit
+  - name: Business Unit
     description: Business unit management
   - name: eB/L
     description: Electronic Bill of Lading management
-  - name: webhook
+  - name: Webhook
     description: Webhook management
 paths:
   /business_unit:
     post:
-      tags: [business_unit]
+      tags:
+        - Business Unit
       summary: Create a new business unit
       security:
         - bearerAuth: []
@@ -27,7 +28,7 @@ paths:
               $ref: '#/components/schemas/CreateBusinessUnitRequest'
             examples:
               CreateBU:
-                value: 
+                value:
                   requester: 'user1'
                   name: 'Business Unit 1'
                   addresses: ['Address 1', 'Address 2']
@@ -43,14 +44,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/BusinessUnit'
               examples:
-                Business Unit: 
-                  $ref: '#/components/examples/Business Unit'
+                Business Unit:
+                  $ref: '#/components/examples/BusinessUnit'
         '400':
           description: Invalid request
         '500':
           description: Internal server error
     get:
-      tags: [business_unit]
+      tags:
+        - Business Unit
       summary: List all business units
       security:
         - bearerAuth: []
@@ -94,7 +96,8 @@ paths:
           description: Internal server error
   /business_unit/{id}:
     get:
-      tags: [business_unit]
+      tags:
+        - Business Unit
       summary: Get a specific business unit
       parameters:
         - name: id
@@ -119,7 +122,8 @@ paths:
       security:
         - bearerAuth: []
     post:
-      tags: [business_unit]
+      tags:
+        - Business Unit
       summary: Update a specific business unit
       parameters:
         - name: id
@@ -183,7 +187,8 @@ paths:
         - bearerAuth: []
   /business_unit/{id}/status:
     post:
-      tags: [business_unit]
+      tags:
+        - Business Unit
       security:
         - bearerAuth: []
       summary: Set the status of a specific business unit
@@ -226,7 +231,8 @@ paths:
           description: Internal server error
   /business_unit/{id}/authentication:
     post:
-      tags: [business_unit]
+      tags:
+        - Business Unit
       security:
         - bearerAuth: []
       summary: Create a new authentication for a business unit
@@ -256,13 +262,13 @@ paths:
                 - private_key_option
             examples:
               With RSA key pair:
-                value: 
+                value:
                   requester: 'user1'
                   private_key_option:
                     key_type: 'RSA'
                     bit_length: 2048
               With ECDSA key pair:
-                value: 
+                value:
                   requester: 'user1'
                   private_key_option:
                     key_type: 'ECDSA'
@@ -281,7 +287,8 @@ paths:
         '500':
           description: Internal server error
     get:
-      tags: [business_unit]
+      tags:
+        - Business Unit
       security:
         - bearerAuth: []
       summary: List all authentications for a business unit
@@ -307,14 +314,15 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/BusinessUnitAuthentication'
-                    description: Records of authentications        
+                    description: Records of authentications
         '400':
           description: Bad request, invalid parameters or business unit ID
         '500':
           description: Internal server error
   /business_unit/{id}/authentication/{authentication_id}:
     get:
-      tags: [business_unit]
+      tags:
+        - Business Unit
       security:
         - bearerAuth: []
       summary: Get a specific authentication for a business unit
@@ -345,7 +353,8 @@ paths:
         '500':
           description: Internal server error
     delete:
-      tags: [business_unit]
+      tags:
+        - Business Unit
       security:
         - bearerAuth: []
       summary: Revoke a specific authentication for a business unit
@@ -384,7 +393,8 @@ paths:
 
   /ebl:
     get:
-      tags: [eB/L]
+      tags:
+        - eB/L
       summary: List all eB/L
       security:
         - bearerAuth: []
@@ -439,7 +449,8 @@ paths:
         '500':
           description: Internal server error
     post:
-      tags: [eB/L]
+      tags:
+        - eB/L
       summary: Issue or draft a new eB/L
       security:
         - bearerAuth: []
@@ -453,7 +464,7 @@ paths:
               $ref: '#/components/schemas/UpdateBillOfLadingRequest'
             examples:
               CreateEBL:
-                $ref: '#/components/examples/Update File Based EBL'
+                $ref: '#/components/examples/UpdateFileBasedEBL'
       responses:
         '201':
           description: eB/L created successfully
@@ -467,7 +478,8 @@ paths:
           description: Internal server error
   /ebl/{id}:
     get:
-      tags: [eB/L]
+      tags:
+        - eB/L
       summary: Get a specific eB/L
       security:
         - bearerAuth: []
@@ -494,7 +506,8 @@ paths:
           description: Internal server error
   /ebl/{id}/document:
     get:
-      tags: [eB/L]
+      tags:
+        - eB/L
       summary: Download the uploaded eB/L document
       security:
         - bearerAuth: []
@@ -538,7 +551,8 @@ paths:
           description: Internal server error
   /ebl/{id}/update:
     post:
-      tags: [eB/L]
+      tags:
+        - eB/L
       summary: Update the draft eB/L
       security:
         - bearerAuth: []
@@ -558,7 +572,7 @@ paths:
               $ref: '#/components/schemas/UpdateBillOfLadingRequest'
             examples:
               UpdateEBL:
-                $ref: '#/components/examples/Update File Based EBL'
+                $ref: '#/components/examples/UpdateFileBasedEBL'
       responses:
         '200':
           description: eB/L updated successfully
@@ -574,7 +588,8 @@ paths:
           description: Internal server error
   /ebl/{id}/transfer:
     post:
-      tags: [eB/L]
+      tags:
+        - eB/L
       summary: Transfer the eB/L to next owner
       security:
         - bearerAuth: []
@@ -607,7 +622,8 @@ paths:
           description: Internal server error
   /ebl/{id}/return:
     post:
-      tags: [eB/L]
+      tags:
+        - eB/L
       summary: Return the eB/L to last owner
       security:
         - bearerAuth: []
@@ -640,7 +656,8 @@ paths:
           description: Internal server error
   /ebl/{id}/surrender:
     post:
-      tags: [eB/L]
+      tags:
+        - eB/L
       summary: Transfer the eB/L to the release agent
       security:
         - bearerAuth: []
@@ -673,7 +690,8 @@ paths:
           description: Internal server error
   /ebl/{id}/accomplish:
     post:
-      tags: [eB/L]
+      tags:
+        - eB/L
       summary: Accomplish the eB/L
       security:
         - bearerAuth: []
@@ -706,7 +724,8 @@ paths:
           description: Internal server error
   /ebl/{id}/print_to_paper:
     post:
-      tags: [eB/L]
+      tags:
+        - eB/L
       summary: Print the eB/L to paper
       security:
         - bearerAuth: []
@@ -739,7 +758,8 @@ paths:
           description: Internal server error
   /ebl/{id}/amendment_request:
     post:
-      tags: [eB/L]
+      tags:
+        - eB/L
       summary: Request amendment for the eB/L
       security:
         - bearerAuth: []
@@ -772,7 +792,8 @@ paths:
           description: Internal server error
   /ebl/{id}/amend:
     post:
-      tags: [eB/L]
+      tags:
+        - eB/L
       summary: Amend the eB/L
       security:
         - bearerAuth: []
@@ -805,7 +826,8 @@ paths:
           description: Internal server error
   /ebl/{id}/delete:
     post:
-      tags: [eB/L]
+      tags:
+        - eB/L
       summary: Delete the draft eB/L
       security:
         - bearerAuth: []
@@ -839,7 +861,8 @@ paths:
 
   /webhook:
     get:
-      tags: [webhook]
+      tags:
+        - Webhook
       summary: List all webhook
       security:
         - bearerAuth: []
@@ -872,7 +895,8 @@ paths:
         '500':
           description: Internal server error
     post:
-      tags: [webhook]
+      tags:
+        - Webhook
       summary: Create a new webhook
       security:
         - bearerAuth: []
@@ -897,6 +921,7 @@ paths:
         WebhookEvent:
           '{$request.body#/url}':
             post:
+              summary: Webhook Callback Event
               parameters:
                 - name: X-Payload-Signature
                   in: header
@@ -914,7 +939,8 @@ paths:
                   description: Your server returns this code if it accepts the callback
   /webhook/{id}:
     get:
-      tags: [webhook]
+      tags:
+        - Webhook
       summary: Get a specific webhook
       security:
         - bearerAuth: []
@@ -939,7 +965,8 @@ paths:
         '500':
           description: Internal server error
     post:
-      tags: [webhook]
+      tags:
+        - Webhook
       summary: Update a specific webhook
       security:
         - bearerAuth: []
@@ -970,7 +997,8 @@ paths:
         '500':
           description: Internal server error
     delete:
-      tags: [webhook]
+      tags:
+        - Webhook
       summary: Delete a specific webhook
       security:
         - bearerAuth: []
@@ -1193,12 +1221,6 @@ components:
       enum:
         - MasterBillOfLading
         - HouseBillOfLading
-    BillOfLadingType:
-      type: string
-      description: B/L Type
-      enum:
-        - NonNegotiable
-        - Negotiable
     BillOfLadingAction:
       type: string
       description: action to perform on the eB/L
@@ -1212,50 +1234,6 @@ components:
         - SURRENDER
         - ACCOMPLISH
         - DELETE
-    DocumentStatus:
-      type: string
-      description: Document status
-      enum:
-        - DRFT # Draft
-        - ISSU # Issued
-    # Party:
-    #   type: object
-    #   description: Refers to a company or a legal entity
-    #   properties:
-    #     partyName:
-    #       type: string
-    #       description: Name of the party
-    # DocumentParty:
-    #   type: object
-    #   description: Party involved in the transport document
-    #   properties:
-    #     party:
-    #       $ref: '#/components/schemas/Party'
-    #     partyFunction:
-    #       type: string
-    #       description: Role of the party
-    #       enum:
-    #         - DDR # Issuing agent
-    #         - OS  # Shipper
-    #         - CN  # Consignee
-    #         - DDS # Release agent
-    # ShippingInstruction:
-    #   type: object
-    #   description: Enrichment to the original booking shard by the shipper to the carrier
-    #   properties:
-    #     shippingInstructionReference:
-    #       type: string
-    #       description: B/L Number
-    #     documentStatus:
-    #       $ref: '#/components/schemas/DocumentStatus'
-    #     isToOrder:
-    #       type: boolean
-    #       description: Indicate if the eB/L is negotiable
-    #     documentParties:
-    #       type: array
-    #       description: Parties involved in the eB/L
-    #       items:
-    #         $ref: '#/components/schemas/DocumentParty'
     Location:
       type: object
       properties:
@@ -1268,56 +1246,6 @@ components:
     ApplicationMetaData:
       type: object
       description: Application specific metadata. It must be a valid JSON object.
-    # ShipmentLocation:
-    #   type: object
-    #   description: Maps the relationship between shipment and location
-    #   properties:
-    #     location:
-    #       $ref: '#/components/schemas/Location'
-    #     shipmentLocationTypeCode:
-    #       type: string
-    #       enum:
-    #         - POL
-    #         - POD
-    #     eventDateTime:
-    #         type: string
-    #         format: date-time
-    #         description: When the event happened
-    # Transport:
-    #   type: object
-    #   properties:
-    #     transportPlanStage:
-    #       type: string
-    #       enum:
-    #         - PRC # Pre-Carriage
-    #         - MNC # Main Carriage Transport
-    #         - ONC # On-Carriage Transport
-    #     plannedArrivalDate:
-    #       type: string
-    #       format: date-time
-    #       description: Estimated time of arrival
-    # TransportDocument:
-    #   type: object
-    #   description: Document that governs the terms of carriage between shipper and carrier for maritime transportation
-    #   properties:
-    #     shippingInstruction:
-    #       $ref: '#/components/schemas/ShippingInstruction'
-    #     transportDocumentCreatedDateTime:
-    #       type: string
-    #       format: date-time
-    #       description: When the document was created
-    #     transportDocumentUpdatedDateTime:
-    #       type: string
-    #       format: date-time
-    #       description: When the document was updated
-    #     shipmentLocations:
-    #       type: array
-    #       items:
-    #         $ref: '#/components/schemas/ShipmentLocation'
-    #     transports:
-    #       type: array
-    #       items:
-    #         $ref: '#/components/schemas/Transport'
     FileInfo:
       type: object
       description: Metadata of the uploaded document
@@ -1351,7 +1279,6 @@ components:
       description: Event of issuing the eB/L
       properties:
         bill_of_lading:
-          # $ref: '#/components/schemas/TransportDocument'
           $ref: 'https://api.swaggerhub.com/domains/dcsaorg/DOCUMENTATION_DOMAIN/2.1.0#/components/schemas/transportDocument'
         file:
           $ref: '#/components/schemas/FileInfo'
@@ -1869,26 +1796,26 @@ components:
             - events
             - secret
   examples:
-    Business Unit:
+    BusinessUnit:
       value:
         id: "did:openebl:123456789abcdefghi"
         version: 1
         application_id: "app_123456"
         status: "active"
         name: "My Business Unit"
-        addresses: 
+        addresses:
           - "123 Main St"
           - "456 Oak Rd"
         country: "US"
-        emails: 
+        emails:
           - "test@example.com"
-        phone_numbers: 
+        phone_numbers:
           - "+1-123-456-7890"
         created_at: 1619827200
         created_by: "user_123456"
         updated_at: 1619827200
         updated_by: "user_123456"
-    Update File Based EBL:
+    UpdateFileBasedEBL:
       value:
         authentication_id: "auth_id_123456"
         metadata:

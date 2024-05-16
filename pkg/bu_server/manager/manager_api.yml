@@ -6,11 +6,11 @@ servers:
   - url: http://localhost:9100/api
     description: Local server
 tags:
-  - name: user
+  - name: User
     description: User management
-  - name: application
+  - name: Application
     description: Application management
-  - name: api_key
+  - name: API Key
     description: API key management
 components:
   schemas:
@@ -227,7 +227,8 @@ components:
 paths:
   /login:
     get:
-      tags: [user]
+      tags:
+        - User
       summary: Get a token for the other APIs.
       security:
         - basicAuth: []
@@ -248,7 +249,8 @@ paths:
               example: user name/password mismatch
   /users:
     get:
-      tags: [user]
+      tags:
+        - User
       summary: List all users.
       parameters:
         - name: offset
@@ -274,7 +276,7 @@ paths:
           description: OK
           content:
             application/json:
-              schema: 
+              schema:
                 type: object
                 properties:
                   total:
@@ -291,7 +293,8 @@ paths:
                 type: string
               example: invalid token
     post:
-      tags: [user]
+      tags:
+        - User
       summary: Create a user.
       security:
         - bearerAuth: []
@@ -323,7 +326,8 @@ paths:
               example: user ID already exists
   /users/{id}:
     get:
-      tags: [user]
+      tags:
+        - User
       summary: Get user by ID
       parameters:
         - name: id
@@ -356,7 +360,8 @@ paths:
                 type: string
               example: user ID does not exist
     post:
-      tags: [user]
+      tags:
+        - User
       summary: Update a user.
       parameters:
         - name: id
@@ -395,7 +400,8 @@ paths:
               example: user ID does not exist
   /users/{id}/status:
     post:
-      tags: [user]
+      tags:
+        - User
       summary: Update user status.
       parameters:
         - name: id
@@ -440,7 +446,8 @@ paths:
               example: user ID does not exist
   /users/{id}/reset_password:
     post:
-      tags: [user]
+      tags:
+        - User
       summary: Reset user password.
       parameters:
         - name: id
@@ -475,7 +482,8 @@ paths:
               example: user ID does not exist
   /users/{id}/change_password:
     post:
-      tags: [user]
+      tags:
+        - User
       summary: Change user password.
       parameters:
         - name: id
@@ -510,7 +518,8 @@ paths:
               example: user ID does not exist
   /applications:
     get:
-      tags: [application]
+      tags:
+        - Application
       summary: List all applications.
       parameters:
         - name: offset
@@ -541,7 +550,7 @@ paths:
                 properties:
                   total:
                     type: integer
-                  applications: 
+                  applications:
                     type: array
                     items:
                       $ref: '#/components/schemas/Application'
@@ -553,7 +562,8 @@ paths:
                 type: string
               example: invalid token
     post:
-      tags: [application]
+      tags:
+        - Application
       summary: Create a application.
       security:
         - bearerAuth: []
@@ -567,7 +577,8 @@ paths:
           description: OK
   /applications/{id}:
     get:
-      tags: [application]
+      tags:
+        - Application
       summary: Get application by ID
       parameters:
         - name: id
@@ -600,7 +611,8 @@ paths:
                 type: string
               example: application ID does not exist
     post:
-      tags: [application]
+      tags:
+        - Application
       summary: Update a application.
       parameters:
         - name: id
@@ -639,7 +651,8 @@ paths:
               example: application ID does not exist
   /applications/{id}/status:
     post:
-      tags: [application]
+      tags:
+        - Application
       summary: Update application status.
       parameters:
         - name: id
@@ -684,7 +697,8 @@ paths:
               example: application ID does not exist
   /applications/{id}/api_keys:
     get:
-      tags: [api_key]
+      tags:
+        - API Key
       summary: List all API keys.
       parameters:
         - name: id
@@ -726,7 +740,8 @@ paths:
                 type: string
                 example: invalid token
     post:
-      tags: [api_key]
+      tags:
+        - API Key
       summary: Create an API key for the application.
       parameters:
         - name: id
@@ -770,7 +785,8 @@ paths:
               example: invalid token
   /applications/{id}/api_keys/{key_id}:
     get:
-      tags: [api_key]
+      tags:
+        - API Key
       summary: Get API key by ID
       parameters:
         - name: id
@@ -812,7 +828,8 @@ paths:
                 type: string
               example: API key does not exist
     delete:
-      tags: [api_key]
+      tags:
+        - API Key
       summary: Revoke an API key.
       parameters:
         - name: id

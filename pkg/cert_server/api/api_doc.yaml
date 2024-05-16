@@ -7,10 +7,16 @@ servers:
     description: Endpoint for the certificate manager. It includes all public APIs and certificate management API.
   - url: https://localhost:9101
     description: Endpoint of Public API.
+tags:
+  - name: Public
+    description: Public API
+  - name: Admin
+    description: Admin Management API
 paths:
   /root_cert:
     get:
-      tags: [public]
+      tags:
+        - Public
       summary: List Root Certificates
       parameters:
         - name: offset
@@ -32,10 +38,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListCertificatesResponse'
-        default:
-          description: Other errors
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
-      tags: [admin]
+      tags:
+        - Admin
       summary: Add Root Certificate
       parameters:
         - name: X-Requester
@@ -64,11 +73,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/cert'
-        default:
-          description: Other errors
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /root_cert/{id}:
     get:
-      tags: [public]
+      tags:
+        - Public
       summary: Get Root Certificate by ID
       parameters:
         - name: id
@@ -83,10 +97,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/cert'
-        default:
-          description: Other errors
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     delete:
-      tags: [admin]
+      tags:
+        - Admin
       summary: Revoke Root Certificate
       parameters:
         - name: X-Requester
@@ -103,11 +122,18 @@ paths:
       responses:
         '200':
           description: OK
-        default:
-          description: Other errors
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /ca_cert:
     get:
-      tags: [public]
+      tags:
+        - Public
       summary: List CA Certificates
       responses:
         '200':
@@ -116,10 +142,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListCertificatesResponse'
-        default:
-          description: Other errors
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
-      tags: [admin]
+      tags:
+        - Admin
       summary: Create CA Certificate Signing Request
       parameters:
         - name: X-Requester
@@ -141,11 +170,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/cert'
-        default:
-          description: Other errors
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /ca_cert/{id}:
     get:
-      tags: [public]
+      tags:
+        - Public
       summary: Get CA Certificate by ID
       parameters:
         - name: id
@@ -160,10 +194,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/cert'
-        default:
-          description: Other errors
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
-      tags: [admin]
+      tags:
+        - Admin
       summary: Respond to CA Certificate Signing Request
       parameters:
         - name: X-Requester
@@ -194,11 +233,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/cert'
-        default:
-          description: Other errors
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /ca_cert/{id}/revoke:
     post:
-      tags: [admin]
+      tags:
+        - Admin
       summary: Revoke CA Certificate
       parameters:
         - name: X-Requester
@@ -230,11 +276,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/cert'
-        default:
-          description: Other errors
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /cert:
     get:
-      tags: [public]
+      tags:
+        - Public
       summary: List Certificates
       responses:
         '200':
@@ -243,10 +296,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListCertificatesResponse'
-        default:
-          description: Other errors
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
-      tags: [admin]
+      tags:
+        - Admin
       summary: Add Certificate Signing Request
       parameters:
         - name: X-Requester
@@ -268,11 +326,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/cert'
-        default:
-          description: Other errors
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /cert/{id}:
     get:
-      tags: [public]
+      tags:
+        - Public
       summary: Get Certificate by ID
       parameters:
         - name: id
@@ -287,10 +350,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/cert'
-        default:
-          description: Other errors
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
-      tags: [admin]
+      tags:
+        - Admin
       summary: Issue Certificate
       parameters:
         - name: X-Requester
@@ -339,10 +407,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/cert'
-        default:
-          description: Other errors
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     delete:
-      tags: [admin]
+      tags:
+        - Admin
       summary: Revoke Certificate
       parameters:
         - name: X-Requester
@@ -363,11 +438,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/cert'
-        default:
-          description: Other errors
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /cert/{id}/reject:
     post:
-      tags: [admin]
+      tags:
+        - Admin
       summary: Reject Certificate Signing Request
       parameters:
         - name: X-Requester
@@ -405,9 +487,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/cert'
-        default:
-          description: Other errors
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 components:
+  responses:
+    BadRequest:
+      description: The request is invalid
+      content:
+        text/plain:
+          schema:
+            type: string
+    NotFound:
+      description: The specified resource was not found
+      content:
+        text/plain:
+          schema:
+            type: string
+    Conflict:
+      description: Data conflict
+      content:
+        text/plain:
+          schema:
+            type: string
+    InternalServerError:
+      description: Internal server error
+      content:
+        text/plain:
+          schema:
+            type: string
   schemas:
     cert:
       type: object

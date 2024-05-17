@@ -9,10 +9,11 @@ const (
 	CertStatusRejected         CertStatus = "rejected"
 	CertStatusRevoked          CertStatus = "revoked"
 
-	RootCert         CertType = "root"
-	CACert           CertType = "ca"
-	ThirdPartyCACert CertType = "third_party_ca"
-	BUCert           CertType = "business_unit"
+	RootCert          CertType = "root"
+	CACert            CertType = "ca"
+	ThirdPartyCACert  CertType = "third_party_ca"
+	BUCert            CertType = "business_unit"
+	TradeLinkNodeCert CertType = "trade_link_node"
 )
 
 type Cert struct {

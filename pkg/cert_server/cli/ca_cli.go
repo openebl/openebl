@@ -86,7 +86,7 @@ type CACertGetCmd RootCertGetCmd
 
 type CertAddCmd struct {
 	Requester string         `short:"r" long:"requester" help:"Requester name" required:""`
-	CertType  model.CertType `enum:"business_unit,third_party_ca" required:""`
+	CertType  model.CertType `enum:"business_unit,third_party_ca,trade_link_node" required:""`
 	CSR       []byte         `type:"filecontent" help:"Certificate Signing Request" required:""`
 }
 
@@ -94,7 +94,7 @@ type CertIssueCmd struct {
 	Requester string         `short:"r" long:"requester" help:"Requester name" required:""`
 	ID        string         `required:""`
 	CACertID  string         `required:""`
-	CertType  model.CertType `enum:"business_unit,third_party_ca" required:""`
+	CertType  model.CertType `enum:"business_unit,third_party_ca,trade_link_node" required:""`
 	NotBefore time.Time      `required:""`
 	NotAfter  time.Time      `required:""`
 }
@@ -102,7 +102,7 @@ type CertIssueCmd struct {
 type CertRejectCmd struct {
 	Requester string         `short:"r" long:"requester" help:"Requester name" required:""`
 	ID        string         `required:""`
-	CertType  model.CertType `enum:"business_unit,third_party_ca" required:""`
+	CertType  model.CertType `enum:"business_unit,third_party_ca,trade_link_node" required:""`
 	Reason    string         `required:"" help:"Reject Reason"`
 }
 

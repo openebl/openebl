@@ -93,7 +93,7 @@ func ValidateRevokeCACertificateRequest(req RevokeCACertificateRequest) error {
 func ValidateAddCertificateSigningRequestRequest(req AddCertificateSigningRequestRequest) error {
 	if err := validation.ValidateStruct(&req,
 		validation.Field(&req.Requester, validation.Required),
-		validation.Field(&req.CertType, validation.Required, validation.In(model.ThirdPartyCACert, model.BUCert)),
+		validation.Field(&req.CertType, validation.Required, validation.In(model.ThirdPartyCACert, model.BUCert, model.TradeLinkNodeCert)),
 		validation.Field(&req.CertSigningRequest, validation.Required),
 	); err != nil {
 		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
@@ -107,7 +107,7 @@ func ValidateIssueCertificateRequest(req IssueCertificateRequest) error {
 		validation.Field(&req.Requester, validation.Required),
 		validation.Field(&req.CACertID, validation.Required),
 		validation.Field(&req.CertID, validation.Required),
-		validation.Field(&req.CertType, validation.Required, validation.In(model.ThirdPartyCACert, model.BUCert)),
+		validation.Field(&req.CertType, validation.Required, validation.In(model.ThirdPartyCACert, model.BUCert, model.TradeLinkNodeCert)),
 		validation.Field(&req.NotBefore, validation.Required),
 		validation.Field(&req.NotAfter, validation.Required),
 	); err != nil {
@@ -121,7 +121,7 @@ func ValidateRejectCertificateSigningRequestRequest(req RejectCertificateSigning
 	if err := validation.ValidateStruct(&req,
 		validation.Field(&req.Requester, validation.Required),
 		validation.Field(&req.CertID, validation.Required),
-		validation.Field(&req.CertType, validation.Required, validation.In(model.ThirdPartyCACert, model.BUCert)),
+		validation.Field(&req.CertType, validation.Required, validation.In(model.ThirdPartyCACert, model.BUCert, model.TradeLinkNodeCert)),
 		validation.Field(&req.Reason, validation.Required),
 	); err != nil {
 		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)

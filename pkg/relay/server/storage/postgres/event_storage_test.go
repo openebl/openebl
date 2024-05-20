@@ -1,26 +1,19 @@
 package postgres_test
 
 import (
-	"context"
-	"fmt"
-	"os"
-	"strconv"
 	"testing"
 	"time"
 
 	"github.com/go-testfixtures/testfixtures/v3"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/openebl/openebl/pkg/relay/server/storage"
 	"github.com/openebl/openebl/pkg/relay/server/storage/postgres"
-	"github.com/openebl/openebl/pkg/util"
 	"github.com/stretchr/testify/suite"
 )
 
 type EventStorageTestSuite struct {
-	suite.Suite
+	BaseStorageTestSuite
 	storage storage.RelayServerDataStore
-	pgPool  *pgxpool.Pool
 }
 
 func TestEventStorage(t *testing.T) {
@@ -28,84 +21,51 @@ func TestEventStorage(t *testing.T) {
 }
 
 func (s *EventStorageTestSuite) SetupSuite() {
-	dbHost := os.Getenv("DATABASE_HOST")
-	dbPort, err := strconv.Atoi(os.Getenv("DATABASE_PORT"))
-	if err != nil {
-		dbPort = 5432
-	}
-	dbName := os.Getenv("DATABASE_NAME")
-	userName := os.Getenv("DATABASE_USER")
-	password := os.Getenv("DATABASE_PASSWORD")
-
-	config := util.PostgresDatabaseConfig{
-		Host:     dbHost,
-		Port:     dbPort,
-		Database: dbName,
-		User:     userName,
-		Password: password,
-		SSLMode:  "disable",
-		PoolSize: 5,
-	}
-
-	pool, err := util.NewPostgresDBPool(config)
-	s.Require().NoError(err)
-	s.storage = postgres.NewEventStorageWithPool(pool)
-	s.pgPool = pool
-
-	tableNames := []string{
-		"event",
-		"offset",
-	}
-	for _, tableName := range tableNames {
-		_, err := pool.Exec(context.Background(), fmt.Sprintf(`TRUNCATE TABLE %q`, tableName))
-		s.Require().NoError(err)
-	}
+	s.BaseStorageTestSuite.SetupSuite()
+	s.storage = postgres.NewEventStorageWithPool(s.pgPool)
 }
 
 func (s *EventStorageTestSuite) TearDownSuite() {
-	s.pgPool.Close()
+	s.BaseStorageTestSuite.TearDownSuite()
 }
 
 func (s *EventStorageTestSuite) TestGetIdentity() {
-	ctx := context.Background()
-	identity, err := s.storage.GetIdentity(ctx)
+	identity, err := s.storage.GetIdentity(s.ctx)
 	s.Require().NoError(err)
 	s.Assert().NotEmpty(identity)
 }
 
 func (s *EventStorageTestSuite) TestStoreEvent() {
-	ctx := context.Background()
 	ts := time.Now().Unix()
 	eventID := "test_event_id"
 	eventType := 1001
 	event := []byte("test_event")
 
-	offset, err := s.storage.StoreEventWithOffsetInfo(ctx, ts, eventID, eventType, event, 0, "")
+	offset, err := s.storage.StoreEventWithOffsetInfo(s.ctx, ts, eventID, eventType, event, 0, "")
 	s.Require().NoError(err)
 	s.Require().NotZero(offset)
 
-	offset, err = s.storage.StoreEventWithOffsetInfo(ctx, ts, eventID+eventID, eventType, event, 9876, "bluex")
+	offset, err = s.storage.StoreEventWithOffsetInfo(s.ctx, ts, eventID+eventID, eventType, event, 9876, "bluex")
 	s.Require().NoError(err)
 	s.Require().NotZero(offset)
 
-	peerOffset, err := s.storage.GetOffset(ctx, "bluex")
+	peerOffset, err := s.storage.GetOffset(s.ctx, "bluex")
 	s.Require().NoError(err)
 	s.Assert().Equal(int64(9876), peerOffset)
 
 	// Check if duplicated event ID can get ErrDuplicateEvent error.
-	_, err = s.storage.StoreEventWithOffsetInfo(ctx, ts, eventID, eventType, event, 0, "")
+	_, err = s.storage.StoreEventWithOffsetInfo(s.ctx, ts, eventID, eventType, event, 0, "")
 	s.Require().ErrorIs(err, storage.ErrDuplicateEvent)
 
 	// Check if duplicated event ID can get ErrDuplicateEvent error and store offset correctly.
-	_, err = s.storage.StoreEventWithOffsetInfo(ctx, ts, eventID, eventType, event, 9877, "bluex")
+	_, err = s.storage.StoreEventWithOffsetInfo(s.ctx, ts, eventID, eventType, event, 9877, "bluex")
 	s.Require().ErrorIs(err, storage.ErrDuplicateEvent)
-	offset, err = s.storage.GetOffset(ctx, "bluex")
+	offset, err = s.storage.GetOffset(s.ctx, "bluex")
 	s.Require().NoError(err)
 	s.Assert().Equal(int64(9877), offset)
 }
 
 func (s *EventStorageTestSuite) TestListEvents() {
-	ctx := context.Background()
 	db := stdlib.OpenDBFromPool(s.pgPool)
 	fixtures, err := testfixtures.New(
 		testfixtures.Database(db),
@@ -121,7 +81,7 @@ func (s *EventStorageTestSuite) TestListEvents() {
 		EventType: 0,
 		Limit:     10,
 	}
-	result, err := s.storage.ListEvents(ctx, request)
+	result, err := s.storage.ListEvents(s.ctx, request)
 	s.Require().NoError(err)
 	s.Require().Equal(4, len(result.Events))
 	s.Assert().Equal(int64(103), result.MaxOffset)
@@ -145,7 +105,7 @@ func (s *EventStorageTestSuite) TestListEvents() {
 		EventType: 0,
 		Limit:     2,
 	}
-	result, err = s.storage.ListEvents(ctx, request)
+	result, err = s.storage.ListEvents(s.ctx, request)
 	s.Require().NoError(err)
 	s.Require().Equal(2, len(result.Events))
 	s.Assert().Equal(int64(101), result.MaxOffset)
@@ -159,7 +119,7 @@ func (s *EventStorageTestSuite) TestListEvents() {
 		EventType: 1001,
 		Limit:     10,
 	}
-	result, err = s.storage.ListEvents(ctx, request)
+	result, err = s.storage.ListEvents(s.ctx, request)
 	s.Require().NoError(err)
 	s.Require().Equal(2, len(result.Events))
 	s.Assert().Equal(int64(102), result.MaxOffset)
@@ -173,7 +133,7 @@ func (s *EventStorageTestSuite) TestListEvents() {
 		EventType: 0,
 		Limit:     10,
 	}
-	result, err = s.storage.ListEvents(ctx, request)
+	result, err = s.storage.ListEvents(s.ctx, request)
 	s.Require().NoError(err)
 	s.Require().Equal(1, len(result.Events))
 	s.Assert().Equal(int64(103), result.MaxOffset)
@@ -182,18 +142,17 @@ func (s *EventStorageTestSuite) TestListEvents() {
 }
 
 func (s *EventStorageTestSuite) TestStoreOffsetAndGetOffset() {
-	ctx := context.Background()
-	offset, err := s.storage.GetOffset(ctx, "test_peer_address")
+	offset, err := s.storage.GetOffset(s.ctx, "test_peer_address")
 	s.Require().NoError(err)
 	s.Assert().Zero(offset)
 
-	err = s.storage.StoreOffset(ctx, 100, "test_peer_address", 1000)
+	err = s.storage.StoreOffset(s.ctx, 100, "test_peer_address", 1000)
 	s.Require().NoError(err)
-	offset, err = s.storage.GetOffset(ctx, "test_peer_address")
+	offset, err = s.storage.GetOffset(s.ctx, "test_peer_address")
 	s.Require().NoError(err)
 	s.Assert().Equal(int64(1000), offset)
 
-	offset, err = s.storage.GetOffset(ctx, "empty peer address")
+	offset, err = s.storage.GetOffset(s.ctx, "empty peer address")
 	s.Require().NoError(err)
 	s.Assert().Zero(offset)
 }

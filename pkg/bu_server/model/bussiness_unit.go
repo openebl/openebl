@@ -1,6 +1,6 @@
 package model
 
-import "github.com/nuts-foundation/go-did/did"
+import "github.com/openebl/openebl/pkg/did"
 
 type BusinessUnitStatus string
 type BusinessUnitAuthenticationStatus string

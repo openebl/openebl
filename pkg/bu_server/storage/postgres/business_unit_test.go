@@ -7,10 +7,10 @@ import (
 
 	"github.com/go-testfixtures/testfixtures/v3"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
+	"github.com/openebl/openebl/pkg/did"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -44,7 +44,7 @@ func (s *BusinessUnitStorageTestSuite) TearDownTest() {
 func (s *BusinessUnitStorageTestSuite) TestStoreBusinessUnit() {
 	ts := time.Now().Unix()
 	bu := model.BusinessUnit{
-		ID:            did.MustParseDID("did:openebl:test_bu"),
+		ID:            did.MustParse("did:openebl:test_bu"),
 		Version:       1,
 		ApplicationID: "app_1",
 		Status:        model.BusinessUnitStatusActive,
@@ -135,7 +135,7 @@ func (s *BusinessUnitStorageTestSuite) TestStoreAuthentication() {
 	auth := model.BusinessUnitAuthentication{
 		ID:           "test_auth_1",
 		Version:      1,
-		BusinessUnit: did.MustParseDID("did:openebl:bu1"),
+		BusinessUnit: did.MustParse("did:openebl:bu1"),
 		Status:       model.BusinessUnitAuthenticationStatusActive,
 		CreatedAt:    ts,
 	}

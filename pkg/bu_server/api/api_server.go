@@ -11,7 +11,6 @@ import (
 
 	otlp_util "github.com/bluexlab/otlp-util-go"
 	"github.com/gorilla/mux"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
 	"github.com/openebl/openebl/pkg/bu_server/cert"
@@ -21,6 +20,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/storage/postgres"
 	"github.com/openebl/openebl/pkg/bu_server/trade_document"
 	"github.com/openebl/openebl/pkg/bu_server/webhook"
+	"github.com/openebl/openebl/pkg/did"
 	"github.com/openebl/openebl/pkg/util"
 	"github.com/sirupsen/logrus"
 )
@@ -281,13 +281,13 @@ func (a *API) updateBusinessUnit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.ApplicationID = appID
-	buDID, err := did.ParseDID(buID)
+	buDID, err := did.Parse(buID)
 	if err != nil {
 		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	req.ID = *buDID
+	req.ID = buDID
 
 	result, err := a.buMgr.UpdateBusinessUnit(ctx, time.Now().Unix(), req)
 	if errors.Is(err, model.ErrInvalidParameter) {
@@ -329,13 +329,13 @@ func (a *API) setBusinessUnitStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	req.ApplicationID = appID
 	buID := mux.Vars(r)["id"]
-	buDID, err := did.ParseDID(buID)
+	buDID, err := did.Parse(buID)
 	if err != nil {
 		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	req.ID = *buDID
+	req.ID = buDID
 
 	result, err := a.buMgr.SetStatus(ctx, time.Now().Unix(), req)
 	if errors.Is(err, model.ErrInvalidParameter) {
@@ -378,13 +378,13 @@ func (a *API) createBusinessUnitAuthentication(w http.ResponseWriter, r *http.Re
 
 	req.ApplicationID = appID
 	buID := mux.Vars(r)["id"]
-	buDID, err := did.ParseDID(buID)
+	buDID, err := did.Parse(buID)
 	if err != nil {
 		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	req.BusinessUnitID = *buDID
+	req.BusinessUnitID = buDID
 
 	result, err := a.buMgr.AddAuthentication(ctx, time.Now().Unix(), req)
 	if errors.Is(err, model.ErrInvalidParameter) {
@@ -511,7 +511,7 @@ func (a *API) revokeBusinessUnitAuthentication(w http.ResponseWriter, r *http.Re
 
 	logrus.Debugf("%s %s is invoked with application: %v", r.Method, r.RequestURI, appID)
 
-	buDID, err := did.ParseDID(buID)
+	buDID, err := did.Parse(buID)
 	if err != nil {
 		logrus.Debugf("%s %s returns status code %d with error: %v", r.Method, r.RequestURI, http.StatusBadRequest, err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -521,7 +521,7 @@ func (a *API) revokeBusinessUnitAuthentication(w http.ResponseWriter, r *http.Re
 	req := business_unit.RevokeAuthenticationRequest{}
 	req.Requester = r.URL.Query().Get("requester")
 	req.ApplicationID = appID
-	req.BusinessUnitID = *buDID
+	req.BusinessUnitID = buDID
 	req.AuthenticationID = authenticationID
 
 	result, err := a.buMgr.RevokeAuthentication(ctx, time.Now().Unix(), req)

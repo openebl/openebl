@@ -7,12 +7,12 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/trade_document"
+	"github.com/openebl/openebl/pkg/did"
 	"github.com/openebl/openebl/pkg/envelope"
 	"github.com/openebl/openebl/pkg/pkix"
 	"github.com/openebl/openebl/pkg/relay"
@@ -393,7 +393,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
-							ID:            did.MustParseDID("did:openebl:issuer"),
+							ID:            did.MustParse("did:openebl:issuer"),
 							Version:       1,
 							ApplicationID: "appid",
 							Status:        model.BusinessUnitStatusActive,
@@ -401,7 +401,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 					},
 					{
 						BusinessUnit: model.BusinessUnit{
-							ID:            did.MustParseDID("did:openebl:shipper"),
+							ID:            did.MustParse("did:openebl:shipper"),
 							Version:       1,
 							ApplicationID: "appid",
 							Status:        model.BusinessUnitStatusActive,
@@ -409,7 +409,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 					},
 					{
 						BusinessUnit: model.BusinessUnit{
-							ID:            did.MustParseDID("did:openebl:consignee"),
+							ID:            did.MustParse("did:openebl:consignee"),
 							Version:       1,
 							ApplicationID: "appid",
 							Status:        model.BusinessUnitStatusActive,
@@ -417,7 +417,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 					},
 					{
 						BusinessUnit: model.BusinessUnit{
-							ID:            did.MustParseDID("did:openebl:release_agent"),
+							ID:            did.MustParse("did:openebl:release_agent"),
 							Version:       1,
 							ApplicationID: "appid",
 							Status:        model.BusinessUnitStatusActive,
@@ -431,7 +431,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "appid",
-				BusinessUnitID:   did.MustParseDID("did:openebl:issuer"),
+				BusinessUnitID:   did.MustParse("did:openebl:issuer"),
 				AuthenticationID: "bu_auth_id",
 			},
 		).Return(s.issuerSigner, nil),
@@ -523,7 +523,7 @@ func (s *FileBasedEBLTestSuite) TestCreateDraftEBL() {
 				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
-							ID:            did.MustParseDID("did:openebl:issuer"),
+							ID:            did.MustParse("did:openebl:issuer"),
 							Version:       1,
 							ApplicationID: "appid",
 							Status:        model.BusinessUnitStatusActive,
@@ -537,7 +537,7 @@ func (s *FileBasedEBLTestSuite) TestCreateDraftEBL() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "appid",
-				BusinessUnitID:   did.MustParseDID("did:openebl:issuer"),
+				BusinessUnitID:   did.MustParse("did:openebl:issuer"),
 				AuthenticationID: "bu_auth_id",
 			},
 		).Return(s.issuerSigner, nil),
@@ -671,7 +671,7 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBLToNonDraftEBL() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "app_id",
-				BusinessUnitID:   did.MustParseDID(req.Issuer),
+				BusinessUnitID:   did.MustParse(req.Issuer),
 				AuthenticationID: req.AuthenticationID,
 			},
 		).Return(s.issuerSigner, nil),
@@ -777,7 +777,7 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBLToDraftEBL() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "app_id",
-				BusinessUnitID:   did.MustParseDID(req.Issuer),
+				BusinessUnitID:   did.MustParse(req.Issuer),
 				AuthenticationID: req.AuthenticationID,
 			},
 		).Return(s.issuerSigner, nil),
@@ -870,7 +870,7 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBL_FileNotChange() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "app_id",
-				BusinessUnitID:   did.MustParseDID(req.Issuer),
+				BusinessUnitID:   did.MustParse(req.Issuer),
 				AuthenticationID: req.AuthenticationID,
 			},
 		).Return(s.issuerSigner, nil),
@@ -926,7 +926,7 @@ func (s *FileBasedEBLTestSuite) TestListEBL() {
 				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
-							ID:            did.MustParseDID("did:openebl:issuer"),
+							ID:            did.MustParse("did:openebl:issuer"),
 							Version:       1,
 							ApplicationID: "appid",
 							Status:        model.BusinessUnitStatusActive,
@@ -1005,7 +1005,7 @@ func (s *FileBasedEBLTestSuite) TestShipperTransferEBL() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "app_id",
-				BusinessUnitID:   did.MustParseDID("did:openebl:shipper"),
+				BusinessUnitID:   did.MustParse("did:openebl:shipper"),
 				AuthenticationID: "shipper_auth1",
 			},
 		).Return(s.shipperSigner, nil),
@@ -1094,7 +1094,7 @@ func (s *FileBasedEBLTestSuite) TestIssuerTransferEBL() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "app_id",
-				BusinessUnitID:   did.MustParseDID("did:openebl:issuer"),
+				BusinessUnitID:   did.MustParse("did:openebl:issuer"),
 				AuthenticationID: "issuer_auth1",
 			},
 		).Return(s.shipperSigner, nil),
@@ -1232,7 +1232,7 @@ func (s *FileBasedEBLTestSuite) TestAmendmentRequestEBL() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "app_id",
-				BusinessUnitID:   did.MustParseDID("did:openebl:consignee"),
+				BusinessUnitID:   did.MustParse("did:openebl:consignee"),
 				AuthenticationID: "consignee_auth1",
 			},
 		).Return(s.consigneeSigner, nil),
@@ -1356,7 +1356,7 @@ func (s *FileBasedEBLTestSuite) TestReturn() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "app_id",
-				BusinessUnitID:   did.MustParseDID("did:openebl:consignee"),
+				BusinessUnitID:   did.MustParse("did:openebl:consignee"),
 				AuthenticationID: "consignee_auth1",
 			},
 		).Return(s.consigneeSigner, nil),
@@ -1431,7 +1431,7 @@ func (s *FileBasedEBLTestSuite) TestReturnAmendmentRequest() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "app_id",
-				BusinessUnitID:   did.MustParseDID("did:openebl:issuer"),
+				BusinessUnitID:   did.MustParse("did:openebl:issuer"),
 				AuthenticationID: "issuer_auth1",
 			},
 		).Return(s.consigneeSigner, nil),
@@ -1539,7 +1539,7 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "app_id",
-				BusinessUnitID:   did.MustParseDID("did:openebl:issuer"),
+				BusinessUnitID:   did.MustParse("did:openebl:issuer"),
 				AuthenticationID: "issuer_auth1",
 			},
 		).Return(s.issuerSigner, nil),
@@ -1651,7 +1651,7 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL_FileNotChange() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "app_id",
-				BusinessUnitID:   did.MustParseDID("did:openebl:issuer"),
+				BusinessUnitID:   did.MustParse("did:openebl:issuer"),
 				AuthenticationID: "issuer_auth1",
 			},
 		).Return(s.issuerSigner, nil),
@@ -1759,7 +1759,7 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL_ReturnedByShipper() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "app_id",
-				BusinessUnitID:   did.MustParseDID("did:openebl:issuer"),
+				BusinessUnitID:   did.MustParse("did:openebl:issuer"),
 				AuthenticationID: "issuer_auth1",
 			},
 		).Return(s.issuerSigner, nil),
@@ -1839,7 +1839,7 @@ func (s *FileBasedEBLTestSuite) TestSurrender() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "app_id",
-				BusinessUnitID:   did.MustParseDID("did:openebl:consignee"),
+				BusinessUnitID:   did.MustParse("did:openebl:consignee"),
 				AuthenticationID: "consignee_auth1",
 			},
 		).Return(s.shipperSigner, nil),
@@ -1914,7 +1914,7 @@ func (s *FileBasedEBLTestSuite) TestPrintToPaper() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "app_id",
-				BusinessUnitID:   did.MustParseDID("did:openebl:consignee"),
+				BusinessUnitID:   did.MustParse("did:openebl:consignee"),
 				AuthenticationID: "consignee_auth1",
 			},
 		).Return(s.shipperSigner, nil),
@@ -1989,7 +1989,7 @@ func (s *FileBasedEBLTestSuite) TestAccomplishEBL() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "app_id",
-				BusinessUnitID:   did.MustParseDID("did:openebl:release_agent"),
+				BusinessUnitID:   did.MustParse("did:openebl:release_agent"),
 				AuthenticationID: "release_agent_auth1",
 			},
 		).Return(s.releaseSigner, nil),
@@ -2061,7 +2061,7 @@ func (s *FileBasedEBLTestSuite) TestGetEBL() {
 				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
-							ID:            did.MustParseDID("did:openebl:requester"),
+							ID:            did.MustParse("did:openebl:requester"),
 							Version:       1,
 							ApplicationID: "appid",
 							Status:        model.BusinessUnitStatusActive,
@@ -2121,7 +2121,7 @@ func (s *FileBasedEBLTestSuite) TestDeleteDraftEBL() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "app_id",
-				BusinessUnitID:   did.MustParseDID("did:openebl:issuer"),
+				BusinessUnitID:   did.MustParse("did:openebl:issuer"),
 				AuthenticationID: "issuer_auth1",
 			},
 		).Return(s.releaseSigner, nil),
@@ -2186,7 +2186,7 @@ func (s *FileBasedEBLTestSuite) TestGetEBLDocument() {
 				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
-							ID:            did.MustParseDID("did:openebl:requester"),
+							ID:            did.MustParse("did:openebl:requester"),
 							Version:       1,
 							ApplicationID: "appid",
 							Status:        model.BusinessUnitStatusActive,
@@ -2266,7 +2266,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEncryptedEBL() {
 				Records: []storage.ListBusinessUnitsRecord{
 					{
 						BusinessUnit: model.BusinessUnit{
-							ID:            did.MustParseDID("did:openebl:issuer"),
+							ID:            did.MustParse("did:openebl:issuer"),
 							Version:       1,
 							ApplicationID: "appid",
 							Status:        model.BusinessUnitStatusActive,
@@ -2274,7 +2274,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEncryptedEBL() {
 					},
 					{
 						BusinessUnit: model.BusinessUnit{
-							ID:            did.MustParseDID("did:openebl:shipper"),
+							ID:            did.MustParse("did:openebl:shipper"),
 							Version:       1,
 							ApplicationID: "appid",
 							Status:        model.BusinessUnitStatusActive,
@@ -2282,7 +2282,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEncryptedEBL() {
 					},
 					{
 						BusinessUnit: model.BusinessUnit{
-							ID:            did.MustParseDID("did:openebl:consignee"),
+							ID:            did.MustParse("did:openebl:consignee"),
 							Version:       1,
 							ApplicationID: "appid",
 							Status:        model.BusinessUnitStatusActive,
@@ -2290,7 +2290,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEncryptedEBL() {
 					},
 					{
 						BusinessUnit: model.BusinessUnit{
-							ID:            did.MustParseDID("did:openebl:release_agent"),
+							ID:            did.MustParse("did:openebl:release_agent"),
 							Version:       1,
 							ApplicationID: "appid",
 							Status:        model.BusinessUnitStatusActive,
@@ -2304,7 +2304,7 @@ func (s *FileBasedEBLTestSuite) TestCreateEncryptedEBL() {
 			gomock.Any(),
 			business_unit.GetJWSSignerRequest{
 				ApplicationID:    "appid",
-				BusinessUnitID:   did.MustParseDID("did:openebl:issuer"),
+				BusinessUnitID:   did.MustParse("did:openebl:issuer"),
 				AuthenticationID: "bu_auth_id",
 			},
 		).Return(s.issuerSigner, nil),

@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/api"
 	"github.com/openebl/openebl/pkg/bu_server/auth"
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
@@ -23,6 +22,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/trade_document"
 	"github.com/openebl/openebl/pkg/bu_server/webhook"
+	"github.com/openebl/openebl/pkg/did"
 	"github.com/openebl/openebl/pkg/util"
 	mock_auth "github.com/openebl/openebl/test/mock/bu_server/auth"
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
@@ -114,7 +114,7 @@ func (s *APITestSuite) TestCreateBusinessUnit() {
 	expectedRequest.ApplicationID = s.appId
 
 	bu := model.BusinessUnit{
-		ID:     did.MustParseDID("did:openebl:1234567890"),
+		ID:     did.MustParse("did:openebl:1234567890"),
 		Status: model.BusinessUnitStatusActive,
 	}
 
@@ -164,7 +164,7 @@ func (s *APITestSuite) TestListBusinessUnit() {
 		Records: []storage.ListBusinessUnitsRecord{
 			{
 				BusinessUnit: model.BusinessUnit{
-					ID: did.MustParseDID("did:openebl:1234567890"),
+					ID: did.MustParse("did:openebl:1234567890"),
 				},
 				Authentications: []model.BusinessUnitAuthentication{
 					{
@@ -208,7 +208,7 @@ func (s *APITestSuite) TestGetBusinessUnit() {
 		Records: []storage.ListBusinessUnitsRecord{
 			{
 				BusinessUnit: model.BusinessUnit{
-					ID: did.MustParseDID("did:openebl:1234567890"),
+					ID: did.MustParse("did:openebl:1234567890"),
 				},
 				Authentications: []model.BusinessUnitAuthentication{
 					{
@@ -243,7 +243,7 @@ func (s *APITestSuite) TestUpdateBusinessUnit() {
 
 	request := business_unit.UpdateBusinessUnitRequest{
 		Requester:    "requester",
-		ID:           did.MustParseDID(buId),
+		ID:           did.MustParse(buId),
 		Name:         "name",
 		Addresses:    []string{"address"},
 		Emails:       []string{"email"},
@@ -254,7 +254,7 @@ func (s *APITestSuite) TestUpdateBusinessUnit() {
 	expectedRequest.ApplicationID = s.appId
 
 	newBu := model.BusinessUnit{
-		ID: did.MustParseDID(buId),
+		ID: did.MustParse(buId),
 	}
 
 	gomock.InOrder(
@@ -280,7 +280,7 @@ func (s *APITestSuite) TestSetStatus() {
 
 	request := business_unit.SetBusinessUnitStatusRequest{
 		Requester: "requester",
-		ID:        did.MustParseDID(buId),
+		ID:        did.MustParse(buId),
 		Status:    model.BusinessUnitStatusInactive,
 	}
 
@@ -288,7 +288,7 @@ func (s *APITestSuite) TestSetStatus() {
 	expectedRequest.ApplicationID = s.appId
 
 	newBu := model.BusinessUnit{
-		ID:     did.MustParseDID(buId),
+		ID:     did.MustParse(buId),
 		Status: model.BusinessUnitStatusInactive,
 	}
 

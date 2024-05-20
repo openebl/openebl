@@ -12,10 +12,10 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
+	"github.com/openebl/openebl/pkg/did"
 	"github.com/openebl/openebl/pkg/envelope"
 	"github.com/openebl/openebl/pkg/pkix"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
@@ -114,7 +114,7 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 	s.Require().NoError(err)
 	buAuth := model.BusinessUnitAuthentication{
 		ID:           "authentication-id",
-		BusinessUnit: did.MustParseDID("did:openebl:u0e2345"),
+		BusinessUnit: did.MustParse("did:openebl:u0e2345"),
 		Version:      1,
 		Status:       model.BusinessUnitAuthenticationStatusActive,
 		PrivateKey:   string(buPrivKeyRaw),
@@ -124,7 +124,7 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnit() {
 	request := business_unit.UpdateBusinessUnitRequest{
 		Requester:     "requester",
 		ApplicationID: "application-id",
-		ID:            did.MustParseDID("did:openebl:u0e2345"),
+		ID:            did.MustParse("did:openebl:u0e2345"),
 		Name:          "name",
 		Addresses:     []string{"address"},
 		Country:       "US",
@@ -243,7 +243,7 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateBusinessUnitByExternalEvent() {
 	s.Require().NoError(err)
 
 	bu := model.BusinessUnit{
-		ID:      did.MustParseDID("did:openebl:aaaabbbbcccc"),
+		ID:      did.MustParse("did:openebl:aaaabbbbcccc"),
 		Version: 2,
 		Status:  model.BusinessUnitStatusActive,
 		Name:    "name",
@@ -331,7 +331,7 @@ func (s *BusinessUnitManagerTestSuite) TestListBusinessUnits() {
 	}
 
 	expectedBusinessUnit := model.BusinessUnit{
-		ID:            did.MustParseDID("did:openebl:u0e2345"),
+		ID:            did.MustParse("did:openebl:u0e2345"),
 		Version:       1,
 		ApplicationID: request.ApplicationID,
 		Status:        model.BusinessUnitStatusActive,
@@ -375,7 +375,7 @@ func (s *BusinessUnitManagerTestSuite) TestSetBusinessUnitStatus() {
 	request := business_unit.SetBusinessUnitStatusRequest{
 		Requester:     "requester",
 		ApplicationID: "application-id",
-		ID:            did.MustParseDID("did:openebl:u0e2345"),
+		ID:            did.MustParse("did:openebl:u0e2345"),
 		Status:        model.BusinessUnitStatusInactive,
 	}
 
@@ -444,7 +444,7 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 	request := business_unit.AddAuthenticationRequest{
 		Requester:      "requester",
 		ApplicationID:  "application-id",
-		BusinessUnitID: did.MustParseDID("did:openebl:u0e2345"),
+		BusinessUnitID: did.MustParse("did:openebl:u0e2345"),
 		PrivateKeyOption: eblpkix.PrivateKeyOption{
 			KeyType:   eblpkix.PrivateKeyTypeECDSA,
 			CurveType: eblpkix.ECDSACurveTypeP384,
@@ -452,7 +452,7 @@ func (s *BusinessUnitManagerTestSuite) TestAddAuthentication() {
 	}
 
 	bu := model.BusinessUnit{
-		ID:            did.MustParseDID("did:openebl:bu1"),
+		ID:            did.MustParse("did:openebl:bu1"),
 		Version:       1,
 		ApplicationID: "application-id",
 		Status:        model.BusinessUnitStatusActive,
@@ -550,7 +550,7 @@ func (s *BusinessUnitManagerTestSuite) TestActivateAuthentication() {
 
 	oldBuAuth := model.BusinessUnitAuthentication{
 		ID:                        "authentication-id",
-		BusinessUnit:              did.MustParseDID(buID),
+		BusinessUnit:              did.MustParse(buID),
 		Version:                   1,
 		Status:                    model.BusinessUnitAuthenticationStatusPending,
 		CreatedAt:                 12345,
@@ -571,7 +571,7 @@ func (s *BusinessUnitManagerTestSuite) TestActivateAuthentication() {
 	expectedBuAuth.CertFingerPrint = "sha1:c22d268faa8895e02d8be8ffbcfd80e03a204f30"
 
 	bu := model.BusinessUnit{
-		ID:      did.MustParseDID(buID),
+		ID:      did.MustParse(buID),
 		Version: 1,
 		Status:  model.BusinessUnitStatusActive,
 	}
@@ -719,7 +719,7 @@ func (s *BusinessUnitManagerTestSuite) TestUpdateAuthenticationByExternalEvent()
 	buAuth := model.BusinessUnitAuthentication{
 		ID:                      "authentication-id",
 		Version:                 2,
-		BusinessUnit:            did.MustParseDID("did:openebl:aaaabbbbcccc"),
+		BusinessUnit:            did.MustParse("did:openebl:aaaabbbbcccc"),
 		Status:                  model.BusinessUnitAuthenticationStatusActive,
 		CreatedAt:               12345,
 		CreatedBy:               "requester",
@@ -818,7 +818,7 @@ func (s *BusinessUnitManagerTestSuite) TestRevokeAuthentication() {
 	request := business_unit.RevokeAuthenticationRequest{
 		Requester:        "requester",
 		ApplicationID:    "application-id",
-		BusinessUnitID:   did.MustParseDID("did:openebl:u0e2345"),
+		BusinessUnitID:   did.MustParse("did:openebl:u0e2345"),
 		AuthenticationID: "authentication-id",
 	}
 
@@ -887,7 +887,7 @@ func (s *BusinessUnitManagerTestSuite) TestListAuthentication() {
 	expectedAuthentication := model.BusinessUnitAuthentication{
 		ID:           "authentication-id",
 		Version:      1,
-		BusinessUnit: did.MustParseDID(request.BusinessUnitID),
+		BusinessUnit: did.MustParse(request.BusinessUnitID),
 		Status:       model.BusinessUnitAuthenticationStatusActive,
 		CreatedAt:    12345,
 		CreatedBy:    "requester",
@@ -921,7 +921,7 @@ func (s *BusinessUnitManagerTestSuite) TestListAuthentication() {
 func (s *BusinessUnitManagerTestSuite) TestGetJWSSigner() {
 	request := business_unit.GetJWSSignerRequest{
 		ApplicationID:    "application-id",
-		BusinessUnitID:   did.MustParseDID("did:openebl:u0e2345"),
+		BusinessUnitID:   did.MustParse("did:openebl:u0e2345"),
 		AuthenticationID: "authentication-id",
 	}
 
@@ -966,14 +966,14 @@ func (s *BusinessUnitManagerTestSuite) TestGetJWEEncryptors() {
 		BusinessUnitIDs: []string{"did:openebl:alice", "did:openebl:bob"},
 	}
 	buAlice := storage.ListBusinessUnitsRecord{
-		BusinessUnit: model.BusinessUnit{ID: did.DID{Method: "openebl", ID: "alice"}},
+		BusinessUnit: model.BusinessUnit{ID: did.NewDID("openebl", "alice")},
 		Authentications: []model.BusinessUnitAuthentication{
 			{ID: "alice-auth-01", Status: model.BusinessUnitAuthenticationStatusRevoked},
 			{ID: "alice-auth-02", Status: model.BusinessUnitAuthenticationStatusActive},
 		},
 	}
 	buBob := storage.ListBusinessUnitsRecord{
-		BusinessUnit: model.BusinessUnit{ID: did.DID{Method: "openebl", ID: "bob"}},
+		BusinessUnit: model.BusinessUnit{ID: did.NewDID("openebl", "bob")},
 		Authentications: []model.BusinessUnitAuthentication{
 			{ID: "bob-auth-01", Status: model.BusinessUnitAuthenticationStatusActive},
 		},

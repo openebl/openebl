@@ -10,12 +10,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/webhook"
+	"github.com/openebl/openebl/pkg/did"
 	"github.com/openebl/openebl/pkg/envelope"
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/relay/server"
@@ -1189,7 +1189,7 @@ func (c *_FileBaseEBLController) checkBUExistence(ctx context.Context, appID str
 func (c *_FileBaseEBLController) signBillOfLadingPack(ctx context.Context, ts int64, blPack bill_of_lading.BillOfLadingPack, appID, signer, authID string, kind int) (storage.TradeDocument, error) {
 	getSignerReq := business_unit.GetJWSSignerRequest{
 		ApplicationID:    appID,
-		BusinessUnitID:   did.MustParseDID(signer),
+		BusinessUnitID:   did.MustParse(signer),
 		AuthenticationID: authID,
 	}
 

@@ -18,11 +18,11 @@ import (
 	"slices"
 
 	"github.com/google/uuid"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/cert"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/webhook"
+	"github.com/openebl/openebl/pkg/did"
 	"github.com/openebl/openebl/pkg/envelope"
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
 	"github.com/openebl/openebl/pkg/relay"
@@ -169,10 +169,7 @@ func (m *_BusinessUnitManager) CreateBusinessUnit(ctx context.Context, ts int64,
 	}
 
 	bu := model.BusinessUnit{
-		ID: did.DID{
-			Method: model.DIDMethod,
-			ID:     uuid.NewString(),
-		},
+		ID:            did.NewDID(model.DIDMethod, uuid.NewString()),
 		ApplicationID: req.ApplicationID,
 		Version:       1,
 		Status:        req.Status,
@@ -268,7 +265,7 @@ func (m *_BusinessUnitManager) UpdateBusinessUnitByExternalEvent(ctx context.Con
 	if err := json.Unmarshal(payload, &bu); err != nil {
 		return fmt.Errorf("failed to unmarshal payload: %s%w", err.Error(), model.ErrInvalidParameter)
 	}
-	if bu.ID.Empty() || bu.Version == 0 {
+	if bu.ID.IsEmpty() || bu.Version == 0 {
 		return fmt.Errorf("missing ID or Version%w", model.ErrInvalidParameter)
 	}
 
@@ -560,7 +557,7 @@ func (m *_BusinessUnitManager) UpdateAuthenticationByExternalEvent(ctx context.C
 		return fmt.Errorf("missing certificate chain%w", model.ErrInvalidParameter)
 	}
 	if certs[0].Subject.CommonName != auth.BusinessUnit.String() {
-		return fmt.Errorf(`certificate common name "%s" does not match with the business unit ID: "%s"%w`, certs[0].Subject.CommonName, auth.BusinessUnit.ID, model.ErrInvalidParameter)
+		return fmt.Errorf(`certificate common name "%s" does not match with the business unit ID: "%s"%w`, certs[0].Subject.CommonName, auth.BusinessUnit.String(), model.ErrInvalidParameter)
 	}
 	notValidBefore := certs[0].NotBefore.Unix()
 	if err := m.cv.VerifyCert(ctx, tx, notValidBefore, certs); errors.Is(err, model.ErrCertInvalid) {

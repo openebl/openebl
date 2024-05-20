@@ -19,7 +19,6 @@ require (
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/lestrrat-go/jwx/v2 v2.0.21
 	github.com/mr-tron/base58 v1.2.0
-	github.com/nuts-foundation/go-did v0.13.0
 	github.com/samber/lo v1.39.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/sirupsen/logrus v1.9.3
@@ -84,9 +83,6 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.26 // indirect
-	github.com/multiformats/go-base32 v0.1.0 // indirect
-	github.com/multiformats/go-base36 v0.2.0 // indirect
-	github.com/multiformats/go-multibase v0.2.0 // indirect
 	github.com/paulmach/orb v0.9.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.17 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -94,7 +90,6 @@ require (
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/sergi/go-diff v1.3.1 // indirect
-	github.com/shengdoushi/base58 v1.0.0 // indirect
 	github.com/sourcegraph/annotate v0.0.0-20160123013949-f4cad6c6324d // indirect
 	github.com/sourcegraph/syntaxhighlight v0.0.0-20170531221838-bd320f5d308e // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.26.0 // indirect

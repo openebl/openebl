@@ -17,12 +17,12 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/openebl/openebl/pkg/bu_server/broker"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/trade_document"
+	"github.com/openebl/openebl/pkg/did"
 	"github.com/openebl/openebl/pkg/envelope"
 	"github.com/openebl/openebl/pkg/pkix"
 	"github.com/openebl/openebl/pkg/relay"
@@ -307,7 +307,7 @@ func (s *BrokerTestSuite) TestBrokerEventSinkBusinessUnit() {
 	s.Require().NoError(err)
 
 	bu := model.BusinessUnit{
-		ID:            did.MustParseDID(fmt.Sprintf("did:openebl:%s", uuid.NewString())),
+		ID:            did.MustParse(fmt.Sprintf("did:openebl:%s", uuid.NewString())),
 		Version:       100,
 		ApplicationID: fmt.Sprintf("app_%s", uuid.NewString()),
 		Name:          "Test Business Unit",
@@ -395,7 +395,7 @@ func (s *BrokerTestSuite) TestBrokerEventSinkBusinessUnitAuthentication() {
 	buAuth := model.BusinessUnitAuthentication{
 		ID:           fmt.Sprintf("auth_%s", uuid.NewString()),
 		Version:      100,
-		BusinessUnit: did.MustParseDID(fmt.Sprintf("did:openebl:%s", uuid.NewString())),
+		BusinessUnit: did.MustParse(fmt.Sprintf("did:openebl:%s", uuid.NewString())),
 		Certificate:  string(buCertRaw),
 	}
 

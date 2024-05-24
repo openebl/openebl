@@ -1,0 +1,100 @@
+name: Upgrade auto test env and run API integration testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: "Type of Open eB/L build to be used"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+      build_version:
+        description: "Open eB/L build version to be used"
+        required: true
+        default: "latest"
+        type: string
+      deployments_branch:
+        description: "Branch of openebl-deployments project to be used"
+        required: true
+        default: "main"
+        type: choice
+        options:
+          - dev
+          - main
+      openebl_api_integration_test_branch:
+        description: "Branch of openebl-api-integration-test project to be used"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - main
+
+jobs:
+  upgrade_environment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: define env variables
+        run: |
+          echo "CICD_PIPELINES_BRANCH=deploy-openebl-auto-test" >> $GITHUB_ENV
+          echo "DEPLOYMENTS_BRANCH=${{ github.event.inputs.deployments_branch }}" >> $GITHUB_ENV
+          echo "BUILD_VERSION=${{ github.event.inputs.build_version }}" >> $GITHUB_ENV
+      - name: Trigger workflow in cicd-pipelines repository to upgrade auto test environment and wait for completion
+        uses: convictional/trigger-workflow-and-wait@v1.6.1
+        with:
+          owner: openebl
+          repo: cicd-pipelines
+          github_token: ${{ secrets.TOKEN_FOR_API_TEST_CI_PROCESS }}
+          ref: main # branch of cicd-pipelines project contains the workflow file
+          workflow_file_name: deploy-openebl-auto-test.yml
+          wait_interval: 10
+          client_payload: |-
+            {
+              "deployments_branch": "${{ env.DEPLOYMENTS_BRANCH }}",
+              "build_version": "${{ env.BUILD_VERSION }}"
+            }
+          propagate_failure: true
+          trigger_workflow: true
+          wait_workflow: true
+  run_api_integration_test:
+    runs-on: ubuntu-latest
+    needs: upgrade_environment
+    steps:
+      - name: define env variables
+        run: |
+          if [ "${{ github.event.inputs.build_type }}" == "dev" ]; then
+            echo "BU_SERVER_API_DOC_URL=https://raw.githubusercontent.com/openebl/openebl/dev/pkg/bu_server/api/api.yaml" >> $GITHUB_ENV
+            echo "CERT_SERVER_API_DOC_URL=https://raw.githubusercontent.com/openebl/openebl/dev/pkg/cert_server/api/api_doc.yaml" >> $GITHUB_ENV
+          else
+            echo "BU_SERVER_API_DOC_URL=https://raw.githubusercontent.com/openebl/openebl/main/pkg/bu_server/api/api.yaml" >> $GITHUB_ENV
+            echo "CERT_SERVER_API_DOC_URL=https://raw.githubusercontent.com/openebl/openebl/main/pkg/cert_server/api/api_doc.yaml" >> $GITHUB_ENV
+          fi
+          echo "BU_SERVER_DB=auto_test_bu_server" >> $GITHUB_ENV
+          echo "TEST_REPORT_FILE_PREFIX=test" >> $GITHUB_ENV
+          echo "BU_SERVER_API_URL=${{ vars.AUTO_TEST_BU_SERVER_API_ENDPOINT }}" >> $GITHUB_ENV
+          echo "BU_SERVER_API_TOKEN=${{ secrets.AUTO_TEST_ENV_BU_SERVER_API_TOKEN }}" >> $GITHUB_ENV
+      - name: Trigger workflow in openebl-api-integration-test repository to run tests
+        uses: convictional/trigger-workflow-and-wait@v1.6.1
+        with:
+          owner: openebl
+          repo: openebl-api-integration-test
+          github_token: ${{ secrets.TOKEN_FOR_API_TEST_CI_PROCESS }}
+          ref: dev # branch of openebl-api-integration-test project contains the workflow file
+          workflow_file_name: openebl-api-integration-test-via-workflow-dispatch.yaml
+          wait_interval: 10
+          client_payload: |-
+            {
+              "branch": "dev",
+              "bu_server_api_doc_url": "${{ env.BU_SERVER_API_DOC_URL }}",
+              "cert_server_api_doc_url": "${{ env.CERT_SERVER_API_DOC_URL }}",
+              "bu_server_db": "${{ env.BU_SERVER_DB }}",
+              "test_report_file_prefix": "${{ env.TEST_REPORT_FILE_PREFIX }}",
+              "bu_server_api_url": "${{ env.BU_SERVER_API_URL }}",
+              "bu_server_api_token": "${{ env.BU_SERVER_API_TOKEN }}"
+            }
+          propagate_failure: true
+          trigger_workflow: true
+          wait_workflow: true

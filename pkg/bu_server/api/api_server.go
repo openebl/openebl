@@ -73,7 +73,7 @@ func NewAPIWithController(apiKeyMgr auth.APIKeyAuthenticator, buMgr business_uni
 	healthRouter.HandleFunc("/health", apiServer.health).Methods(http.MethodGet)
 
 	apiRouter := r.NewRoute().Subrouter()
-	apiRouter.Use(middleware.TimeTrace, middleware.NewAPIKeyAuth(apiServer.apiKeyMgr).Authenticate)
+	apiRouter.Use(middleware.NewTimeTrace().TraceHandler, middleware.NewAPIKeyAuth(apiServer.apiKeyMgr).Authenticate)
 	apiRouter.HandleFunc("/business_unit", apiServer.createBusinessUnit).Methods(http.MethodPost)
 	apiRouter.HandleFunc("/business_unit", apiServer.listBusinessUnit).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/business_unit/{id}", apiServer.getBusinessUnit).Methods(http.MethodGet)

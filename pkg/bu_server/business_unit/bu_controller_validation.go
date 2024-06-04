@@ -37,7 +37,8 @@ func ValidateUpdateBusinessUnitRequest(req UpdateBusinessUnitRequest) error {
 
 func ValidateListBusinessUnitRequest(req storage.ListBusinessUnitsRequest) error {
 	if err := validation.ValidateStruct(&req,
-		validation.Field(&req.Limit, validation.Required),
+		validation.Field(&req.Limit, validation.Min(1)),
+		validation.Field(&req.Offset, validation.Min(0)),
 		validation.Field(&req.ApplicationID, validation.Required),
 	); err != nil {
 		return fmt.Errorf("%s%w", err.Error(), model.ErrInvalidParameter)
@@ -95,7 +96,8 @@ func ValidateRevokeAuthenticationRequest(req RevokeAuthenticationRequest) error 
 
 func ValidateListAuthenticationRequest(req storage.ListAuthenticationRequest) error {
 	if err := validation.ValidateStruct(&req,
-		validation.Field(&req.Limit, validation.Required),
+		validation.Field(&req.Limit, validation.Min(1)),
+		validation.Field(&req.Offset, validation.Min(0)),
 		validation.Field(&req.ApplicationID, validation.Required),
 		validation.Field(&req.BusinessUnitID, validation.Required),
 	); err != nil {

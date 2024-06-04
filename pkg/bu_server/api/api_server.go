@@ -187,6 +187,8 @@ func (a *API) listBusinessUnit(w http.ResponseWriter, r *http.Request) {
 	// TODO: Get parameters from QueryString.
 	req := storage.ListBusinessUnitsRequest{}
 	req.ApplicationID = appID
+	req.Limit = 20
+
 	offsetStr := r.URL.Query().Get("offset")
 	limitStr := r.URL.Query().Get("limit")
 	if offsetStr != "" {
@@ -420,6 +422,10 @@ func (a *API) listBusinessUnitAuthentication(w http.ResponseWriter, r *http.Requ
 	logrus.Debugf("%s %s is invoked with application: %v", r.Method, r.RequestURI, appID)
 
 	req := storage.ListAuthenticationRequest{}
+	req.ApplicationID = appID
+	req.BusinessUnitID = buID
+	req.Limit = 20
+
 	offsetStr := r.URL.Query().Get("offset")
 	limitStr := r.URL.Query().Get("limit")
 	if offsetStr != "" {
@@ -438,8 +444,6 @@ func (a *API) listBusinessUnitAuthentication(w http.ResponseWriter, r *http.Requ
 		}
 		req.Limit = int(limit)
 	}
-	req.ApplicationID = appID
-	req.BusinessUnitID = buID
 
 	result, err := a.buMgr.ListAuthentication(ctx, req)
 	if errors.Is(err, model.ErrInvalidParameter) {

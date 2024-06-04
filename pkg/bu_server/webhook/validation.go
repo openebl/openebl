@@ -38,7 +38,8 @@ func ValidateCreateWebhookRequest(req CreateWebhookRequest) error {
 
 func ValidateListWebhookRequest(req ListWebhookRequest) error {
 	err := validation.ValidateStruct(&req,
-		validation.Field(&req.Limit, validation.Required),
+		validation.Field(&req.Limit, validation.Min(1)),
+		validation.Field(&req.Offset, validation.Min(0)),
 		validation.Field(&req.ApplicationID, validation.Required),
 	)
 	if err != nil {

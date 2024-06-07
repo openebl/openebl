@@ -50,7 +50,8 @@ MOCK_SOURCES := \
 	pkg/bu_server/webhook/webhook_controller.go \
 	pkg/cert_server/storage/interface.go \
 	pkg/cert_server/cert_authority/cert_authority.go \
-	pkg/relay/interface.go
+	pkg/relay/interface.go \
+	pkg/relay/server/storage/interface.go
 MOCK_FILES := $(patsubst pkg/%,$(MOCK_DIR)/%,$(MOCK_SOURCES))
 
 .DEFAULT: all

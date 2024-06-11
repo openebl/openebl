@@ -6,10 +6,11 @@ COPY ./frontend /app
 
 WORKDIR /app
 
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 RUN pnpm run build
 
 FROM golang:1.22.2-alpine3.19 as builder
+ENV GOMODCACHE=/go/pkg/mod
 ENV GO111MODULE=on CGO_ENABLED=0 GOPROXY=https://proxy.golang.org,direct
 
 RUN apk add --no-cache bash binutils ca-certificates curl git tzdata
@@ -20,7 +21,7 @@ WORKDIR /app/src
 # Download dependencies
 COPY go.mod /app/src/
 COPY go.sum /app/src/
-RUN go mod download
+RUN --mount=type=cache,id=go,target=/go/pkg/mod go mod download
 
 # add source code
 COPY . /app/src/
@@ -29,7 +30,7 @@ COPY . /app/src/
 COPY --from=node-build /app/dist /app/src/frontend/dist
 
 # build the binary
-RUN go build -ldflags='-w -s -extldflags "-static"' -a -o /go/bin/bu_server ./app/bu_server
+RUN --mount=type=cache,id=go,target=/go/pkg/mod go build -ldflags='-w -s -extldflags "-static"' -a -o /go/bin/bu_server ./app/bu_server
 
 # FROM scratch
 FROM alpine:3.19

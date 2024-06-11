@@ -2,8 +2,13 @@ package cert
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
 
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
 	"github.com/openebl/openebl/pkg/relay/server/storage"
@@ -13,6 +18,58 @@ import (
 
 type CertVerifyHelper struct {
 	revocations map[storage.IssuerKeyAndCertSerialNumber][]byte
+}
+
+func NewTLSConfig(certRaw []byte, privateKey []byte, certMgr CertManager) (*tls.Config, error) {
+	tlsCert, err := tls.X509KeyPair(certRaw, privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	verifyFunc := func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		certs := make([]*x509.Certificate, 0, len(rawCerts))
+		for i := range rawCerts {
+			cert, err := x509.ParseCertificate(rawCerts[i])
+			if err != nil {
+				return err
+			}
+			certs = append(certs, cert)
+		}
+
+		err := certMgr.VerifyCert(context.Background(), time.Now().Unix(), certs)
+		if err != nil {
+			return err
+		}
+
+		crlVerify, err := NewCertVerifyHelper(context.Background(), time.Now().Unix(), certMgr.(*_CertManager), certs)
+		if err != nil {
+			return err
+		}
+
+		revokedCerts := crlVerify.IsCertsRevoked(time.Now().Unix(), certs)
+		if revokedCerts != nil {
+			strBuilder := strings.Builder{}
+			strBuilder.WriteString("certs (issuer key id, serial number) ")
+			for i, cert := range revokedCerts {
+				if i > 0 {
+					strBuilder.WriteString(", ")
+				}
+				strBuilder.WriteString(fmt.Sprintf("{%s, %s}", hex.EncodeToString(cert.AuthorityKeyId), cert.SerialNumber.String()))
+			}
+			strBuilder.WriteString(" are revoked")
+			return errors.New(strBuilder.String())
+		}
+
+		return nil
+	}
+
+	tlsConfig := &tls.Config{
+		Certificates:          []tls.Certificate{tlsCert},
+		ClientAuth:            tls.RequireAnyClientCert,
+		VerifyPeerCertificate: verifyFunc,
+	}
+
+	return tlsConfig, nil
 }
 
 func NewCertVerifyHelper(ctx context.Context, ts int64, cm *_CertManager, certs []*x509.Certificate) (*CertVerifyHelper, error) {

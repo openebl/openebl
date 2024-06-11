@@ -14,13 +14,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type CertVerifier interface {
-	VerifyCert(ctx context.Context, ts int64, certChain []*x509.Certificate) error
-}
-
 type CertManager interface {
 	SyncRootCerts(ctx context.Context) error
 	AddCRL(ctx context.Context, crlRaw []byte) error
+	VerifyCert(ctx context.Context, ts int64, certChain []*x509.Certificate) error
 }
 
 type _CertManager struct {

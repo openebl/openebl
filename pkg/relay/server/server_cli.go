@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"os"
 	"os/signal"
@@ -13,6 +14,7 @@ import (
 	"github.com/gobuffalo/pop"
 	"github.com/gobuffalo/pop/logging"
 	"github.com/openebl/openebl/pkg/config"
+	"github.com/openebl/openebl/pkg/relay/server/cert"
 	"github.com/openebl/openebl/pkg/relay/server/storage/postgres"
 	"github.com/openebl/openebl/pkg/util"
 	"github.com/sirupsen/logrus"
@@ -35,6 +37,13 @@ type RelayServerConfig struct {
 	LocalAddress string                      `yaml:"local_address"`
 	OtherPeers   []string                    `yaml:"other_peers"`
 	OTLPEndpoint string                      `yaml:"otlp_endpoint"`
+	MTLS         MTLSConfig                  `yaml:"mtls"`
+}
+
+type MTLSConfig struct {
+	Cert           string `yaml:"cert"`
+	CertPrivateKey string `yaml:"cert_private_key"`
+	CertServer     string `yaml:"cert_server"`
 }
 
 func (r *RelayServerApp) Run() error {
@@ -53,19 +62,38 @@ func (r *RelayServerApp) Run() error {
 }
 
 func (r *RelayServerApp) runServer(cli RelayServerCli) error {
+	ctx := context.Background()
 	cfg := RelayServerConfig{}
 	if err := config.FromFile(cli.Config, &cfg); err != nil {
 		logrus.Errorf("failed to load config: %v", err)
 		os.Exit(1)
 	}
 
-	eventStorage, err := postgres.NewEventStorageWithConfig(cfg.Database)
+	dataStorage, err := postgres.NewEventStorageWithConfig(cfg.Database)
 	if err != nil {
 		logrus.Errorf("failed to create event storage: %v", err)
 		os.Exit(1)
 	}
 
-	ctx := context.Background()
+	var certMgr cert.CertManager
+	var tlsConfig *tls.Config
+	if cfg.MTLS.Cert != "" && cfg.MTLS.CertPrivateKey != "" && cfg.MTLS.CertServer != "" {
+		logrus.Info("mTLS is enabled.")
+		_certMgr := cert.NewCertManager(
+			cert.WithCertServerURL(cfg.MTLS.CertServer),
+			cert.WithCertStore(dataStorage),
+		)
+		_tlsConfig, err := cert.NewTLSConfig([]byte(cfg.MTLS.Cert), []byte(cfg.MTLS.CertPrivateKey), _certMgr)
+		if err != nil {
+			logrus.Errorf("failed to create TLS config: %v", err)
+			os.Exit(1)
+		}
+		certMgr = _certMgr
+		tlsConfig = _tlsConfig
+	} else {
+		logrus.Info("mTLS is not enabled.")
+	}
+
 	if endpoint := cfg.OTLPEndpoint; endpoint != "" {
 		exporter, err := otlp_util.InitExporter(
 			otlp_util.WithContext(ctx),
@@ -86,7 +114,9 @@ func (r *RelayServerApp) runServer(cli RelayServerCli) error {
 	relayServer, err := NewServer(
 		WithLocalAddress(cfg.LocalAddress),
 		WithPeers(cfg.OtherPeers),
-		WithStorage(eventStorage),
+		WithStorage(dataStorage),
+		WithCertManager(certMgr),
+		WithTLSConfig(tlsConfig),
 	)
 	if err != nil {
 		logrus.Errorf("failed to create relay server: %v", err)

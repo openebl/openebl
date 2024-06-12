@@ -172,11 +172,19 @@ func (s *Server) Run() error {
 			server: s,
 		}
 
-		client := relay.NewNostrClient(
+		clientOptions := []relay.NostrClientOption{
 			relay.NostrClientWithServerURL(peerAddress),
 			relay.NostrClientWithEventSink(clientCallback.EventSink),
 			relay.NostrClientWithConnectionStatusCallback(clientCallback.OnConnectionStatusChange),
-		)
+		}
+		if s.tlsConfig != nil {
+			clientTlsConfig := tls.Config{
+				Certificates:       s.tlsConfig.Certificates,
+				InsecureSkipVerify: true,
+			}
+			clientOptions = append(clientOptions, relay.NostrClientWithTLSConfig(&clientTlsConfig))
+		}
+		client := relay.NewNostrClient(clientOptions...)
 		clientCallback.client = client
 		s.otherPeers[peerAddress] = clientCallback
 	}

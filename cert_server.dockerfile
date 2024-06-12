@@ -1,4 +1,5 @@
 FROM golang:1.22.2-alpine3.19 as builder
+ENV GOMODCACHE=/go/pkg/mod
 ENV GO111MODULE=on CGO_ENABLED=0 GOPROXY=https://proxy.golang.org,direct
 
 RUN apk add --no-cache bash binutils ca-certificates curl git tzdata
@@ -9,13 +10,13 @@ WORKDIR /app/src
 # Download dependencies
 COPY go.mod /app/src/
 COPY go.sum /app/src/
-RUN go mod download
+RUN --mount=type=cache,id=go,target=/go/pkg/mod go mod download
 
 # add source code
 COPY . /app/src/
 
 # build the binary
-RUN go build -ldflags='-w -s -extldflags "-static"' -a -o /go/bin/cert_server ./app/cert_server
+RUN --mount=type=cache,id=go,target=/go/pkg/mod go build -ldflags='-w -s -extldflags "-static"' -a -o /go/bin/cert_server ./app/cert_server
 
 # FROM scratch
 FROM alpine:3.19

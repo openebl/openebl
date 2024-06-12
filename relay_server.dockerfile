@@ -1,5 +1,6 @@
 FROM golang:1.22.2-alpine3.19 AS builder
 
+ENV GOMODCACHE=/go/pkg/mod
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
     GOOS=linux \
@@ -18,11 +19,11 @@ WORKDIR /app/src
 
 COPY go.mod .
 COPY go.sum .
-RUN go mod download
+RUN --mount=type=cache,id=go,target=/go/pkg/mod go mod download
 
 COPY . .
 
-RUN go build -o /app/bin/relay_server ./app/relay_server
+RUN --mount=type=cache,id=go,target=/go/pkg/mod go build -o /app/bin/relay_server ./app/relay_server
 
 # From scratch
 FROM alpine:3.19

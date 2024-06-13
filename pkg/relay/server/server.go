@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -74,13 +75,11 @@ func (c *ClientCallback) EventSink(ctx context.Context, event relay.Event) (stri
 	)
 	defer span.End()
 
-	evtID := GetEventID(event.Data)
-	span.SetAttributes(attribute.String("event_id", evtID))
-	_, err := c.server.dataStore.StoreEventWithOffsetInfo(ctx, event.Timestamp, evtID, event.Type, event.Data, event.Offset, c.serverIdentity)
-	if err != nil && !errors.Is(err, storage.ErrDuplicateEvent) {
+	evtID, err := c.server.processEvent(ctx, event)
+	if err != nil {
 		return "", err
 	}
-	c.server.writeCount.Add(ctx, 1, metric.WithAttributes(attribute.String("server_id", c.serverIdentity), attribute.String("event_id", evtID)))
+	span.SetAttributes(attribute.String("event_id", evtID))
 	return evtID, nil
 }
 
@@ -94,8 +93,8 @@ func NewServer(options ...ServerOption) (*Server, error) {
 		option(server)
 	}
 
-	if (server.certMgr == nil) != (server.tlsConfig == nil) {
-		panic("certMgr and tlsConfig must be both provided or nil")
+	if server.tlsConfig != nil && server.certMgr == nil {
+		panic("certMgr must be provided when tlsConfig is provided")
 	}
 
 	// Get data storage identity
@@ -140,13 +139,11 @@ func NewServer(options ...ServerOption) (*Server, error) {
 		ctx, span := otlp_util.Start(ctx, "relay/server/server.EventSink")
 		defer span.End()
 
-		evtID := GetEventID(event.Data)
-		span.SetAttributes(attribute.String("event_id", evtID))
-		_, err := server.dataStore.StoreEventWithOffsetInfo(ctx, event.Timestamp, evtID, event.Type, event.Data, 0, "")
-		if err != nil && !errors.Is(err, storage.ErrDuplicateEvent) {
+		evtID, err := server.processEvent(ctx, event)
+		if err != nil {
 			return "", err
 		}
-		server.writeCount.Add(ctx, 1, metric.WithAttributes(attribute.String("server_id", dataStoreID), attribute.String("event_id", evtID)))
+		span.SetAttributes(attribute.String("event_id", evtID))
 		return evtID, nil
 	}
 	server.eventSink = serverEventSink
@@ -243,4 +240,25 @@ func (s *Server) syncRootCert(ctx context.Context) {
 			logrus.Info("Root certs synced")
 		}
 	}
+}
+
+func (s *Server) processEvent(ctx context.Context, event relay.Event) (string, error) {
+	evtID := GetEventID(event.Data)
+	_, err := s.dataStore.StoreEventWithOffsetInfo(ctx, event.Timestamp, evtID, event.Type, event.Data, 0, "")
+	if err != nil && !errors.Is(err, storage.ErrDuplicateEvent) {
+		return "", err
+	}
+	s.writeCount.Add(ctx, 1, metric.WithAttributes(attribute.String("server_id", s.dataStoreID), attribute.String("event_id", evtID)))
+
+	if event.Type == int(relay.X509CertificateRevocationList) && s.certMgr != nil {
+		err := s.certMgr.AddCRL(ctx, event.Data)
+		if errors.Is(err, cert.ErrInvalidParameter) {
+			logrus.Warnf("Invalid CRL: %v", err)
+			return "", nil
+		} else if err != nil {
+			return "", fmt.Errorf("failed to add CRL: %w", err)
+		}
+	}
+
+	return evtID, nil
 }

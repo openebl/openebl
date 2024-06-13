@@ -9,11 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/relay/server"
 	"github.com/openebl/openebl/pkg/relay/server/storage"
 	"github.com/openebl/openebl/pkg/relay/server/storage/postgres"
 	"github.com/openebl/openebl/pkg/util"
+	mock_cert "github.com/openebl/openebl/test/mock/relay/server/cert"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -130,10 +132,22 @@ func (s *ServerDataStore) GetEvents() []storage.Event {
 
 type ServerTestSuite struct {
 	suite.Suite
+
+	ctrl    *gomock.Controller
+	certMgr *mock_cert.MockCertManager
 }
 
 func TestServerSuite(t *testing.T) {
 	suite.Run(t, new(ServerTestSuite))
+}
+
+func (s *ServerTestSuite) SetupTest() {
+	s.ctrl = gomock.NewController(s.T())
+	s.certMgr = mock_cert.NewMockCertManager(s.ctrl)
+}
+
+func (s *ServerTestSuite) TearDownTest() {
+	s.ctrl.Finish()
 }
 
 func (s *ServerTestSuite) TestClientServerServerClientInteraction() {
@@ -225,6 +239,47 @@ func (s *ServerTestSuite) TestClientServerServerClientInteraction() {
 	s.Assert().ElementsMatch(server1Events, server2Events)
 	s.Assert().ElementsMatch(server1Events, client1Events)
 	s.Assert().ElementsMatch(server1Events, client2Events)
+}
+
+func (s *ServerTestSuite) TestReceivingCRL() {
+	storage1 := NewServerDataStore("server1")
+	srv1, err := server.NewServer(
+		server.WithLocalAddress("localhost:9011"),
+		server.WithStorage(storage1),
+		server.WithCertManager(s.certMgr),
+	)
+	s.Require().NoError(err)
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		srv1.Run()
+	}()
+
+	client1Sink := &ClientEventSink{}
+	client1 := relay.NewNostrClient(
+		relay.NostrClientWithServerURL("ws://localhost:9011"),
+		relay.NostrClientWithEventSink(client1Sink.Sink),
+		relay.NostrClientWithConnectionStatusCallback(
+			func(ctx context.Context, cancel context.CancelCauseFunc, client relay.RelayClient, remoteServerIdentity string, status bool) {
+				if !status {
+					return
+				}
+				client.Subscribe(context.Background(), 0)
+			},
+		),
+	)
+
+	s.certMgr.EXPECT().AddCRL(gomock.Any(), []byte("CRL message")).Return(nil)
+	s.certMgr.EXPECT().SyncRootCerts(gomock.Any()).Return(nil).MinTimes(1)
+
+	time.Sleep(2 * time.Second)
+	client1.Publish(context.Background(), int(relay.X509CertificateRevocationList), []byte("CRL message"))
+
+	time.Sleep(2 * time.Second)
+	srv1.Close()
+	wg.Wait()
 }
 
 func TestServer(t *testing.T) {

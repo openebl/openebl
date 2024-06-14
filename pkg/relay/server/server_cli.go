@@ -41,9 +41,9 @@ type RelayServerConfig struct {
 }
 
 type MTLSConfig struct {
-	Cert           string `yaml:"cert"`
-	CertPrivateKey string `yaml:"cert_private_key"`
-	CertServer     string `yaml:"cert_server"`
+	Cert           config.MultilineString `yaml:"cert"`
+	CertPrivateKey config.MultilineString `yaml:"cert_private_key"`
+	CertServer     string                 `yaml:"cert_server"`
 }
 
 func (r *RelayServerApp) Run() error {

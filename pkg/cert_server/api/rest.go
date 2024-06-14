@@ -17,6 +17,7 @@ import (
 	"github.com/openebl/openebl/pkg/cert_server/publisher"
 	"github.com/openebl/openebl/pkg/cert_server/storage"
 	"github.com/openebl/openebl/pkg/cert_server/storage/postgres"
+	"github.com/openebl/openebl/pkg/config"
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/util"
 	"github.com/sirupsen/logrus"
@@ -34,8 +35,8 @@ type RestServerConfig struct {
 	PrivateServerAddress string                      `yaml:"private_server_address"`
 	PublicServerAddress  string                      `yaml:"public_server_address"`
 	RelayServer          string                      `yaml:"relay_server"`
-	Cert                 string                      `yaml:"cert"`
-	CertPrivateKey       string                      `yaml:"cert_private_key"`
+	Cert                 config.MultilineString      `yaml:"cert"`
+	CertPrivateKey       config.MultilineString      `yaml:"cert_private_key"`
 }
 
 type RestServer struct {

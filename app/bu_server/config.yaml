@@ -14,10 +14,8 @@ manager:
   port: {{ or .MANAGER_BIND_PORT "8081" }}
 broker:
   relay_server: {{ or .RELAY_SERVER "ws://127.0.0.1:9001" }}
-  cert: |-
-    {{ or .CERT "" }}
-  cert_private_key: |-
-    {{ or .CERT_PRIVATE_KEY "" }}
+  cert: $CERT
+  cert_private_key: $CERT_PRIVATE_KEY
   check_interval: {{ or .BROKER_CHECK_INTERVAL_SECONDS 30 }}
   batch_size: {{ or .BROKER_BATCH_SIZE 10 }}
   cert_server: {{ or .CERT_SERVER "http://localhost:9101" }}

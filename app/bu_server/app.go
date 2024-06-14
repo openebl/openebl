@@ -52,12 +52,12 @@ type Config struct {
 		Port int    `yaml:"port"`
 	} `yaml:"manager"`
 	Broker struct {
-		Cert           string `yaml:"cert"`
-		CertPrivateKey string `yaml:"cert_private_key"`
-		RelayServer    string `yaml:"relay_server"`
-		CheckInterval  int    `yaml:"check_interval"`
-		BatchSize      int    `yaml:"batch_size"`
-		CertServer     string `yaml:"cert_server"`
+		Cert           config.MultilineString `yaml:"cert"`
+		CertPrivateKey config.MultilineString `yaml:"cert_private_key"`
+		RelayServer    string                 `yaml:"relay_server"`
+		CheckInterval  int                    `yaml:"check_interval"`
+		BatchSize      int                    `yaml:"batch_size"`
+		CertServer     string                 `yaml:"cert_server"`
 	} `yaml:"broker"`
 	Webhook struct {
 		CheckInterval int `yaml:"check_interval"`

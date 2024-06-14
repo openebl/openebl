@@ -1,15 +1,16 @@
 package relay
 
+import "crypto/tls"
+
 func NostrServerAddress(address string) NostrServerOption {
 	return func(s *NostrServer) {
 		s.address = address
 	}
 }
 
-func NostrServerTLS(certFile, keyFile string) NostrServerOption {
+func NostrServerTLS(tlsConfig *tls.Config) NostrServerOption {
 	return func(s *NostrServer) {
-		s.certFile = &certFile
-		s.keyFile = &keyFile
+		s.tlsConfig = tlsConfig
 	}
 }
 

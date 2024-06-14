@@ -26,7 +26,18 @@ func FromFile(filePath string, cfg interface{}) error {
 		return err
 	}
 
-	content := os.ExpandEnv(strWriter.String())
-	err = yaml.Unmarshal([]byte(content), cfg)
+	err = yaml.Unmarshal([]byte(strWriter.String()), cfg)
 	return err
+}
+
+type MultilineString string
+
+func (m *MultilineString) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var str string
+	if err := unmarshal(&str); err != nil {
+		return err
+	}
+	str = os.ExpandEnv(str)
+	*m = MultilineString(str)
+	return nil
 }

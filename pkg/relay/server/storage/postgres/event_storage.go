@@ -10,18 +10,13 @@ import (
 	"github.com/openebl/openebl/pkg/util"
 )
 
-// EventStorage implements RelayServerDataStore interface.
-type EventStorage struct {
-	dbPool *pgxpool.Pool
-}
-
-func NewEventStorageWithPool(dbPool *pgxpool.Pool) *EventStorage {
-	return &EventStorage{
+func NewEventStorageWithPool(dbPool *pgxpool.Pool) *_Storage {
+	return &_Storage{
 		dbPool: dbPool,
 	}
 }
 
-func NewEventStorageWithConfig(config util.PostgresDatabaseConfig) (*EventStorage, error) {
+func NewEventStorageWithConfig(config util.PostgresDatabaseConfig) (*_Storage, error) {
 	dbPool, err := util.NewPostgresDBPool(config)
 	if err != nil {
 		return nil, err
@@ -30,11 +25,8 @@ func NewEventStorageWithConfig(config util.PostgresDatabaseConfig) (*EventStorag
 	return NewEventStorageWithPool(dbPool), nil
 }
 
-func (s *EventStorage) GetIdentity(ctx context.Context) (string, error) {
-	txOption := pgx.TxOptions{
-		AccessMode: pgx.ReadOnly,
-	}
-	tx, err := s.dbPool.BeginTx(ctx, txOption)
+func (s *_Storage) GetIdentity(ctx context.Context) (string, error) {
+	tx, err := s.CreateTX(ctx, true)
 	if err != nil {
 		return "", fmt.Errorf("begin transaction: %w", err)
 	}
@@ -50,7 +42,7 @@ func (s *EventStorage) GetIdentity(ctx context.Context) (string, error) {
 	return id, nil
 }
 
-func (s *EventStorage) StoreEventWithOffsetInfo(
+func (s *_Storage) StoreEventWithOffsetInfo(
 	ctx context.Context,
 	ts int64,
 	eventID string,
@@ -59,11 +51,7 @@ func (s *EventStorage) StoreEventWithOffsetInfo(
 	offset int64,
 	peerId string,
 ) (int64, error) {
-	txOption := pgx.TxOptions{
-		IsoLevel:   pgx.Serializable,
-		AccessMode: pgx.ReadWrite,
-	}
-	tx, err := s.dbPool.BeginTx(ctx, txOption)
+	tx, err := s.CreateTX(ctx, false)
 	if err != nil {
 		return 0, fmt.Errorf("begin transaction: %w", err)
 	}
@@ -115,11 +103,8 @@ func (s *EventStorage) StoreEventWithOffsetInfo(
 	return newOffset, nil
 }
 
-func (s *EventStorage) ListEvents(ctx context.Context, request storage.ListEventRequest) (storage.ListEventResult, error) {
-	txOption := pgx.TxOptions{
-		AccessMode: pgx.ReadOnly,
-	}
-	tx, err := s.dbPool.BeginTx(ctx, txOption)
+func (s *_Storage) ListEvents(ctx context.Context, request storage.ListEventRequest) (storage.ListEventResult, error) {
+	tx, err := s.CreateTX(ctx, true)
 	if err != nil {
 		return storage.ListEventResult{}, fmt.Errorf("begin transaction: %w", err)
 	}
@@ -170,12 +155,8 @@ func (s *EventStorage) ListEvents(ctx context.Context, request storage.ListEvent
 	return result, nil
 }
 
-func (s *EventStorage) StoreOffset(ctx context.Context, ts int64, peerAddress string, offset int64) error {
-	txOption := pgx.TxOptions{
-		IsoLevel:   pgx.Serializable,
-		AccessMode: pgx.ReadWrite,
-	}
-	tx, err := s.dbPool.BeginTx(ctx, txOption)
+func (s *_Storage) StoreOffset(ctx context.Context, ts int64, peerAddress string, offset int64) error {
+	tx, err := s.CreateTX(ctx, false)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
@@ -192,7 +173,7 @@ func (s *EventStorage) StoreOffset(ctx context.Context, ts int64, peerAddress st
 	return nil
 }
 
-func (s *EventStorage) storeOffset(ctx context.Context, tx pgx.Tx, ts int64, peerAddress string, offset int64) error {
+func (s *_Storage) storeOffset(ctx context.Context, tx pgx.Tx, ts int64, peerAddress string, offset int64) error {
 	query := `
 	INSERT INTO "offset" (peer, "offset", created_at, updated_at) VALUES(
 		$1,
@@ -212,11 +193,8 @@ func (s *EventStorage) storeOffset(ctx context.Context, tx pgx.Tx, ts int64, pee
 	return nil
 }
 
-func (s *EventStorage) GetOffset(ctx context.Context, peerAddress string) (int64, error) {
-	txOption := pgx.TxOptions{
-		AccessMode: pgx.ReadOnly,
-	}
-	tx, err := s.dbPool.BeginTx(ctx, txOption)
+func (s *_Storage) GetOffset(ctx context.Context, peerAddress string) (int64, error) {
+	tx, err := s.CreateTX(ctx, true)
 	if err != nil {
 		return 0, fmt.Errorf("begin transaction: %w", err)
 	}
@@ -232,7 +210,7 @@ func (s *EventStorage) GetOffset(ctx context.Context, peerAddress string) (int64
 	return offset, nil
 }
 
-func (s *EventStorage) Close() error {
+func (s *_Storage) Close() error {
 	s.dbPool.Close()
 	return nil
 }

@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -27,6 +28,7 @@ import (
 
 // Broker represents the broker instance
 type Broker struct {
+	tlsConfig             *tls.Config
 	relayServer           string
 	relayServerID         string
 	client                relay.RelayClient
@@ -69,6 +71,7 @@ func (b *Broker) Run(ctx context.Context) error {
 			relay.NostrClientWithServerURL(b.relayServer),
 			relay.NostrClientWithEventSink(b.eventSink),
 			relay.NostrClientWithConnectionStatusCallback(b.connectionStatusCallback),
+			relay.NostrClientWithTLSConfig(b.tlsConfig),
 		)
 		b.client = client
 	}

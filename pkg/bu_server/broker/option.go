@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"crypto/tls"
 	"time"
 
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
@@ -10,6 +11,13 @@ import (
 )
 
 type OptionFunc func(broker *Broker)
+
+// WithTLSConfig sets the TLS config for the broker
+func WithTLSConfig(tlsConfig *tls.Config) OptionFunc {
+	return func(b *Broker) {
+		b.tlsConfig = tlsConfig
+	}
+}
 
 // WithRelayClient sets the relay client for the broker
 func WithRelayClient(client relay.RelayClient) OptionFunc {

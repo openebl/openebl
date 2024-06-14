@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"os"
 	"os/signal"
@@ -51,10 +52,12 @@ type Config struct {
 		Port int    `yaml:"port"`
 	} `yaml:"manager"`
 	Broker struct {
-		RelayServer   string `yaml:"relay_server"`
-		CheckInterval int    `yaml:"check_interval"`
-		BatchSize     int    `yaml:"batch_size"`
-		CertServer    string `yaml:"cert_server"`
+		Cert           config.MultilineString `yaml:"cert"`
+		CertPrivateKey config.MultilineString `yaml:"cert_private_key"`
+		RelayServer    string                 `yaml:"relay_server"`
+		CheckInterval  int                    `yaml:"check_interval"`
+		BatchSize      int                    `yaml:"batch_size"`
+		CertServer     string                 `yaml:"cert_server"`
 	} `yaml:"broker"`
 	Webhook struct {
 		CheckInterval int `yaml:"check_interval"`
@@ -289,7 +292,24 @@ func (a *App) runBroker(cli CLI) {
 	webhookCtrl := webhook.NewWebhookController(dbStorage)
 	buMgr := business_unit.NewBusinessUnitManager(dbStorage, certMgr, webhookCtrl, nil)
 
+	var tlsConfig *tls.Config
+	if appConfig.Broker.Cert == "" && appConfig.Broker.CertPrivateKey == "" {
+		logrus.Info("mTLS disabled")
+	} else {
+		logrus.Info("mTLS enabled")
+		tlsCert, err := tls.X509KeyPair([]byte(appConfig.Broker.Cert), []byte(appConfig.Broker.CertPrivateKey))
+		if err != nil {
+			logrus.Errorf("failed to load TLS cert: %v", err)
+			os.Exit(128)
+		}
+		tlsConfig = &tls.Config{
+			Certificates:       []tls.Certificate{tlsCert},
+			InsecureSkipVerify: true,
+		}
+	}
+
 	brokerService, err := broker.NewBroker(
+		broker.WithTLSConfig(tlsConfig),
 		broker.WithClientID("default"),
 		broker.WithCheckInterval(appConfig.Broker.CheckInterval),
 		broker.WithBatchSize(appConfig.Broker.BatchSize),

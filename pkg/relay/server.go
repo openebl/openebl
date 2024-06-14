@@ -2,6 +2,7 @@ package relay
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,8 +22,7 @@ type NostrServerOption func(s *NostrServer)
 type NostrServer struct {
 	httpServer *http.Server
 	address    string
-	certFile   *string
-	keyFile    *string
+	tlsConfig  *tls.Config
 
 	wsUpgrader  websocket.Upgrader
 	identity    string
@@ -88,16 +88,14 @@ func (s *NostrServer) ListenAndServe() error {
 	serverMux.Handle("/", s)
 
 	s.httpServer = &http.Server{
-		Addr:    s.address,
-		Handler: serverMux,
+		Addr:      s.address,
+		Handler:   serverMux,
+		TLSConfig: s.tlsConfig,
 	}
 
-	if s.certFile != nil && s.keyFile != nil {
-		return s.httpServer.ListenAndServeTLS(*s.certFile, *s.keyFile)
-	} else if !(s.certFile == nil && s.keyFile == nil) {
-		return errors.New("both certFile and keyFile must be specified")
+	if s.httpServer.TLSConfig != nil {
+		return s.httpServer.ListenAndServeTLS("", "")
 	}
-
 	return s.httpServer.ListenAndServe()
 }
 

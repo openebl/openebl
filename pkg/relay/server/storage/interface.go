@@ -51,3 +51,24 @@ type RelayServerDataStore interface {
 	// GetOffset returns the offset of the peer.
 	GetOffset(ctx context.Context, peerId string) (int64, error)
 }
+
+type IssuerKeyAndCertSerialNumber struct {
+	IssuerKeyID       string `json:"issuer_key_id"`
+	CertificateSerial string `json:"cert_serial_number"`
+}
+type GetCRLRequest struct {
+	RevokedAt                      int64                          // The time when the certificate is revoked. Only CRLs that are revoked before this time will be retrieved.
+	IssuerKeysAndCertSerialNumbers []IssuerKeyAndCertSerialNumber // The issuer key ID and certificate serial number of the CRLs to be retrieved.
+}
+
+type GetCRLResult struct {
+	CRLs map[IssuerKeyAndCertSerialNumber][]byte
+}
+
+type CertDataStore interface {
+	AddRootCert(ctx context.Context, ts int64, fingerPrint string, cert []byte) error
+	RevokeRootCert(ctx context.Context, ts int64, fingerPrinter string) error
+	GetActiveRootCert(ctx context.Context) ([][]byte, error)
+	AddCRL(ctx context.Context, ts int64, issuerKeyID string, certSerialNumber string, revokedAt int64, crl []byte) error
+	GetCRL(ctx context.Context, req GetCRLRequest) (GetCRLResult, error)
+}

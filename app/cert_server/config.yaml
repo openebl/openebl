@@ -9,3 +9,5 @@ database:
 private_server_address: {{ or .PRIVATE_ADDRESS "localhost:9100" }} 
 public_server_address: {{ or .PUBLIC_ADDRESS "localhost:9101 "}}
 relay_server: {{ or .RELAY_SERVER "ws://localhost:9001" }}
+cert: $CERT
+cert_private_key: $CERT_PRIVATE_KEY

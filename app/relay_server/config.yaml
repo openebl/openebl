@@ -9,3 +9,7 @@ database:
 local_address: {{ or .LOCAL_ADDRESS ":9001" }}
 other_peers: [{{ or .OTHER_PEERS "" }}]
 otlp_endpoint: {{ or .OTLP_ENDPOINT "" }}
+mtls:
+  cert: $CERT
+  cert_private_key: $CERT_PRIVATE_KEY
+  cert_server: {{ or .CERT_SERVER "" }}

@@ -2,6 +2,7 @@ package relay
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"io"
@@ -26,6 +27,7 @@ type NostrClient struct {
 	io.Closer
 
 	serverURL string
+	tlsConfig *tls.Config
 
 	mux         sync.Mutex
 	closeChan   chan any
@@ -296,7 +298,11 @@ func (c *NostrClient) prepareConnection(ctx context.Context) (*websocket.Conn, e
 		return nil, err
 	}
 
-	conn, _, err := websocket.DefaultDialer.DialContext(ctx, serverURL.String(), nil)
+	dialer := websocket.Dialer{
+		TLSClientConfig:  c.tlsConfig,
+		HandshakeTimeout: 45 * time.Second,
+	}
+	conn, _, err := dialer.DialContext(ctx, serverURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}

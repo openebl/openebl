@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,8 +17,10 @@ import (
 	"github.com/openebl/openebl/pkg/cert_server/publisher"
 	"github.com/openebl/openebl/pkg/cert_server/storage"
 	"github.com/openebl/openebl/pkg/cert_server/storage/postgres"
+	"github.com/openebl/openebl/pkg/config"
 	"github.com/openebl/openebl/pkg/relay"
 	"github.com/openebl/openebl/pkg/util"
+	"github.com/sirupsen/logrus"
 )
 
 type ContextKey string
@@ -32,6 +35,8 @@ type RestServerConfig struct {
 	PrivateServerAddress string                      `yaml:"private_server_address"`
 	PublicServerAddress  string                      `yaml:"public_server_address"`
 	RelayServer          string                      `yaml:"relay_server"`
+	Cert                 config.MultilineString      `yaml:"cert"`
+	CertPrivateKey       config.MultilineString      `yaml:"cert_private_key"`
 }
 
 type RestServer struct {
@@ -58,11 +63,28 @@ func NewRestServerWithConfig(config RestServerConfig) (*RestServer, error) {
 
 	ca := cert_authority.NewCertAuthority(certStorage)
 	var pub *publisher.Publisher
+
+	var tlsConfig *tls.Config
+	if config.Cert == "" && config.CertPrivateKey == "" {
+		logrus.Info("No TLS cert and key provided, using insecure connection for relay")
+	} else {
+		logrus.Info("Enable TLS for relay")
+		tlsCert, err := tls.X509KeyPair([]byte(config.Cert), []byte(config.CertPrivateKey))
+		if err != nil {
+			return nil, err
+		}
+
+		tlsConfig = &tls.Config{
+			Certificates:       []tls.Certificate{tlsCert},
+			InsecureSkipVerify: true,
+		}
+	}
 	if config.RelayServer != "" {
 		pub = publisher.NewPublisher(
 			publisher.PublisherWithOutboxStorage(certStorage),
 			publisher.PublisherWithRelayClient(
 				relay.NewNostrClient(
+					relay.NostrClientWithTLSConfig(tlsConfig),
 					relay.NostrClientWithServerURL(config.RelayServer),
 					relay.NostrClientWithConnectionStatusCallback(func(ctx context.Context, cancelFunc context.CancelCauseFunc, client relay.RelayClient, serverIdentity string, status bool) {
 					}),

@@ -1,6 +1,12 @@
 package server
 
-import "github.com/openebl/openebl/pkg/relay/server/storage"
+import (
+	"crypto/tls"
+	"time"
+
+	"github.com/openebl/openebl/pkg/relay/server/cert"
+	"github.com/openebl/openebl/pkg/relay/server/storage"
+)
 
 type ServerOption func(s *Server)
 
@@ -22,5 +28,23 @@ func WithPeers(peers []string) ServerOption {
 		for _, peer := range peers {
 			s.otherPeers[peer] = nil
 		}
+	}
+}
+
+func WithCertManager(certMgr cert.CertManager) ServerOption {
+	return func(s *Server) {
+		s.certMgr = certMgr
+	}
+}
+
+func WithTLSConfig(tlsCfg *tls.Config) ServerOption {
+	return func(s *Server) {
+		s.tlsConfig = tlsCfg
+	}
+}
+
+func WithRootCertSyncInterval(interval time.Duration) ServerOption {
+	return func(s *Server) {
+		s.certSyncInterval = interval
 	}
 }

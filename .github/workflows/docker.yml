@@ -51,8 +51,8 @@ jobs:
           images: ${{ matrix.image }}
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value={{ branch }}-build-${{github.run_number}},enable=${{ github.ref != 'refs/heads/main' }}
-            type=sha,prefix={{ branch }}-,format=short,enable=${{ github.ref != 'refs/heads/main' }}
+            type=raw,value={{ branch }}-build-${{github.run_number}},enable=${{ startsWith(github.ref, 'refs/heads/') && github.ref != 'refs/heads/main' }}
+            type=sha,prefix={{ branch }}-,format=short,enable=${{ startsWith(github.ref, 'refs/heads/') && github.ref != 'refs/heads/main' }}
             type=ref,event=branch
             type=semver,pattern={{ version }}
 

@@ -1,0 +1,122 @@
+# CREATE TABLE trade_document (
+#     rec_id BIGSERIAL,
+#     id TEXT PRIMARY KEY,            -- Raw ID of the whole document including JWS/JWE envelope.
+#     kind BIGINT NOT NULL,           -- Kind of the trade document.
+#     doc_id TEXT NOT NULL,           -- ID of the trade document.
+#     doc_version BIGINT NOT NULL,    -- Version of the trade document.
+#     doc BYTEA NOT NULL,             -- trade document (binary format).
+#     decrypted_doc BYTEA,            -- Decrypted trade document (binary format).
+#     created_at BIGINT NOT NULL,     -- Timestamp of the creation of the trade document.
+#     meta JSONB NOT NULL             -- Metadata of the trade document.
+# );
+- rec_id: 1 # issued
+  id: "raw_doc_1"
+  kind: 1000
+  doc_id: "doc_1"
+  doc_version: 1
+  doc_reference: "NIKE_123"
+  doc: "binary_data"
+  created_at: 1634567890
+  meta:
+    "visible_to_bu":
+      - "did:openebl:issuer"
+      - "did:openebl:shipper"
+      - "did:openebl:consignee"
+      - "did:openebl:release_agent"
+    "sent":
+      - "did:openebl:issuer"
+    "action_needed":
+      - "did:openebl:shipper"
+    "upcoming":
+      - "did:openebl:consignee"
+      - "did:openebl:release_agent"
+    "from": "did:openebl:issuer"
+- rec_id: 2 # transferred
+  id: "raw_doc_2"
+  kind: 1000
+  doc_id: "doc_1"
+  doc_version: 2
+  doc_reference: "NIKE_123"
+  doc: "new binary_data"
+  created_at: 1634567890
+  meta:
+    "visible_to_bu":
+      - "did:openebl:issuer"
+      - "did:openebl:shipper"
+      - "did:openebl:consignee"
+      - "did:openebl:release_agent"
+    "sent":
+      - "did:openebl:issuer"
+      - "did:openebl:shipper"
+    "action_needed":
+      - "did:openebl:consignee"
+    "upcoming":
+      - "did:openebl:release_agent"
+    "from": "did:openebl:shipper"
+- rec_id: 3 # archived
+  id: "raw_doc_3"
+  kind: 1001
+  doc_id: "doc_2"
+  doc_version: 1
+  doc_reference: "UNDER_ARM%UR_1234"
+  doc: "doc 2"
+  created_at: 1634567890
+  meta:
+    "visible_to_bu":
+      - "did:openebl:issuer"
+      - "did:openebl:shipper"
+      - "did:openebl:consignee"
+      - "did:openebl:release_agent"
+    "archive":
+      - "did:openebl:issuer"
+      - "did:openebl:shipper"
+      - "did:openebl:consignee"
+      - "did:openebl:release_agent"
+- rec_id: 4 # draft
+  id: "raw_doc_4"
+  kind: 1001
+  doc_id: "doc_3"
+  doc_version: 1
+  doc_reference: "ADIDAS_1234"
+  doc: "doc 3"
+  created_at: 1634567890
+  meta:
+    "visible_to_bu":
+      - "did:openebl:issuer"
+    "action_needed":
+      - "did:openebl:issuer"
+- rec_id: 5 # deleted
+  id: "raw_doc_5"
+  kind: 1001
+  doc_id: "doc_3"
+  doc_version: 2
+  doc_reference: "ADIDAS_1234"
+  doc: "doc 3"
+  created_at: 1634567890
+  meta:
+    "visible_to_bu":
+      - "did:openebl:issuer"
+    "deleted": true
+- rec_id: 6 # encrypted
+  id: "raw_doc_6"
+  kind: 1002
+  doc_id: "doc_4"
+  doc_version: 1
+  doc_reference: "MIZUNO_12345"
+  doc: "new_binary_data"
+  decrypted_doc: "decrypted_binary_data"
+  created_at: 1634567890
+  meta:
+    "visible_to_bu":
+      - "did:openebl:issuer"
+      - "did:openebl:shipper"
+      - "did:openebl:consignee"
+      - "did:openebl:release_agent"
+    "sent":
+      - "did:openebl:issuer"
+    "action_needed":
+      - "did:openebl:shipper"
+    "upcoming":
+      - "did:openebl:consignee"
+      - "did:openebl:release_agent"
+    "from": "did:openebl:issuer"

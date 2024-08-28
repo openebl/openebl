@@ -1,0 +1,715 @@
+openapi: 3.0.0
+info:
+  title: Cert Server API
+  version: 1.0.0
+servers:
+  - url: http://localhost:9100
+    description: Endpoint for the certificate manager. It includes all public APIs and certificate management API.
+  - url: https://localhost:9101
+    description: Endpoint of Public API.
+tags:
+  - name: Public
+    description: Public API
+  - name: Admin
+    description: Admin Management API
+paths:
+  /root_cert:
+    get:
+      tags:
+        - Public
+      summary: List Root Certificates
+      parameters:
+        - name: offset
+          in: query
+          description: Offset for pagination
+          required: false
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          description: Limit for pagination
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListCertificatesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Admin
+      summary: Add Root Certificate
+      parameters:
+        - name: X-Requester
+          description: Name of the requester
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cert:
+                  description: PEM encoded certificate. It may contains multiple certificates. The first certificate is root certificate for the server. Others are intermediate certificates of the root certificate.
+                  type: string
+                  example: |
+                    -----BEGIN CERTIFICATE-----
+                    MIIDXTCCAkWgAwIBAgIUI7zZ6Z
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cert'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /root_cert/{id}:
+    get:
+      tags:
+        - Public
+      summary: Get Root Certificate by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cert'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Admin
+      summary: Revoke Root Certificate
+      parameters:
+        - name: X-Requester
+          description: Name of the requester
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /ca_cert:
+    get:
+      tags:
+        - Public
+      summary: List CA Certificates
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListCertificatesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Admin
+      summary: Create CA Certificate Signing Request
+      parameters:
+        - name: X-Requester
+          description: Name of the requester
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCACertificateSigningRequestRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cert'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /ca_cert/{id}:
+    get:
+      tags:
+        - Public
+      summary: Get CA Certificate by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cert'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Admin
+      summary: Respond to CA Certificate Signing Request
+      parameters:
+        - name: X-Requester
+          description: Name of the requester
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cert:
+                  type: string
+                  description: PEM encoded certificate. It may contains multiple certificates. The first certificate is the leaf certificate. Others are intermediate certificates.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cert'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /ca_cert/{id}/revoke:
+    post:
+      tags:
+        - Admin
+      summary: Revoke CA Certificate
+      parameters:
+        - name: X-Requester
+          description: Name of the requester
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: id
+          description: ID of the CA certificate
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                crl:
+                  type: string
+                  description: PEM encoded CRL.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cert'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /cert:
+    get:
+      tags:
+        - Public
+      summary: List Certificates
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListCertificatesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Admin
+      summary: Add Certificate Signing Request
+      parameters:
+        - name: X-Requester
+          description: Name of the requester
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCertificateSigningRequestRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cert'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /cert/{id}:
+    get:
+      tags:
+        - Public
+      summary: Get Certificate by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cert'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Admin
+      summary: Issue Certificate
+      parameters:
+        - name: X-Requester
+          description: Name of the requester
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          description: ID of the certificate.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ca_cert_id:
+                  type: string
+                  description: ID of the CA certificate.
+                cert_type:
+                  type: string
+                  description: Type of the certificate. It can be only third_party_ca or business_unit.
+                  enum: [third_party_ca, business_unit]
+                not_before:
+                  type: integer
+                  format: int64
+                  description: Unix Time (in second) when the certificate becomes valid.
+                not_after:
+                  type: integer
+                  format: int64
+                  description: Unix Time (in second) when the certificate becomes invalid.
+              required:
+                - ca_cert_id
+                - cert_type
+                - not_before
+                - not_after
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cert'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Admin
+      summary: Revoke Certificate
+      parameters:
+        - name: X-Requester
+          description: Name of the requester
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cert'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /cert/{id}/reject:
+    post:
+      tags:
+        - Admin
+      summary: Reject Certificate Signing Request
+      parameters:
+        - name: X-Requester
+          description: Name of the requester
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cert_type:
+                  type: string
+                  description: Type of the certificate. It can be only third_party_ca or business_unit.
+                  enum: [third_party_ca, business_unit]
+                reason:
+                  type: string
+                  description: Reason of the rejection.
+              required:
+                - cert_type
+                - reason
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/cert'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+components:
+  responses:
+    BadRequest:
+      description: The request is invalid
+      content:
+        text/plain:
+          schema:
+            type: string
+    NotFound:
+      description: The specified resource was not found
+      content:
+        text/plain:
+          schema:
+            type: string
+    Conflict:
+      description: Data conflict
+      content:
+        text/plain:
+          schema:
+            type: string
+    InternalServerError:
+      description: Internal server error
+      content:
+        text/plain:
+          schema:
+            type: string
+  schemas:
+    cert:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique ID of the certificate.
+        version:
+          type: integer
+          format: int64
+          description: Version of the certificate.
+        type:
+          type: string
+          enum: [root, ca, third_party_ca, business_unit]
+          description: Type of the certificate.
+        status:
+          type: string
+          enum: [active, waiting_for_issued, rejected, revoked]
+          description: Status of the certificate.
+        not_before:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the certificate becomes valid.
+        not_after:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the certificate becomes invalid.
+        issued_serial_number:
+          type: integer
+          format: int64
+          description: Serial number of the issued certificate by the CA cert.
+        issued_crl_serial_number:
+          type: integer
+          format: int64
+          description: Serial number of the issued CRL by the CA cert.
+        created_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the certificate was created.
+        created_by:
+          type: string
+          description: User who created the certificate.
+        revoked_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the certificate was revoked.
+        revoked_by:
+          type: string
+          description: User who revoked the certificate.
+        issued_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the certificate was issued.
+        issued_by:
+          type: string
+          description: User who issued the certificate.
+        rejected_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the certificate was rejected.
+        rejected_by:
+          type: string
+          description: User who rejected the certificate.
+        public_key_id:
+          type: string
+          description: Certificate Public key ID.
+        issuer_key_id:
+          type: string
+          description: Issuer public key ID.
+        certificate:
+          type: string
+          description: PEM encoded certificate. It may contains multiple certificates. The first certificate is the leaf certificate. Others are intermediate certificates.
+        certificate_serial_number:
+          type: string
+          description: Serial number of the certificate.
+        certificate_signing_request:
+          type: string
+          description: PEM encoded certificate signing request (CSR).
+        cert_fingerprint:
+          type: string
+          description: Fingerprint of the leaf certificate. The format is [HASH_ALGORITHM]:[FINGERPRINT_HEX_ENCODED].
+        reject_reason:
+          type: string
+          description: Reason for rejecting the certificate signing request.
+      example:
+        id: "c43fa036-6b57-4cff-94c9-639e4aa1d3a8"
+        version: 1
+        type: root
+        status: active
+        not_before: 1711953471
+        not_after: 4867627071
+        issued_serial_number: 0
+        issued_crl_serial_number: 0
+        created_at: 1713524082
+        created_by: root_manager
+        revoked_at: 0
+        revoked_by: ""
+        issued_at: 0
+        issued_by: ""
+        rejected_at: 0
+        rejected_by: ""
+        private_key: ""
+        public_key_id: 13166e296631defe531d0b57648e9a54d2c2dab1
+        issuer_key_id: ""
+        certificate: |
+          -----BEGIN CERTIFICATE-----
+          MIIFkzCCA3ugAwIBAgIBATANBgkqhkiG9w0BAQsFADBqMRYwCQYDVQQGEwJUVzAJ
+          BgNVBAYTAlVTMRQwEgYDVQQKEwtCbHVlWCBUcmFkZTEcMBoGA1UECxMTQmx1ZVgg
+          UkQgRGVwYXJ0bWVudDEcMBoGA1UEAxMTQmx1ZVggVHJhZGUgUm9vdCBDQTAgFw0y
+          NDA0MDEwNjM3NTFaGA8yMTI0MDQwMTA2Mzc1MVowajEWMAkGA1UEBhMCVFcwCQYD
+          VQQGEwJVUzEUMBIGA1UEChMLQmx1ZVggVHJhZGUxHDAaBgNVBAsTE0JsdWVYIFJE
+          RG
+          -----END CERTIFICATE-----
+        certificate_serial_number: "1"
+        certificate_signing_request: ""
+        cert_fingerprint: sha1:eec87a02f48e6a6654886d74e64619c97850110d
+        reject_reason: ""
+    ListCertificatesResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+          format: int64
+          description: Total number of certificates.
+        certs:
+          type: array
+          items:
+            $ref: '#/components/schemas/cert'
+          description: List of certificates.
+    PrivateKeyOption:
+      type: object
+      properties:
+        key_type:
+          type: string
+          enum: [RSA, ECDSA]
+          description: Type of the private key.
+        bit_length:
+          type: integer
+          format: int32
+          description: Bit length of the private key. Only used when KeyType is RSA.
+        curve_type:
+          type: string
+          enum: [P-256, P-384, P-521]
+          description: Curve type of the private key. Only used when KeyType is ECDSA.
+      example:
+        key_type: RSA
+        bit_length: 2048
+    CreateCACertificateSigningRequestRequest:
+      type: object
+      properties:
+        private_key_option:
+          $ref: '#/components/schemas/PrivateKeyOption'
+          description: Option of the private key.
+        country:
+          type: array
+          items:
+            type: string
+          description: Countries of the organization.
+        organization:
+          type: array
+          items:
+            type: string
+          description: Organizations of the certificate.
+        organizational_unit:
+          type: array
+          items:
+            type: string
+          description: Organizational units of the certificate.
+        common_name:
+          type: string
+          description: Common name of the certificate.
+      example:
+        private_key_option:
+          key_type: RSA
+          bit_length: 2048
+        country: ["US"]
+        organization: ["example"]
+        organizational_unit: ["example"]
+        common_name: "example.com"
+    AddCertificateSigningRequestRequest:
+      type: object
+      properties:
+        cert_type:
+          type: string
+          enum: [third_party_ca, business_unit]
+          description: Type of the certificate.
+        cert_signing_request:
+          type: string
+          description: PEM encoded certificate signing request (CSR).
+      required:
+        - cert_type
+        - cert_signing_request

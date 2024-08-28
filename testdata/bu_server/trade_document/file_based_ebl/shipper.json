@@ -1,0 +1,24 @@
+{
+    "id": "did:openebl:shipper",
+    "version": 1,
+    "application_id": "app_id",
+    "status": "active",
+    "name": "Issuer",
+    "addresses": [
+        "123 Main St",
+        "456 High St"
+    ],
+    "country": "US",
+    "emails": [
+        "example1@example.com",
+        "example2@example.com"
+    ],
+    "phone_numbers": [
+        "+1234567890",
+        "+0987654321"
+    ],
+    "created_at": 1633024862,
+    "created_by": "user123",
+    "updated_at": 1633024862,
+    "updated_by": "user123"
+}

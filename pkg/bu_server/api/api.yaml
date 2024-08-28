@@ -1,0 +1,1823 @@
+openapi: 3.0.2
+info:
+  title: Trading Document API
+  version: 1.0.0
+servers:
+  - url: http://localhost:9200
+    description: Local server
+tags:
+  - name: Business Unit
+    description: Business unit management
+  - name: eB/L
+    description: Electronic Bill of Lading management
+  - name: Webhook
+    description: Webhook management
+paths:
+  /business_unit:
+    post:
+      tags:
+        - Business Unit
+      summary: Create a new business unit
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBusinessUnitRequest'
+            examples:
+              CreateBU:
+                value:
+                  requester: 'user1'
+                  name: 'Business Unit 1'
+                  addresses: ['Address 1', 'Address 2']
+                  country: US
+                  emails: ['abc@fffff.com']
+                  phone_numbers: ['1234567890']
+                  status: active
+      responses:
+        '201':
+          description: Business unit created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnit'
+              examples:
+                Business Unit:
+                  $ref: '#/components/examples/BusinessUnit'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+    get:
+      tags:
+        - Business Unit
+      summary: List all business units
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/offsetParam'
+        - $ref: '#/components/parameters/limitParam'
+      responses:
+        '200':
+          description: Business units retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    format: int32
+                    description: Total number of business units.
+                  records:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ListBusinessUnitsRecord'
+                    description: Records of business units.
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+  /business_unit/{id}:
+    get:
+      tags:
+        - Business Unit
+      summary: Get a specific business unit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the business unit to retrieve.
+      responses:
+        '200':
+          description: Business unit retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListBusinessUnitsRecord'
+        '400':
+          description: Invalid request
+        '404':
+          description: Business unit not found
+        '500':
+          description: Internal server error
+      security:
+        - bearerAuth: []
+    post:
+      tags:
+        - Business Unit
+      summary: Update a specific business unit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the business unit to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requester:
+                  type: string
+                  description: User who makes the request.
+                id:
+                  type: string
+                  description: Unique DID of a BusinessUnit.
+                name:
+                  type: string
+                  description: Name of the BusinessUnit.
+                addresses:
+                  type: array
+                  items:
+                    type: string
+                  description: List of addresses associated with the BusinessUnit.
+                country:
+                  type: string
+                  description: 'Country Code of the BusinessUnit. (Eg: US, SG, CA)'
+                emails:
+                  type: array
+                  items:
+                    type: string
+                  description: List of emails associated with the BusinessUnit.
+                phone_numbers:
+                  type: array
+                  items:
+                    type: string
+                  description: List of phone numbers associated with the BusinessUnit.
+              required:
+                - requester
+                - id
+                - name
+      responses:
+        '200':
+          description: Business unit updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnit'
+        '400':
+          description: Invalid request
+        '404':
+          description: Business unit not found
+        '500':
+          description: Internal server error
+      security:
+        - bearerAuth: []
+  /business_unit/{id}/status:
+    post:
+      tags:
+        - Business Unit
+      security:
+        - bearerAuth: []
+      summary: Set the status of a specific business unit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the business unit to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requester:
+                  type: string
+                  description: User who makes the request.
+                status:
+                  allOf:
+                  - $ref: '#/components/schemas/BusinessUnitStatus'
+                  description: Status of the application.
+              required:
+                - requester
+                - status
+      responses:
+        '200':
+          description: Business unit status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnit'
+        '400':
+          description: Invalid request
+        '404':
+          description: Business unit not found
+        '500':
+          description: Internal server error
+  /business_unit/{id}/authentication:
+    post:
+      tags:
+        - Business Unit
+      security:
+        - bearerAuth: []
+      summary: Create a new authentication for a business unit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the business unit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requester:
+                  type: string
+                  description: User who makes the request
+                private_key_option:
+                  allOf:
+                  - $ref: '#/components/schemas/PrivateKeyOption'
+                  description: Option of the private key.
+              required:
+                - requester
+                - private_key_option
+            examples:
+              With RSA key pair:
+                value:
+                  requester: 'user1'
+                  private_key_option:
+                    key_type: 'RSA'
+                    bit_length: 2048
+              With ECDSA key pair:
+                value:
+                  requester: 'user1'
+                  private_key_option:
+                    key_type: 'ECDSA'
+                    curve_type: 'P-256'
+      responses:
+        '201':
+          description: Authentication created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnitAuthentication'
+        '400':
+          description: Bad request, invalid parameters or business unit ID
+        '404':
+          description: Business unit not found
+        '500':
+          description: Internal server error
+    get:
+      tags:
+        - Business Unit
+      security:
+        - bearerAuth: []
+      summary: List all authentications for a business unit
+      parameters:
+        - $ref: '#/components/parameters/offsetParam'
+        - $ref: '#/components/parameters/limitParam'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of authentications retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    format: int32
+                    description: Total number of authentications
+                  records:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BusinessUnitAuthentication'
+                    description: Records of authentications
+        '400':
+          description: Bad request, invalid parameters or business unit ID
+        '500':
+          description: Internal server error
+  /business_unit/{id}/authentication/{authentication_id}:
+    get:
+      tags:
+        - Business Unit
+      security:
+        - bearerAuth: []
+      summary: Get a specific authentication for a business unit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the business unit
+        - name: authentication_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the authentication
+      responses:
+        '200':
+          description: Authentication retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnitAuthentication'
+        '400':
+          description: Bad request, invalid parameters or business unit ID
+        '404':
+          description: Authentication not found
+        '500':
+          description: Internal server error
+    delete:
+      tags:
+        - Business Unit
+      security:
+        - bearerAuth: []
+      summary: Revoke a specific authentication for a business unit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the business unit
+        - name: authentication_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the authentication
+        - name: requester
+          in: query
+          required: false
+          schema:
+            type: string
+          description: User who makes the request
+      responses:
+        '200':
+          description: Authentication revoked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnitAuthentication'
+        '400':
+          description: Bad request, invalid parameters or business unit ID
+        '404':
+          description: Authentication not found
+        '500':
+          description: Internal server error
+
+  /ebl:
+    get:
+      tags:
+        - eB/L
+      summary: List all eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - $ref: '#/components/parameters/offsetParam'
+        - $ref: '#/components/parameters/limitParam'
+        - name: status
+          in: query
+          description: Status of the eB/L to be listed
+          schema:
+            type: string
+            enum:
+              - action_needed
+              - upcoming
+              - sent
+              - archive
+        - name: keyword
+          in: query
+          description: Keyword to search, could be either 'From' or 'bl_number'
+          schema:
+            type: string
+        - name: report
+          in: query
+          description: whether to include the report
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: eB/L retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListBillOfLadingRecord'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+    post:
+      tags:
+        - eB/L
+      summary: Issue or draft a new eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBillOfLadingRequest'
+            examples:
+              CreateEBL:
+                $ref: '#/components/examples/UpdateFileBasedEBL'
+      responses:
+        '201':
+          description: eB/L created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingRecord'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+  /ebl/{id}:
+    get:
+      tags:
+        - eB/L
+      summary: Get a specific eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to retrieve.
+      responses:
+        '200':
+          description: eB/L retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingRecord'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/document:
+    get:
+      tags:
+        - eB/L
+      summary: Download the uploaded eB/L document
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to retrieve
+      responses:
+        '200':
+          description: eB/L file retrieved successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/tiff:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found or eB/L has no document
+        '500':
+          description: Internal server error
+  /ebl/{id}/update:
+    post:
+      tags:
+        - eB/L
+      summary: Update the draft eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBillOfLadingRequest'
+            examples:
+              UpdateEBL:
+                $ref: '#/components/examples/UpdateFileBasedEBL'
+      responses:
+        '200':
+          description: eB/L updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingRecord'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/transfer:
+    post:
+      tags:
+        - eB/L
+      summary: Transfer the eB/L to next owner
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to transfer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L transferred successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingRecord'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/return:
+    post:
+      tags:
+        - eB/L
+      summary: Return the eB/L to last owner
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to return
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReturnBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingRecord'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/surrender:
+    post:
+      tags:
+        - eB/L
+      summary: Transfer the eB/L to the release agent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to surrender
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SurrenderBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L surrendered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingRecord'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/accomplish:
+    post:
+      tags:
+        - eB/L
+      summary: Accomplish the eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to accomplish
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccomplishBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L accomplished successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingRecord'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/print_to_paper:
+    post:
+      tags:
+        - eB/L
+      summary: Print the eB/L to paper
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to print to paper
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrintToPaperBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L printed to paper successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingRecord'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/amendment_request:
+    post:
+      tags:
+        - eB/L
+      summary: Request amendment for the eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to request amendment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmendmentRequestBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L requested amendment successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingRecord'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/amend:
+    post:
+      tags:
+        - eB/L
+      summary: Amend the eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to amend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmendBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L amended successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingRecord'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+  /ebl/{id}/delete:
+    post:
+      tags:
+        - eB/L
+      summary: Delete the draft eB/L
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BURequestHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the eB/L to amend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteBillOfLadingRequest'
+      responses:
+        '200':
+          description: eB/L amended successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillOfLadingRecord'
+        '400':
+          description: Invalid request
+        '404':
+          description: eB/L not found
+        '500':
+          description: Internal server error
+
+  /webhook:
+    get:
+      tags:
+        - Webhook
+      summary: List all webhook
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/offsetParam'
+        - $ref: '#/components/parameters/limitParam'
+      responses:
+        '200':
+          description: webhook retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListWebhookRecord'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+    post:
+      tags:
+        - Webhook
+      summary: Create a new webhook
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWebhookRequest'
+      responses:
+        '201':
+          description: webhook created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '400':
+          description: Invalid request
+        '500':
+          description: Internal server error
+      callbacks:
+        WebhookEvent:
+          '{$request.body#/url}':
+            post:
+              summary: Webhook Callback Event
+              parameters:
+                - name: X-Payload-Signature
+                  in: header
+                  schema:
+                    type: string
+                  description: base64 encoded HMAC-SHA1 hash signature generated with user-specified secret
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/WebhookEvent'
+              responses:
+                '200':
+                  description: Your server returns this code if it accepts the callback
+  /webhook/{id}:
+    get:
+      tags:
+        - Webhook
+      summary: Get a specific webhook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the webhook to retrieve
+      responses:
+        '200':
+          description: webhook retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '400':
+          description: Invalid request
+        '404':
+          description: webhook not found
+        '500':
+          description: Internal server error
+    post:
+      tags:
+        - Webhook
+      summary: Update a specific webhook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the webhook to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWebhookRequest'
+      responses:
+        '200':
+          description: webhook updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '400':
+          description: Invalid request
+        '404':
+          description: webhook not found
+        '500':
+          description: Internal server error
+    delete:
+      tags:
+        - Webhook
+      summary: Delete a specific webhook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the webhook to delete
+        - name: requester
+          in: query
+          required: true
+          schema:
+            type: string
+          description: User who makes the request
+      responses:
+        '200':
+          description: webhook deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '400':
+          description: Invalid request
+        '404':
+          description: webhook not found
+        '500':
+          description: Internal server error
+components:
+  securitySchemes:
+    bearerAuth:            # arbitrary name for the security scheme
+      type: http
+      scheme: bearer
+  parameters:
+    BURequestHeader:
+      in: header
+      name: X-Business-Unit-ID
+      description: DID of the business unit who makes the request
+      schema:
+        type: string
+    offsetParam:
+      in: query
+      name: offset
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+        default: 0
+      description: The number of items to skip before collecting the result set.
+    limitParam:
+      in: query
+      name: limit
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        default: 20
+      description: The number of items to return.
+  schemas:
+    PrivateKeyType:
+      type: string
+      enum:
+        - RSA
+        - ECDSA
+      description: Type of the private key.
+    ECDSACurveType:
+      type: string
+      enum:
+        - P-256
+        - P-384
+        - P-521
+      description: Curve type of the private key.
+    PrivateKeyOption:
+      type: object
+      properties:
+        key_type:
+          allOf:
+          - $ref: '#/components/schemas/PrivateKeyType'
+          description: Type of the private key.
+        bit_length:
+          type: integer
+          format: int32
+          description: Bit length of the private key. Only used when KeyType is RSA.
+        curve_type:
+          allOf:
+          - $ref: '#/components/schemas/ECDSACurveType'
+          description: Curve type of the private key. Only used when KeyType is ECDSA.
+    BusinessUnitStatus:
+      type: string
+      enum:
+        - active
+        - inactive
+    BusinessUnitAuthenticationStatus:
+      type: string
+      enum:
+        - pending
+        - active
+        - revoked
+      description: Status of the authentication.
+    BusinessUnit:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique DID of a BusinessUnit.
+        version:
+          type: integer
+          format: int64
+          description: Version of the BusinessUnit.
+        application_id:
+          type: string
+          description: The ID of the application this BusinessUnit belongs to.
+        status:
+          $ref: '#/components/schemas/BusinessUnitStatus'
+        name:
+          type: string
+          description: Name of the BusinessUnit.
+        addresses:
+          type: array
+          items:
+            type: string
+          description: List of addresses associated with the BusinessUnit.
+        country:
+          type: string
+          description: 'Country Code of the BusinessUnit. (Eg: US, SG, CA)'
+        emails:
+          type: array
+          items:
+            type: string
+          description: List of emails associated with the BusinessUnit.
+        phone_numbers:
+          type: array
+          items:
+            type: string
+          description: List of phone numbers associated with the BusinessUnit.
+        created_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the BusinessUnit was created.
+        created_by:
+          type: string
+          description: User who created the BusinessUnit.
+        updated_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the BusinessUnit was last updated.
+        updated_by:
+          type: string
+          description: User who last updated the BusinessUnit.
+    BusinessUnitAuthentication:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique ID of the authentication.
+        version:
+          type: integer
+          format: int64
+          description: Version of the authentication.
+        business_unit:
+          type: string
+          description: Unique DID of a BusinessUnit.
+        status:
+          $ref: '#/components/schemas/BusinessUnitAuthenticationStatus'
+        created_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the authentication was created.
+        created_by:
+          type: string
+          description: User who created the authentication.
+        revoked_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the authentication was revoked.
+        revoked_by:
+          type: string
+          description: User who revoked the authentication.
+        private_key:
+          type: string
+          description: PEM encoded private key.
+        certificate:
+          type: string
+          description: PEM encoded certificate.
+        intermediate_certs:
+          type: array
+          items:
+            type: string
+          description: PEM encoded intermediate certificates.
+    ListBusinessUnitsRecord:
+      type: object
+      properties:
+        business_unit:
+          $ref: '#/components/schemas/BusinessUnit'
+        authentications:
+          type: array
+          items:
+            $ref: '#/components/schemas/BusinessUnitAuthentication'
+          description: The authentications of the business unit.
+    CreateBusinessUnitRequest:
+      type: object
+      properties:
+        requester:
+          type: string
+          description: User who makes the request.
+        name:
+          type: string
+          description: Name of the BusinessUnit.
+        addresses:
+          type: array
+          items:
+            type: string
+          description: List of addresses associated with the BusinessUnit.
+        country:
+          type: string
+          description: 'Country Code of the BusinessUnit. (Eg: US, SG, CA)'
+        emails:
+          type: array
+          items:
+            type: string
+          description: List of emails associated with the BusinessUnit.
+        phone_numbers:
+          type: array
+          items:
+            type: string
+          description: List of phone numbers associated with the BusinessUnit.
+        status:
+          $ref: '#/components/schemas/BusinessUnitStatus'
+      required:
+        - requester
+        - name
+        - status
+    # eB/L schemas
+    BillOfLadingDocumentType:
+      type: string
+      description: B/L Document Type
+      enum:
+        - MasterBillOfLading
+        - HouseBillOfLading
+    BillOfLadingAction:
+      type: string
+      description: action to perform on the eB/L
+      enum:
+        - UPDATE_DRAFT
+        - AMEND
+        - REQUEST_AMEND
+        - PRINT
+        - TRANSFER
+        - RETURN
+        - SURRENDER
+        - ACCOMPLISH
+        - DELETE
+    Location:
+      type: object
+      properties:
+        locationName:
+          type: string
+          description: Name of the location
+        UNLocationCode:
+          type: string
+          description: UN location code
+    ApplicationMetaData:
+      type: object
+      description: Application specific metadata. It must be a valid JSON object.
+    FileInfo:
+      type: object
+      description: Metadata of the uploaded document
+      properties:
+        name:
+          type: string
+          description: File name of the uploaded document
+        file_type:
+          type: string
+          description: MIME type of the uploaded document
+        created_date:
+          type: string
+          format: date-time
+          description: When the document was created.
+    File:
+      type: object
+      description: Metadata of the uploaded document
+      properties:
+        name:
+          type: string
+          description: File name of the uploaded document
+        type:
+          type: string
+          description: MIME type of the uploaded document
+        content:
+          type: string
+          format: byte
+          description: base64-encoded content of the document
+    BillOfLading:
+      type: object
+      description: Event of issuing the eB/L
+      properties:
+        bill_of_lading:
+          $ref: 'https://api.swaggerhub.com/domains/dcsaorg/DOCUMENTATION_DOMAIN/2.1.0#/components/schemas/transportDocument'
+        file:
+          $ref: '#/components/schemas/FileInfo'
+        doc_type:
+          $ref: '#/components/schemas/BillOfLadingDocumentType'
+        transfer_to:
+          type: string
+          description: DID of the next owner
+        created_by:
+          type: string
+          description: DID of the issuing agent
+        created_at:
+          type: string
+          format: date-time
+          description: When the eB/L was created
+        note:
+          type: string
+          description: Optional note from the requester
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
+    Transfer:
+      type: object
+      description: Event of transferring the eB/L
+      properties:
+        transfer_by:
+          type: string
+          description: DID of the business unit who makes the transfer
+        transfer_to:
+          type: string
+          description: DID of the business unit who receives the transfer
+        transfer_at:
+          type: string
+          format: date-time
+          description: When the eB/L was transferred
+        note:
+          type: string
+          description: Optional note from the requester
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
+    Return:
+      type: object
+      description: Event of returning the eB/L
+      properties:
+        return_by:
+          type: string
+          description: DID of the business unit who makes the return
+        return_to:
+          type: string
+          description: DID of the business unit who receives the return
+        return_at:
+          type: string
+          format: date-time
+          description: When the eB/L was returned
+        note:
+          type: string
+          description: Optional note from the requester
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
+    Surrender:
+      type: object
+      description: Event of surrendering the eB/L
+      properties:
+        surrender_by:
+          type: string
+          description: DID of the business unit who makes the surrender
+        surrender_to:
+          type: string
+          description: DID of the business unit who receives the surrender
+        surrender_at:
+          type: string
+          format: date-time
+          description: When the eB/L was surrendered
+        note:
+          type: string
+          description: Optional note from the requester
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
+    AmendmentRequest:
+      type: object
+      description: Event of requesting amendment for the eB/L
+      properties:
+        request_by:
+          type: string
+          description: DID of the business unit who makes the request
+        request_to:
+          type: string
+          description: DID of the business unit who receives the request
+        request_at:
+          type: string
+          format: date-time
+          description: When the eB/L was requested amendment
+        note:
+          type: string
+          description: Optional note from the requester
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
+    PrintToPaper:
+      type: object
+      description: Event of printing the eB/L to paper
+      properties:
+        print_by:
+          type: string
+          description: DID of the business unit who makes the print to paper
+        print_at:
+          type: string
+          format: date-time
+          description: When the eB/L was printed to paper
+        note:
+          type: string
+          description: Optional note from the requester
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
+    Accomplish:
+      type: object
+      description: Event of accomplishing the eB/L
+      properties:
+        accomplish_by:
+          type: string
+          description: DID of the business unit who makes the accomplish
+        accomplish_at:
+          type: string
+          format: date-time
+          description: When the eB/L was accomplished
+        note:
+          type: string
+          description: Optional note from the requester
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
+    BillOfLadingEvent:
+      type: object
+      description: Event of the eB/L. The properties are mutual exclusive. Only one of them can be present.
+      properties:
+        bill_of_lading:
+          $ref: '#/components/schemas/BillOfLading'
+        transfer:
+          $ref: '#/components/schemas/Transfer'
+        return:
+          $ref: '#/components/schemas/Return'
+        surrender:
+          $ref: '#/components/schemas/Surrender'
+        amendment_request:
+          $ref: '#/components/schemas/AmendmentRequest'
+        print_to_paper:
+          $ref: '#/components/schemas/PrintToPaper'
+        accomplish:
+          $ref: '#/components/schemas/Accomplish'
+    BillOfLadingPack:
+      type: object
+      description: Detail information of the eB/L
+      properties:
+        id:
+          type: string
+          description: Unique ID of a eB/L
+        version:
+          type: integer
+          format: int64
+          description: Version of the eB/L
+        parent_hash:
+          type: string
+          description: SHA512 hash of the previous version of the eB/L
+        current_owner:
+          type: string
+          description: DID of the current owner
+        events:
+          type: array
+          description: eB/L history event list. The order of events is from the oldest to the newest.
+          items:
+            $ref: '#/components/schemas/BillOfLadingEvent'
+    BillOfLadingRecord:
+      type: object
+      properties:
+        allow_actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillOfLadingAction'
+        bl:
+          $ref: '#/components/schemas/BillOfLadingPack'
+    ListBillOfLadingReport:
+      type: object
+      properties:
+        action_needed:
+          type: integer
+          format: int32
+          description: Number of eB/Ls that need action
+        upcoming:
+          type: integer
+          format: int32
+          description: Number of upcoming eB/Ls
+        sent:
+          type: integer
+          format: int32
+          description: Number of sent eB/Ls
+        archive:
+          type: integer
+          format: int32
+          description: Number of archived eB/Ls
+    ListBillOfLadingRecord:
+      type: object
+      properties:
+        total:
+          type: integer
+          format: int32
+          description: Total number of the eB/L
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillOfLadingRecord'
+        report:
+          $ref: '#/components/schemas/ListBillOfLadingReport'
+    WebhookEventType:
+      type: string
+      description: event to trigger the webhook
+      enum:
+        - bl.issued
+        - bl.transferred
+        - bl.returned
+        - bl.amendment_requested
+        - bl.amended
+        - bl.surrendered
+        - bl.accomplished
+        - bl.printed_to_paper
+        - bu.created
+        - bu.updated
+        - auth.created
+        - auth.revoked
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique ID of a webhook
+        version:
+          type: integer
+          format: int64
+          description: Version of the webhook
+        deleted:
+          type: boolean
+          description: Indicates if the webhook is deleted
+        url:
+          type: string
+          description: The URL that should have the event issued to it
+        created_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the webhook was created
+        created_by:
+          type: string
+          description: User who created the webhook
+        updated_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the webhook was last updated
+        updated_by:
+          type: string
+          description: User who last updated the webhook
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookEventType'
+        secret:
+          type: string
+          description: secret key used to generate the signature
+    WebhookEvent:
+      type: object
+      description: Webhook event sent to the given URL
+      properties:
+        id:
+          type: string
+          description: Unique ID of the object that is the subject of the event trigger
+        url:
+          type: string
+          description: The URL the WebhookEvent is sent to
+        type:
+          $ref: '#/components/schemas/WebhookEventType'
+        created_at:
+          type: integer
+          format: int64
+          description: Unix Time (in second) when the event was created
+    ListWebhookRecord:
+      type: object
+      properties:
+        total:
+          type: integer
+          format: int32
+          description: Total number of the webhook
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/Webhook'
+    # eB/L API request
+    BaseRequest:
+      type: object
+      properties:
+        metadata:
+          $ref: '#/components/schemas/ApplicationMetaData'
+    UpdateBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
+            file:
+              allOf:
+              - $ref: '#/components/schemas/File'
+              description: The file associated with the request
+            bl_number:
+              type: string
+              description: The bill of lading number
+            bl_doc_type:
+              allOf:
+              - $ref: '#/components/schemas/BillOfLadingDocumentType'
+              description: The type of the bill of lading document
+            to_order:
+              type: boolean
+              description: Indicates if the request is to order.
+            pol:
+              allOf:
+              - $ref: '#/components/schemas/Location'
+              description: The port of loading. It's optional when draft is true.
+            pod:
+              allOf:
+              - $ref: '#/components/schemas/Location'
+              description: The port of discharge. It's optional when draft is true.
+            eta:
+              type: string
+              format: date-time
+              description: The estimated time of arrival
+            shipper:
+              type: string
+              description: The shipper of the eB/L. It's a DID of the business unit. It's optional when draft is true.
+            consignee:
+              type: string
+              description: The consignee of the eB/L. It's a DID of the business unit. It's optional when draft is true.
+            release_agent:
+              type: string
+              description: The release agent of the eB/L. It's a DID of the business unit. It's optional when draft is true.
+            note:
+              type: string
+              description: Any additional notes
+            draft:
+              type: boolean
+              description: Indicates if the eB/L is a draft
+            encrypt_content:
+              type: boolean
+              default: false
+              description: Indicates if the content of the eB/L should be encrypted
+          required:
+            - authentication_id
+            - file
+            - bl_number
+            - bl_doc_type
+            - pol
+            - pod
+            - shipper
+            - consignee
+            - release_agent
+            - draft
+    TransferBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
+            note:
+              type: string
+              description: Optional note from the requester
+          required:
+            - authentication_id
+    ReturnBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
+            note:
+              type: string
+              description: Optional note from the requester
+          required:
+            - authentication_id
+    SurrenderBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
+            note:
+              type: string
+              description: Optional note from the requester
+          required:
+            - authentication_id
+    AccomplishBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
+            note:
+              type: string
+              description: Optional note from the requester
+          required:
+            - authentication_id
+    PrintToPaperBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
+            note:
+              type: string
+              description: Optional note from the requester
+    AmendmentRequestBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
+            note:
+              type: string
+              description: Optional note from the requester
+          required:
+            - authentication_id
+            - note
+    AmendBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
+            file:
+              allOf:
+                - $ref: '#/components/schemas/File'
+              description: The file associated with the request
+            bl_number:
+              type: string
+              description: The bill of lading number
+            bl_doc_type:
+              allOf:
+              - $ref: '#/components/schemas/BillOfLadingDocumentType'
+              description: The type of the bill of lading document
+            to_order:
+              type: boolean
+              description: Indicates if the request is to order
+            pol:
+              allOf:
+                - $ref: '#/components/schemas/Location'
+              description: The port of loading. It's optional when draft is true.
+            pod:
+              allOf:
+                - $ref: '#/components/schemas/Location'
+              description: The port of discharge. It's optional when draft is true.
+            eta:
+              type: string
+              format: date-time
+              description: Estimate time of arrival
+            note:
+              type: string
+              description: Optional note from the requester
+          required:
+            - authentication_id
+            - file
+            - bl_number
+            - bl_doc_type
+            - pol
+            - pod
+    DeleteBillOfLadingRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseRequest'
+        - type: object
+          properties:
+            authentication_id:
+              type: string
+              description: The ID for authentication. The eB/L will be signed with the authentication.
+            note:
+              type: string
+              description: Optional note from the requester
+          required:
+            - authentication_id
+    # webhook API request
+    UpdateWebhookRequest:
+      allOf:
+        - type: object
+          properties:
+            requester:
+              type: string
+              description: User who makes the request
+            url:
+              type: string
+              description: The URL that should have WebhookEvent issued to it
+            events:
+              type: array
+              items:
+                $ref: '#/components/schemas/WebhookEventType'
+            secret:
+              type: string
+              description: Secret key used to create a hash signature that's sent to the url with each payload
+          required:
+            - requester
+            - url
+            - events
+            - secret
+  examples:
+    BusinessUnit:
+      value:
+        id: "did:openebl:123456789abcdefghi"
+        version: 1
+        application_id: "app_123456"
+        status: "active"
+        name: "My Business Unit"
+        addresses:
+          - "123 Main St"
+          - "456 Oak Rd"
+        country: "US"
+        emails:
+          - "test@example.com"
+        phone_numbers:
+          - "+1-123-456-7890"
+        created_at: 1619827200
+        created_by: "user_123456"
+        updated_at: 1619827200
+        updated_by: "user_123456"
+    UpdateFileBasedEBL:
+      value:
+        authentication_id: "auth_id_123456"
+        metadata:
+          key1: "value1"
+          key2: "value2"
+        file:
+          name: "file1.pdf"
+          type: "application/pdf"
+          content: "SGVsbG8gd29ybGQ="
+        bl_number: "BL123456"
+        bl_doc_type: "HouseBillOfLading"
+        to_order: false
+        pol:
+          locationName: "Taipei"
+          UNLocCode: "TWTPE"
+        pod:
+          locationName: "Los Angeles"
+          UNLocCode: "USLAX"
+        eta: "2022-12-31T23:59:59Z"
+        shipper: "did:openebl:shipper123"
+        consignee: "did:openebl:consignee123"
+        release_agent: "did:openebl:releaseagent123"
+        note: "This is a note."
+        draft: false
+        encrypt_content: false

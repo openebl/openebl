@@ -1,0 +1,282 @@
+{
+    "id": "316f5f2d-eb10-4563-a0d2-45858a57ad5e",
+    "version": 5,
+    "parent_hash": "f6c1515127188c10af2a4184a2e89860ec5117773e26cf0cd2a7c308ad7388ed76e94c6c92609f11631bf5a8415c260f2ab92987eb42c9e6044882916e9f7fee",
+    "events": [
+        {
+            "bill_of_lading": {
+                "bill_of_lading": {
+                    "transportDocumentReference": "bl_number",
+                    "carrierCode": "",
+                    "carrierCodeListProvider": "",
+                    "issuingParty": {
+                        "partyContactDetails": null,
+                        "identifyingCodes": [
+                            {
+                                "DCSAResponsibleAgencyCode": "DID",
+                                "partyCode": "did:openebl:issuer"
+                            }
+                        ]
+                    },
+                    "shipmentLocations": [
+                        {
+                            "location": {
+                                "locationName": "Real Port of Loading",
+                                "address": null,
+                                "UNLocationCode": "POL",
+                                "facilityCode": "",
+                                "facilityCodeListProvider": ""
+                            },
+                            "shipmentLocationTypeCode": "POL"
+                        },
+                        {
+                            "location": {
+                                "locationName": "Real Port of Discharge",
+                                "address": null,
+                                "UNLocationCode": "POD",
+                                "facilityCode": "",
+                                "facilityCodeListProvider": ""
+                            },
+                            "shipmentLocationTypeCode": "POD",
+                            "eventDateTime": "2022-01-01T00:00:00Z"
+                        }
+                    ],
+                    "shippingInstruction": {
+                        "shippingInstructionReference": "",
+                        "documentStatus": "ISSU",
+                        "transportDocumentTypeCode": "",
+                        "consignmentItems": null,
+                        "utilizedTransportEquipments": null,
+                        "documentParties": [
+                            {
+                                "party": {
+                                    "partyContactDetails": null,
+                                    "identifyingCodes": [
+                                        {
+                                            "DCSAResponsibleAgencyCode": "DID",
+                                            "partyCode": "did:openebl:issuer"
+                                        }
+                                    ]
+                                },
+                                "partyFunction": "DDR",
+                                "isToBeNotified": false
+                            },
+                            {
+                                "party": {
+                                    "partyContactDetails": null,
+                                    "identifyingCodes": [
+                                        {
+                                            "DCSAResponsibleAgencyCode": "DID",
+                                            "partyCode": "did:openebl:shipper"
+                                        }
+                                    ]
+                                },
+                                "partyFunction": "OS",
+                                "isToBeNotified": false
+                            },
+                            {
+                                "party": {
+                                    "partyContactDetails": null,
+                                    "identifyingCodes": [
+                                        {
+                                            "DCSAResponsibleAgencyCode": "DID",
+                                            "partyCode": "did:openebl:consignee"
+                                        }
+                                    ]
+                                },
+                                "partyFunction": "CN",
+                                "isToBeNotified": false
+                            },
+                            {
+                                "party": {
+                                    "partyContactDetails": null,
+                                    "identifyingCodes": [
+                                        {
+                                            "DCSAResponsibleAgencyCode": "DID",
+                                            "partyCode": "did:openebl:release_agent"
+                                        }
+                                    ]
+                                },
+                                "partyFunction": "DDS",
+                                "isToBeNotified": false
+                            }
+                        ]
+                    }
+                },
+                "file": {
+                    "name": "test.txt",
+                    "file_type": "text/plain",
+                    "content": "cmVhbCBjb250ZW50",
+                    "created_date": "2024-02-24T08:19:59Z"
+                },
+                "doc_type": "HouseBillOfLading",
+                "created_by": "did:openebl:issuer",
+                "created_at": "2024-02-24T08:19:59Z",
+                "note": "note",
+                "metadata": {
+                    "requester": "application user"
+                }
+            }
+        },
+        {
+            "transfer": {
+                "transfer_by": "did:openebl:issuer",
+                "transfer_to": "did:openebl:shipper",
+                "transfer_at": "2024-02-24T08:19:59Z",
+                "note": "note",
+                "metadata": {
+                    "requester": "application user"
+                }
+            }
+        },
+        {
+            "transfer": {
+                "transfer_by": "did:openebl:shipper",
+                "transfer_to": "did:openebl:consignee",
+                "transfer_at": "2024-03-04T05:18:22Z",
+                "note": "note",
+                "metadata": {
+                    "requester": "application user"
+                }
+            }
+        },
+        {
+            "amendment_request": {
+                "request_by": "did:openebl:consignee",
+                "request_to": "did:openebl:issuer",
+                "request_at": "2024-03-04T09:53:21Z",
+                "note": "amendment request note",
+                "metadata": {
+                    "requester": "application user"
+                }
+            }
+        },
+        {
+            "bill_of_lading": {
+                "bill_of_lading": {
+                    "transportDocumentReference": "new_bl_number",
+                    "carrierCode": "",
+                    "carrierCodeListProvider": "",
+                    "issuingParty": {
+                        "partyContactDetails": null,
+                        "identifyingCodes": [
+                            {
+                                "DCSAResponsibleAgencyCode": "DID",
+                                "partyCode": "did:openebl:issuer"
+                            }
+                        ]
+                    },
+                    "shipmentLocations": [
+                        {
+                            "location": {
+                                "locationName": "New Port of Loading",
+                                "address": null,
+                                "UNLocationCode": "POL",
+                                "facilityCode": "",
+                                "facilityCodeListProvider": ""
+                            },
+                            "shipmentLocationTypeCode": "POL"
+                        },
+                        {
+                            "location": {
+                                "locationName": "New Port of Discharge",
+                                "address": null,
+                                "UNLocationCode": "POD",
+                                "facilityCode": "",
+                                "facilityCodeListProvider": ""
+                            },
+                            "shipmentLocationTypeCode": "POD",
+                            "eventDateTime": "2024-03-30T00:00:00Z"
+                        }
+                    ],
+                    "shippingInstruction": {
+                        "shippingInstructionReference": "",
+                        "documentStatus": "ISSU",
+                        "transportDocumentTypeCode": "",
+                        "consignmentItems": null,
+                        "utilizedTransportEquipments": null,
+                        "documentParties": [
+                            {
+                                "party": {
+                                    "partyContactDetails": null,
+                                    "identifyingCodes": [
+                                        {
+                                            "DCSAResponsibleAgencyCode": "DID",
+                                            "partyCode": "did:openebl:issuer"
+                                        }
+                                    ]
+                                },
+                                "partyFunction": "DDR",
+                                "isToBeNotified": false
+                            },
+                            {
+                                "party": {
+                                    "partyContactDetails": null,
+                                    "identifyingCodes": [
+                                        {
+                                            "DCSAResponsibleAgencyCode": "DID",
+                                            "partyCode": "did:openebl:shipper"
+                                        }
+                                    ]
+                                },
+                                "partyFunction": "OS",
+                                "isToBeNotified": false
+                            },
+                            {
+                                "party": {
+                                    "partyContactDetails": null,
+                                    "identifyingCodes": [
+                                        {
+                                            "DCSAResponsibleAgencyCode": "DID",
+                                            "partyCode": "did:openebl:consignee"
+                                        }
+                                    ]
+                                },
+                                "partyFunction": "CN",
+                                "isToBeNotified": false
+                            },
+                            {
+                                "party": {
+                                    "partyContactDetails": null,
+                                    "identifyingCodes": [
+                                        {
+                                            "DCSAResponsibleAgencyCode": "DID",
+                                            "partyCode": "did:openebl:release_agent"
+                                        }
+                                    ]
+                                },
+                                "partyFunction": "DDS",
+                                "isToBeNotified": false
+                            }
+                        ]
+                    }
+                },
+                "file": {
+                    "name": "new_test.txt",
+                    "file_type": "text/plain",
+                    "content": "bmV3IHRlc3QgY29udGVudA==",
+                    "created_date": "2024-03-05T04:36:15Z"
+                },
+                "doc_type": "HouseBillOfLading",
+                "created_by": "did:openebl:issuer",
+                "created_at": "2024-03-05T04:36:15Z",
+                "note": "amended by issuer",
+                "metadata": {
+                    "requester": "application user"
+                }
+            }
+        },
+        {
+            "transfer": {
+                "transfer_by": "did:openebl:issuer",
+                "transfer_to": "did:openebl:consignee",
+                "transfer_at": "2024-03-05T04:36:15Z",
+                "note": "amended by issuer",
+                "metadata": {
+                    "requester": "application user"
+                }
+            }
+        }
+    ],
+    "current_owner": "did:openebl:consignee"
+}

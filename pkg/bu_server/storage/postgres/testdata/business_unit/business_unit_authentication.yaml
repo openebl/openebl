@@ -1,0 +1,64 @@
+- rec_id: 1
+  id: "bu1_auth1"
+  version: 1
+  business_unit_id: "did:openebl:bu1"
+  status: "active"
+  authentication:
+    id: "bu1_auth1"
+    version: 1
+    business_unit_id: "did:openebl:bu1"
+    status: "active"
+    created_at: 1634567890
+    private_key: "FAKE PEM PRIVATE KEY"
+    certificate: "FAKE PEM CERTIFICATE"
+    public_key_id: "auth1_pub_key_id"
+    issuer_key_id: "auth1_issuer_key_id"
+    certificate_serial_number: "123456"
+  created_at: 1634567890
+  updated_at: 1634567890
+  cert_public_key_id: auth1_pub_key_id
+  cert_issuer_key_id: auth1_issuer_key_id
+  cert_serial: "123456"
+- rec_id: 2
+  id: "bu1_auth2"
+  version: 2
+  business_unit_id: "did:openebl:bu1"
+  status: "revoked"
+  authentication:
+    id: "bu1_auth2"
+    version: 1
+    business_unit_id: "did:openebl:bu1"
+    status: "revoked"
+    created_at: 1634567890
+    revoked_at: 1734567900
+    private_key: "FAKE PEM PRIVATE KEY"
+    certificate: "FAKE PEM CERTIFICATE"
+    public_key_id: "auth2_pub_key_id"
+    issuer_key_id: "auth2_issuer_key_id"
+    certificate_serial_number: "654321"
+  created_at: 1634567900
+  updated_at: 1734567900
+  cert_public_key_id: auth2_pub_key_id
+  cert_issuer_key_id: auth2_issuer_key_id
+  cert_serial: "654321"
+- rec_id: 3
+  id: "bu2_auth1"
+  version: 1
+  business_unit_id: "did:openebl:bu2"
+  status: "active"
+  authentication:
+    id: "bu2_auth1"
+    version: 1
+    business_unit_id: "did:openebl:bu2"
+    status: "active"
+    created_at: 1634567890
+    private_key: "FAKE PEM PRIVATE KEY"
+    certificate: "FAKE PEM CERTIFICATE"
+    public_key_id: "auth3_pub_key_id"
+    issuer_key_id: "auth3_issuer_key_id"
+    certificate_serial_number: "1234567"
+  created_at: 1634567890
+  updated_at: 1634567890
+  cert_public_key_id: auth3_pub_key_id
+  cert_issuer_key_id: auth3_issuer_key_id
+  cert_serial: "1234567"

@@ -1,0 +1,50 @@
+- rec_id: 1
+  id: "did:openebl:bu1"
+  version: 1
+  application_id: "app1"
+  status: "active"
+  name: "Business Unit 1"
+  business_unit:
+    id: "did:openebl:bu1"
+    version: 1
+    application_id: "app1"
+    status: "active"
+    name: "Business Unit 1"
+    created_at: 1634567890
+    updated_at: 1634567890
+  created_at: 1634567890
+  updated_at: 1634567890
+
+- rec_id: 2
+  id: "did:openebl:bu2"
+  version: 1
+  application_id: "app1"
+  status: "active"
+  name: "Business Unit 2"
+  business_unit:
+    id: "did:openebl:bu2"
+    version: 1
+    application_id: "app1"
+    status: "active"
+    name: "Business Unit 2"
+    created_at: 1634567890
+    updated_at: 1634567890
+  created_at: 1634567890
+  updated_at: 1634567890
+
+- rec_id: 3
+  id: "did:openebl:bu3"
+  version: 1
+  application_id: "app2"
+  status: "active"
+  name: "Business Unit 3"
+  business_unit:
+    id: "did:openebl:bu3"
+    version: 1
+    application_id: "app2"
+    status: "active"
+    name: "Business Unit 3"
+    created_at: 1634567890
+    updated_at: 1634567890
+  created_at: 1634567890
+  updated_at: 1634567890

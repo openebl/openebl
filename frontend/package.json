@@ -1,0 +1,37 @@
+{
+  "name": "admin-console",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "lint": "eslint . --ext .vue,.js,.ts,.jsx,.tsx,.svelte --fix",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^3.1.1",
+    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
+    "@tsconfig/svelte": "^5.0.4",
+    "@types/node": "^20.14.2",
+    "@typescript-eslint/eslint-plugin": "^7.13.0",
+    "@typescript-eslint/parser": "^7.13.0",
+    "@unocss/preset-attributify": "^0.58.9",
+    "@unocss/preset-uno": "^0.58.9",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.1",
+    "svelte": "^4.2.18",
+    "svelte-check": "^3.8.0",
+    "svelte-routing": "^2.13.0",
+    "tslib": "^2.6.3",
+    "typescript": "^5.4.5",
+    "unocss": "^0.58.9",
+    "vite": "^5.2.13"
+  },
+  "dependencies": {
+    "yup": "^1.4.0"
+  },
+  "packageManager": "pnpm@9.1.0+sha1.217063ce3fcbf44f3051666f38b810f1ddefee4a"
+}

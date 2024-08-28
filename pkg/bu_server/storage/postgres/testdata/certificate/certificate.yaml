@@ -1,0 +1,33 @@
+- rec_id: 1
+  id: "cert1"
+  version: 1
+  status: "active"
+  valid_time: [1633024800, 1664560800]
+  cert_type: "ca"
+  cert_fingerprint: "fingerprint1"
+  created_at: 1633024800
+  updated_at: 1633024800
+  cert: 
+    id: "cert1"
+    version: 1
+    status: "active"
+    cert_type: "ca"
+    cert_fingerprint: "fingerprint1"
+    created_at: 1633024800
+
+- rec_id: 2  
+  id: "cert2"
+  version: 2
+  status: "revoked"
+  valid_time: [1601488800, 1633024800]
+  cert_type: "ca"
+  cert_fingerprint: "fingerprint2"
+  created_at: 1633024800
+  updated_at: 1633024800
+  cert: 
+    id: "cert2"
+    version: 2
+    status: "revoked"
+    cert_type: "ca"
+    cert_fingerprint: "fingerprint2"
+    created_at: 1633024800

@@ -1,0 +1,8 @@
+development:
+  dialect: postgres
+  host: {{ envOr "DATABASE_HOST" "127.0.0.1" }}
+  port: {{ envOr "DATABASE_PORT" "5432" }}
+  user: {{ envOr "DATABASE_USER" "" }}
+  password: {{ envOr "DATABASE_PASSWORD" "" }}
+  database: {{ envOr "DATABASE_NAME" "relay_server_test" }}
+  pool: {{ envOr "DATABASE_POOL_SIZE" "5" }}

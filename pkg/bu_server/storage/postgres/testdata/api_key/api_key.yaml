@@ -1,0 +1,24 @@
+- rec_id: 1
+  id: "key_1"
+  version: 1
+  application_id: "app_1"
+  status: "active"
+  created_at: 123456
+  updated_at: 123456
+  api_key: '{"id":"key_1", "version": 1 , "hash_string": "hashed_key1", "application_id": "app_1", "status": "active", "scopes": ["all"], "created_at": 123456, "updated_at": 123456}'
+- rec_id: 2
+  id: "key_2"
+  version: 1
+  application_id: "app_2"
+  status: "active"
+  created_at: 123456
+  updated_at: 123456
+  api_key: '{"id":"key_2", "version": 1 , "hash_string": "hashed_key2", "application_id": "app_2", "status": "active", "scopes": ["all"], "created_at": 123456, "updated_at": 123456}'
+- rec_id: 3
+  id: "key_3"
+  version: 1
+  application_id: "app_3"
+  status: "revoked"
+  created_at: 123456
+  updated_at: 123456
+  api_key: '{"id":"key_3", "version": 1 , "hash_string": "hashed_key3", "application_id": "app_3", "status": "revoked", "scopes": ["all"], "created_at": 123456, "updated_at": 123456}'

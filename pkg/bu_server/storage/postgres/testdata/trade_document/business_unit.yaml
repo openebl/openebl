@@ -1,0 +1,50 @@
+- rec_id: 1
+  id: "did:openebl:issuer"
+  version: 1
+  application_id: "app_id"
+  status: "active"
+  name: "Alpha the Issuer"
+  business_unit:
+    id: "did:openebl:issuer"
+    version: 1
+    application_id: "app_id"
+    status: "active"
+    name: "Alpha the Issuer"
+    created_at: 1634567890
+    updated_at: 1634567890
+  created_at: 1634567890
+  updated_at: 1634567890
+
+- rec_id: 2
+  id: "did:openebl:shipper"
+  version: 1
+  application_id: "app_id"
+  status: "active"
+  name: "Brav% the Shipper"
+  business_unit:
+    id: "did:openebl:shipper"
+    version: 1
+    application_id: "app_id"
+    status: "active"
+    name: "Brav% the Shipper"
+    created_at: 1634567890
+    updated_at: 1634567890
+  created_at: 1634567890
+  updated_at: 1634567890
+
+- rec_id: 3
+  id: "did:openebl:consignee"
+  version: 1
+  application_id: "app_id"
+  status: "active"
+  name: "Charlie the Consignee"
+  business_unit:
+    id: "did:openebl:consignee"
+    version: 1
+    application_id: "app_id"
+    status: "active"
+    name: "Charlie the Consignee"
+    created_at: 1634567890
+    updated_at: 1634567890
+  created_at: 1634567890
+  updated_at: 1634567890

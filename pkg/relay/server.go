@@ -17,6 +17,8 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
+var errOutputChannelFull = errors.New("output channel is full")
+
 type NostrServerOption func(s *NostrServer)
 
 type NostrServer struct {
@@ -253,7 +255,7 @@ func (c *NostrClientStub) send(msg []byte, blocking bool) error {
 			return errors.New("client closed")
 		case c.outputChan <- msg:
 		default:
-			return errors.New("output channel is full")
+			return errOutputChannelFull
 		}
 	}
 
@@ -308,25 +310,32 @@ func (c *NostrClientStub) subscriptionPullingTask(subscription NostrClientSubscr
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
-	firstBatch := true
-	for {
-		if firstBatch {
+	needStop := func(fast bool) bool {
+		if fast {
 			select {
 			case <-c.closeChan:
-				return
+				return true
 			case <-subscription.CloseChan:
-				return
+				return true
 			default:
 			}
 		} else {
 			select {
 			case <-c.closeChan:
-				return
+				return true
 			case <-subscription.CloseChan:
-				return
+				return true
 			case <-ticker.C:
 			}
 		}
+		return false
+	}
+
+	if needStop(true) {
+		return
+	}
+	firstBatch := true
+	for {
 
 		eventSourceResponse, err := c.nostrServer.eventSource(context.Background(), eventSourceRequest)
 		if err != nil {
@@ -334,26 +343,32 @@ func (c *NostrClientStub) subscriptionPullingTask(subscription NostrClientSubscr
 			c.close()
 			return
 		}
-		if len(eventSourceResponse.Events) == 0 && firstBatch {
-			// All old data is consumed by the client.
-			eos := Response{
-				SubscribeResponse: &SubscribeResponse{
-					SubscribeID: subscription.SubscribeID,
-					EOS:         true,
-				},
+		if len(eventSourceResponse.Events) == 0 {
+			if firstBatch {
+				// All old data is consumed by the client.
+				eos := Response{
+					SubscribeResponse: &SubscribeResponse{
+						SubscribeID: subscription.SubscribeID,
+						EOS:         true,
+					},
+				}
+				eosRaw, _ := json.Marshal(eos)
+				if err := c.send(eosRaw, true); err != nil {
+					logrus.Errorf("failed to send EOS: %v", err)
+				}
+				firstBatch = false
 			}
-			eosRaw, _ := json.Marshal(eos)
-			if err := c.send(eosRaw, true); err != nil {
-				logrus.Errorf("failed to send EOS: %v", err)
+
+			// Cool down to prevent busy loop of checking if there are new events.
+			if needStop(false) {
+				return
 			}
-			firstBatch = false
-			continue
-		} else if len(eventSourceResponse.Events) == 0 {
 			continue
 		}
 
-		for _, event := range eventSourceResponse.Events {
+		for i := 0; i < len(eventSourceResponse.Events); {
 			// TODO: EventSource should provide enough information to generate a valid nostr.Event.
+			event := eventSourceResponse.Events[i]
 			eventEnvelope := Response{
 				SubscribeResponse: &SubscribeResponse{
 					SubscribeID: subscription.SubscribeID,
@@ -366,11 +381,19 @@ func (c *NostrClientStub) subscriptionPullingTask(subscription NostrClientSubscr
 				},
 			}
 			eventEnvelopeRaw, _ := json.Marshal(&eventEnvelope)
-			if err := c.send(eventEnvelopeRaw, false); err != nil {
-				logrus.Errorf("failed to send event: %v", err)
+			if err := c.send(eventEnvelopeRaw, false); errors.Is(errOutputChannelFull, err) {
+				logrus.Debugf("output buffer full (%s)", c.conn.RemoteAddr().String())
+				// Cool down to prevent overwhelming the client.
+				if needStop(false) {
+					return
+				}
+				continue
+			} else if err != nil {
+				logrus.Errorf("failed to send event to (%s): %v", c.conn.RemoteAddr().String(), err)
 				c.close()
 				return
 			}
+			i += 1
 		}
 		eventSourceRequest.Offset = eventSourceResponse.MaxOffset + 1
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/openebl/openebl/pkg/bu_server/model"
+	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading/dcsa_v2"
 )
 
 type BillOfLadingDocumentType string
@@ -36,13 +37,13 @@ type BillOfLadingEvent struct {
 }
 
 type BillOfLading struct {
-	BillOfLading *TransportDocument       `json:"bill_of_lading,omitempty"`
-	File         *model.File              `json:"file,omitempty"`
-	DocType      BillOfLadingDocumentType `json:"doc_type,omitempty"`
-	CreatedBy    string                   `json:"created_by,omitempty"` // DID
-	CreatedAt    *model.DateTime          `json:"created_at,omitempty"`
-	Note         string                   `json:"note,omitempty"`
-	MetaData     ApplicationMetaData      `json:"metadata,omitempty"` // Fully customized object. It can be used to store any additional information but will not be used for any business logic.
+	BillOfLading *dcsa_v2.TransportDocument `json:"bill_of_lading,omitempty"`
+	File         *model.File                `json:"file,omitempty"`
+	DocType      BillOfLadingDocumentType   `json:"doc_type,omitempty"`
+	CreatedBy    string                     `json:"created_by,omitempty"` // DID
+	CreatedAt    *model.DateTime            `json:"created_at,omitempty"`
+	Note         string                     `json:"note,omitempty"`
+	MetaData     ApplicationMetaData        `json:"metadata,omitempty"` // Fully customized object. It can be used to store any additional information but will not be used for any business logic.
 }
 
 type Transfer struct {

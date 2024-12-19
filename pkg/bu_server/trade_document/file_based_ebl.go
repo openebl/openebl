@@ -14,6 +14,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
 	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading/dcsa_v2"
+	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading/dcsa_v3"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/webhook"
 	"github.com/openebl/openebl/pkg/did"
@@ -22,6 +23,14 @@ import (
 	"github.com/openebl/openebl/pkg/relay/server"
 	"github.com/openebl/openebl/pkg/util"
 	"github.com/samber/lo"
+)
+
+const (
+	CodeListName     = "DID"
+	CodeListProvider = "OEBL"
+
+	DRAFT  = "DRAFT"
+	ISSUED = "ISSUED"
 )
 
 type File struct {
@@ -47,7 +56,7 @@ type IssueFileBasedEBLRequest struct {
 	ToOrder        bool                                    `json:"to_order"`
 	POL            Location                                `json:"pol"`
 	POD            Location                                `json:"pod"`
-	ETA            *model.DateTime                         `json:"eta,omitempty"`
+	ETA            *model.Date                             `json:"eta,omitempty"`
 	Shipper        string                                  `json:"shipper"`
 	Consignee      string                                  `json:"consignee"`
 	ReleaseAgent   string                                  `json:"release_agent"`
@@ -126,7 +135,7 @@ type AmendFileBasedEBLRequest struct {
 	ToOrder   bool                                    `json:"to_order"`
 	POL       Location                                `json:"pol"`
 	POD       Location                                `json:"pod"`
-	ETA       *model.DateTime                         `json:"eta,omitempty"`
+	ETA       *model.Date                             `json:"eta,omitempty"`
 	Note      string                                  `json:"note"`
 }
 
@@ -464,8 +473,9 @@ func (c *_FileBaseEBLController) Return(ctx context.Context, ts int64, req Retur
 
 func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, oldBL *bill_of_lading.BillOfLading, currentTime model.DateTime) *bill_of_lading.BillOfLading {
 	bl := &bill_of_lading.BillOfLading{
-		BillOfLading: &dcsa_v2.TransportDocument{
+		BillOfLadingV3: &dcsa_v3.TransportDocument{
 			TransportDocumentReference: request.BLNumber,
+			TransportDocumentTypeCode:  dcsa_v3.TransportDocumentTransportDocumentTypeCodeBOL,
 		},
 		File: &model.File{
 			Name:        request.File.Name,
@@ -481,7 +491,7 @@ func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, ol
 	}
 	FallbackFileInfoFromOldBL(bl, oldBL)
 
-	td := bl.BillOfLading
+	td := bl.BillOfLadingV3
 	SetPOL(td, request.POL)
 	SetPOD(td, request.POD)
 	if request.ETA != nil {
@@ -500,8 +510,9 @@ func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, ol
 
 func AmendFileBasedBillOfLadingFromRequest(req AmendFileBasedEBLRequest, oldPack bill_of_lading.BillOfLadingPack, currentTime model.DateTime) *bill_of_lading.BillOfLading {
 	bl := &bill_of_lading.BillOfLading{
-		BillOfLading: &dcsa_v2.TransportDocument{
+		BillOfLadingV3: &dcsa_v3.TransportDocument{
 			TransportDocumentReference: req.BLNumber,
+			TransportDocumentTypeCode:  dcsa_v3.TransportDocumentTransportDocumentTypeCodeBOL,
 		},
 		File: &model.File{
 			Name:        req.File.Name,
@@ -519,7 +530,7 @@ func AmendFileBasedBillOfLadingFromRequest(req AmendFileBasedEBLRequest, oldPack
 	FallbackFileInfoFromOldBL(bl, oldBL)
 
 	parties := GetFileBaseEBLParticipatorsFromBLPack(&oldPack)
-	td := bl.BillOfLading
+	td := bl.BillOfLadingV3
 	SetPOL(td, req.POL)
 	SetPOD(td, req.POD)
 	if req.ETA != nil {
@@ -1222,7 +1233,7 @@ func (c *_FileBaseEBLController) signBillOfLadingPack(ctx context.Context, ts in
 			break
 		}
 	}
-	blNumber := bl.BillOfLading.TransportDocumentReference
+	blNumber := bl.BillOfLadingV3.TransportDocumentReference
 
 	td := storage.TradeDocument{
 		Kind:         kind,
@@ -1345,76 +1356,100 @@ func ExtractBLPackFromTradeDocument(td storage.TradeDocument) (bill_of_lading.Bi
 	return res, nil
 }
 
-func SetPOL(td *dcsa_v2.TransportDocument, pol Location) {
-	loc := dcsa_v2.ShipmentLocation{
-		Location: &dcsa_v2.Location{
-			LocationName:   pol.LocationName,
-			UNLocationCode: pol.UNLocCode,
-		},
-		ShipmentLocationTypeCode: dcsa_v2.POL_ShipmentLocationTypeCode,
+func SetPOL(td *dcsa_v3.TransportDocument, pol Location) {
+	td.Transports.PortOfLoading = dcsa_v3.PortOfLoading{
+		UNLocationCode: lo.ToPtr(pol.UNLocCode),
+		LocationName:   lo.ToPtr(pol.LocationName),
 	}
-
-	ReplaceShipmentLocation(td, loc)
 }
 
-func SetPOD(td *dcsa_v2.TransportDocument, pod Location) {
-	loc := dcsa_v2.ShipmentLocation{
-		Location: &dcsa_v2.Location{
-			LocationName:   pod.LocationName,
-			UNLocationCode: pod.UNLocCode,
-		},
-		ShipmentLocationTypeCode: dcsa_v2.POD_ShipmentLocationTypeCode,
+func SetPOD(td *dcsa_v3.TransportDocument, pod Location) {
+	td.Transports.PortOfDischarge = dcsa_v3.PortOfDischarge{
+		UNLocationCode: lo.ToPtr(pod.UNLocCode),
+		LocationName:   lo.ToPtr(pod.LocationName),
 	}
-
-	ReplaceShipmentLocation(td, loc)
 }
 
-func SetETA(td *dcsa_v2.TransportDocument, eta model.DateTime) {
-	for i := range td.ShipmentLocations {
-		if td.ShipmentLocations[i].ShipmentLocationTypeCode == dcsa_v2.POD_ShipmentLocationTypeCode {
-			td.ShipmentLocations[i].EventDateTime = &eta
-			return
+func SetETA(td *dcsa_v3.TransportDocument, eta model.Date) {
+	td.Transports.PlannedArrivalDate.Time = eta.GetTime()
+}
+
+func SetIssuer(td *dcsa_v3.TransportDocument, issuer string) {
+	td.DocumentParties.IssuingParty = dcsa_v3.IssuingParty{
+		IdentifyingCodes: &[]dcsa_v3.IdentifyingCode{
+			{
+				CodeListName:     lo.ToPtr(CodeListName),
+				CodeListProvider: CodeListProvider,
+				PartyCode:        issuer,
+			},
+		},
+	}
+}
+
+func SetConsignee(td *dcsa_v3.TransportDocument, consignee string) {
+	td.DocumentParties.Consignee = &dcsa_v3.Consignee{
+		IdentifyingCodes: []dcsa_v3.IdentifyingCode{
+			{
+				CodeListName:     lo.ToPtr(CodeListName),
+				CodeListProvider: CodeListProvider,
+				PartyCode:        consignee,
+			},
+		},
+	}
+}
+
+func SetShipper(td *dcsa_v3.TransportDocument, shipper string) {
+	td.DocumentParties.Shipper = dcsa_v3.Shipper{
+		IdentifyingCodes: &[]dcsa_v3.IdentifyingCode{
+			{
+				CodeListName:     lo.ToPtr(CodeListName),
+				CodeListProvider: CodeListProvider,
+				PartyCode:        shipper,
+			},
+		},
+	}
+}
+
+func SetReleaseAgent(td *dcsa_v3.TransportDocument, releaseAgent string) {
+	replaceConsigneeForwarder := func(party dcsa_v3.OtherDocumentParty) {
+		if td.DocumentParties.Other == nil {
+			td.DocumentParties.Other = &[]dcsa_v3.OtherDocumentParty{}
 		}
+		for i := range *td.DocumentParties.Other {
+			oldParty := (*td.DocumentParties.Other)[i]
+			if oldParty.PartyFunction == party.PartyFunction {
+				(*td.DocumentParties.Other)[i] = party
+				return
+			}
+		}
+		*td.DocumentParties.Other = append(*td.DocumentParties.Other, party)
 	}
+
+	party := dcsa_v3.OtherDocumentParty{
+		PartyFunction: "DDS", // Consignee's freight forwarder
+		Party: dcsa_v3.Party{
+			IdentifyingCodes: &[]dcsa_v3.IdentifyingCode{
+				{
+					CodeListName:     lo.ToPtr(CodeListName),
+					CodeListProvider: CodeListProvider,
+					PartyCode:        releaseAgent,
+				},
+			},
+		},
+	}
+
+	replaceConsigneeForwarder(party)
 }
 
-func SetIssuer(td *dcsa_v2.TransportDocument, issuer string) {
-	si := PrepareSI(td)
-	party := PrepareDocumentParty(issuer, dcsa_v2.DDR_PartyFunction)
-	td.IssuingParty = party.Party
-	ReplaceSIParty(si, party)
+func SetToOrder(td *dcsa_v3.TransportDocument, toOrder bool) {
+	td.IsToOrder = toOrder
 }
 
-func SetConsignee(td *dcsa_v2.TransportDocument, consignee string) {
-	si := PrepareSI(td)
-	party := PrepareDocumentParty(consignee, dcsa_v2.CN_PartyFunction)
-	ReplaceSIParty(si, party)
-}
-
-func SetShipper(td *dcsa_v2.TransportDocument, shipper string) {
-	si := PrepareSI(td)
-	party := PrepareDocumentParty(shipper, dcsa_v2.OS_PartyFunction)
-	ReplaceSIParty(si, party)
-}
-
-func SetReleaseAgent(td *dcsa_v2.TransportDocument, releaseAgent string) {
-	si := PrepareSI(td)
-	party := PrepareDocumentParty(releaseAgent, dcsa_v2.DDS_PartyFunction)
-	ReplaceSIParty(si, party)
-}
-
-func SetToOrder(td *dcsa_v2.TransportDocument, toOrder bool) {
-	si := PrepareSI(td)
-	si.IsToOrder = toOrder
-}
-
-func SetDraft(td *dcsa_v2.TransportDocument, draft bool) {
-	si := PrepareSI(td)
-
+func SetDraft(td *dcsa_v3.TransportDocument, draft bool) {
 	if draft {
-		si.DocumentStatus = dcsa_v2.DRFT_EblDocumentStatus
+		td.TransportDocumentStatus = DRAFT
 	} else {
-		si.DocumentStatus = dcsa_v2.ISSU_EblDocumentStatus
+		td.TransportDocumentStatus = ISSUED
 	}
 }
 
@@ -1426,17 +1461,15 @@ func GetDraft(blPack *bill_of_lading.BillOfLadingPack) *bool {
 		return util.Ptr(false)
 	}
 	firstEvent := blPack.Events[0]
-	if firstEvent.BillOfLading == nil ||
-		firstEvent.BillOfLading.BillOfLading == nil ||
-		firstEvent.BillOfLading.BillOfLading.ShippingInstruction == nil {
+	if firstEvent.BillOfLading == nil || firstEvent.BillOfLading.BillOfLadingV3 == nil {
 		return nil
 	}
 
-	status := firstEvent.BillOfLading.BillOfLading.ShippingInstruction.DocumentStatus
-	if status == dcsa_v2.DRFT_EblDocumentStatus {
+	status := firstEvent.BillOfLading.BillOfLadingV3.TransportDocumentStatus
+	if status == DRAFT {
 		return util.Ptr(true)
 	}
-	if status == dcsa_v2.ISSU_EblDocumentStatus {
+	if status == ISSUED {
 		return util.Ptr(false)
 	}
 	return nil
@@ -1448,21 +1481,15 @@ func GetIssuer(blPack *bill_of_lading.BillOfLadingPack) *string {
 	}
 
 	firstEvent := blPack.Events[0]
-	if firstEvent.BillOfLading == nil ||
-		firstEvent.BillOfLading.BillOfLading == nil ||
-		firstEvent.BillOfLading.BillOfLading.ShippingInstruction == nil {
+	if firstEvent.BillOfLading == nil || firstEvent.BillOfLading.BillOfLadingV3 == nil {
 		return nil
 	}
 
-	si := firstEvent.BillOfLading.BillOfLading.ShippingInstruction
-	for i := range si.DocumentParties {
-		party := si.DocumentParties[i]
-		if party.PartyFunction != nil && *party.PartyFunction == dcsa_v2.DDR_PartyFunction {
-			return util.Ptr(party.Party.IdentifyingCodes[0].PartyCode)
-		}
+	if firstEvent.BillOfLading.BillOfLadingV3.DocumentParties.IssuingParty.IdentifyingCodes == nil ||
+		len(*firstEvent.BillOfLading.BillOfLadingV3.DocumentParties.IssuingParty.IdentifyingCodes) == 0 {
+		return nil
 	}
-
-	return nil
+	return util.Ptr((*firstEvent.BillOfLading.BillOfLadingV3.DocumentParties.IssuingParty.IdentifyingCodes)[0].PartyCode)
 }
 
 func GetFileBaseEBLParticipatorsFromBLPack(blPack *bill_of_lading.BillOfLadingPack) FileBaseEBLParticipators {
@@ -1478,33 +1505,39 @@ func GetFileBaseEBLParticipatorsFromBLPack(blPack *bill_of_lading.BillOfLadingPa
 }
 
 func GetFileBaseEBLParticipatorFromBL(bl *bill_of_lading.BillOfLading) FileBaseEBLParticipators {
-	if bl.BillOfLading == nil {
+	td := bl.GetBillOfLadingV3()
+	if td == nil {
 		return FileBaseEBLParticipators{}
 	}
 
-	si := bl.BillOfLading.ShippingInstruction
-	if si == nil {
-		return FileBaseEBLParticipators{}
+	getIdentityCode := func(codes *[]dcsa_v3.IdentifyingCode) *string {
+		if codes == nil || len(*codes) == 0 {
+			return nil
+		}
+		return &(*codes)[0].PartyCode
 	}
 
 	result := FileBaseEBLParticipators{}
-	for i := len(si.DocumentParties) - 1; i >= 0; i-- {
-		if len(si.DocumentParties[i].Party.IdentifyingCodes) == 0 {
-			continue
+
+	if issuer := getIdentityCode(td.DocumentParties.IssuingParty.IdentifyingCodes); issuer != nil {
+		result.Issuer = *issuer
+	}
+	if shipper := getIdentityCode(td.DocumentParties.Shipper.IdentifyingCodes); shipper != nil {
+		result.Shipper = *shipper
+	}
+	consigneeParty := td.DocumentParties.Consignee
+	if consigneeParty != nil {
+		if consignee := getIdentityCode(&consigneeParty.IdentifyingCodes); consignee != nil {
+			result.Consignee = *consignee
 		}
-		partyFunction := si.DocumentParties[i].PartyFunction
-		if partyFunction == nil {
-			continue
-		}
-		switch *partyFunction {
-		case dcsa_v2.DDR_PartyFunction: // Issuer
-			result.Issuer = si.DocumentParties[i].Party.IdentifyingCodes[0].PartyCode
-		case dcsa_v2.OS_PartyFunction: // Shipper
-			result.Shipper = si.DocumentParties[i].Party.IdentifyingCodes[0].PartyCode
-		case dcsa_v2.CN_PartyFunction: // Consignee
-			result.Consignee = si.DocumentParties[i].Party.IdentifyingCodes[0].PartyCode
-		case dcsa_v2.DDS_PartyFunction: // Release Agent
-			result.ReleaseAgent = si.DocumentParties[i].Party.IdentifyingCodes[0].PartyCode
+	}
+
+	for i := range *td.DocumentParties.Other {
+		party := (*td.DocumentParties.Other)[i]
+		if party.PartyFunction == "DDS" {
+			if forwarder := getIdentityCode(party.Party.IdentifyingCodes); forwarder != nil {
+				result.ReleaseAgent = *forwarder
+			}
 		}
 	}
 	return result
@@ -1644,16 +1677,6 @@ func ReplaceSIParty(si *dcsa_v2.ShippingInstruction, party dcsa_v2.DocumentParty
 		}
 	}
 	si.DocumentParties = append(si.DocumentParties, party)
-}
-
-func ReplaceShipmentLocation(td *dcsa_v2.TransportDocument, loc dcsa_v2.ShipmentLocation) {
-	for i := range td.ShipmentLocations {
-		if td.ShipmentLocations[i].ShipmentLocationTypeCode == loc.ShipmentLocationTypeCode {
-			td.ShipmentLocations[i] = loc
-			return
-		}
-	}
-	td.ShipmentLocations = append(td.ShipmentLocations, loc)
 }
 
 func PrepareDocumentParty(party string, partyFunction dcsa_v2.PartyFunction) dcsa_v2.DocumentParty {

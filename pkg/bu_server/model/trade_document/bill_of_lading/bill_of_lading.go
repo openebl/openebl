@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/openebl/openebl/pkg/bu_server/model"
-	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading/dcsa_v2"
+	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading/dcsa_v3"
 )
 
 type BillOfLadingDocumentType string
@@ -37,13 +37,14 @@ type BillOfLadingEvent struct {
 }
 
 type BillOfLading struct {
-	BillOfLading *dcsa_v2.TransportDocument `json:"bill_of_lading,omitempty"`
-	File         *model.File                `json:"file,omitempty"`
-	DocType      BillOfLadingDocumentType   `json:"doc_type,omitempty"`
-	CreatedBy    string                     `json:"created_by,omitempty"` // DID
-	CreatedAt    *model.DateTime            `json:"created_at,omitempty"`
-	Note         string                     `json:"note,omitempty"`
-	MetaData     ApplicationMetaData        `json:"metadata,omitempty"` // Fully customized object. It can be used to store any additional information but will not be used for any business logic.
+	// BillOfLading        *dcsa_v2.TransportDocument `json:"bill_of_lading,omitempty"`
+	BillOfLadingV3 *dcsa_v3.TransportDocument `json:"bill_of_lading_v3,omitempty"`
+	File           *model.File                `json:"file,omitempty"`
+	DocType        BillOfLadingDocumentType   `json:"doc_type,omitempty"`
+	CreatedBy      string                     `json:"created_by,omitempty"` // DID
+	CreatedAt      *model.DateTime            `json:"created_at,omitempty"`
+	Note           string                     `json:"note,omitempty"`
+	MetaData       ApplicationMetaData        `json:"metadata,omitempty"` // Fully customized object. It can be used to store any additional information but will not be used for any business logic.
 }
 
 type Transfer struct {
@@ -97,4 +98,88 @@ type Delete struct {
 	DeleteAt *model.DateTime     `json:"delete_at,omitempty"`
 	Note     string              `json:"note,omitempty"`
 	MetaData ApplicationMetaData `json:"metadata,omitempty"` // Fully customized object. It can be used to store any additional information but will not be used for any business logic.
+}
+
+func (b *BillOfLading) GetBillOfLadingV3() *dcsa_v3.TransportDocument {
+	if b == nil {
+		return nil
+	}
+	return b.BillOfLadingV3
+}
+
+func (b *BillOfLading) GetFile() *model.File {
+	if b == nil {
+		return nil
+	}
+	return b.File
+}
+
+func (b *BillOfLading) GetDocType() BillOfLadingDocumentType {
+	if b == nil {
+		return ""
+	}
+	return b.DocType
+}
+
+func (b *BillOfLading) GetCreatedBy() string {
+	if b == nil {
+		return ""
+	}
+	return b.CreatedBy
+}
+
+func (b *BillOfLading) GetCreatedAt() *model.DateTime {
+	if b == nil {
+		return nil
+	}
+	return b.CreatedAt
+}
+
+func (b *BillOfLading) GetNote() string {
+	if b == nil {
+		return ""
+	}
+	return b.Note
+}
+
+func (b *BillOfLading) GetMetaData() ApplicationMetaData {
+	if b == nil {
+		return nil
+	}
+	return b.MetaData
+}
+
+func (b *BillOfLading) SetBillOfLadingV3(bl *dcsa_v3.TransportDocument) *BillOfLading {
+	b.BillOfLadingV3 = bl
+	return b
+}
+
+func (b *BillOfLading) SetFile(file *model.File) *BillOfLading {
+	b.File = file
+	return b
+}
+
+func (b *BillOfLading) SetDocType(docType BillOfLadingDocumentType) *BillOfLading {
+	b.DocType = docType
+	return b
+}
+
+func (b *BillOfLading) SetCreatedBy(createdBy string) *BillOfLading {
+	b.CreatedBy = createdBy
+	return b
+}
+
+func (b *BillOfLading) SetCreatedAt(createdAt *model.DateTime) *BillOfLading {
+	b.CreatedAt = createdAt
+	return b
+}
+
+func (b *BillOfLading) SetNote(note string) *BillOfLading {
+	b.Note = note
+	return b
+}
+
+func (b *BillOfLading) SetMetaData(metadata ApplicationMetaData) *BillOfLading {
+	b.MetaData = metadata
+	return b
 }

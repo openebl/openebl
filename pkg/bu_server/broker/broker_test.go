@@ -556,8 +556,8 @@ func loadTradeDocument(datafile string) storage.TradeDocument {
 		panic(err)
 	}
 	docReference := ""
-	if bl := trade_document.GetLastBillOfLading(&blPack); bl != nil {
-		docReference = bl.BillOfLading.TransportDocumentReference
+	if mbl := trade_document.GetLastBillOfLading(&blPack).GetBillOfLadingV3(); mbl != nil {
+		docReference = mbl.TransportDocumentReference
 	}
 
 	return storage.TradeDocument{

@@ -1258,8 +1258,8 @@ components:
       type: object
       description: Event of issuing the eB/L
       properties:
-        bill_of_lading:
-          $ref: 'https://api.swaggerhub.com/domains/dcsaorg/DOCUMENTATION_DOMAIN/2.1.0#/components/schemas/transportDocument'
+        bill_of_lading_v3:
+          $ref: '../model/trade_document/bill_of_lading/dcsa_v3/dcsaorg-DCSA_EBL-3.0.0-resolved.yaml#/components/schemas/TransportDocument'
         file:
           $ref: '#/components/schemas/FileInfo'
         doc_type:
@@ -1586,7 +1586,7 @@ components:
               description: The port of discharge. It's optional when draft is true.
             eta:
               type: string
-              format: date-time
+              format: date
               description: The estimated time of arrival
             shipper:
               type: string
@@ -1727,7 +1727,7 @@ components:
               description: The port of discharge. It's optional when draft is true.
             eta:
               type: string
-              format: date-time
+              format: date
               description: Estimate time of arrival
             note:
               type: string

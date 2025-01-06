@@ -1254,6 +1254,10 @@ components:
           type: string
           format: byte
           description: base64-encoded content of the document
+      required:
+        - name
+        - type
+        - content
     BillOfLading:
       type: object
       description: Event of issuing the eB/L

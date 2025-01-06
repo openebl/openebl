@@ -325,11 +325,11 @@ func (s *APITestSuite) TestCreateFileBasedEBL() {
 		BLNumber:  "bl_number",
 		BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
 		ToOrder:   false,
-		POL: trade_document.Location{
+		POL: &trade_document.Location{
 			LocationName: "Port of Loading",
 			UNLocCode:    "POL",
 		},
-		POD: trade_document.Location{
+		POD: &trade_document.Location{
 			LocationName: "Port of Discharge",
 			UNLocCode:    "POD",
 		},
@@ -385,11 +385,11 @@ func (s *APITestSuite) TestUpdateFileBasedEBL() {
 			BLNumber:  "bl_number",
 			BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
 			ToOrder:   false,
-			POL: trade_document.Location{
+			POL: &trade_document.Location{
 				LocationName: "Port of Loading",
 				UNLocCode:    "POL",
 			},
-			POD: trade_document.Location{
+			POD: &trade_document.Location{
 				LocationName: "Port of Discharge",
 				UNLocCode:    "POD",
 			},

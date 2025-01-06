@@ -40,53 +40,53 @@ type File struct {
 }
 
 type Location struct {
-	LocationName string `json:"locationName"`
-	UNLocCode    string `json:"UNLocationCode"`
+	LocationName string `json:"locationName" validate:"required"`
+	UNLocCode    string `json:"UNLocationCode" validate:"required"`
 }
 
 type IssueFileBasedEBLRequest struct {
-	Application      string                             `json:"application"`
-	Issuer           string                             `json:"issuer"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	Issuer           string                             `json:"issuer" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	File           File                                    `json:"file"`
-	BLNumber       string                                  `json:"bl_number"`
-	BLDocType      bill_of_lading.BillOfLadingDocumentType `json:"bl_doc_type"`
+	File           File                                    `json:"file" validate:"required"`
+	BLNumber       string                                  `json:"bl_number" validate:"required"`
+	BLDocType      bill_of_lading.BillOfLadingDocumentType `json:"bl_doc_type" validate:"required"`
 	ToOrder        bool                                    `json:"to_order"`
-	POL            Location                                `json:"pol"`
-	POD            Location                                `json:"pod"`
+	POL            *Location                               `json:"pol" validate:"required_if=Draft false"`
+	POD            *Location                               `json:"pod" validate:"required_if=Draft false"`
 	ETA            *model.Date                             `json:"eta,omitempty"`
-	Shipper        string                                  `json:"shipper"`
-	Consignee      string                                  `json:"consignee"`
-	ReleaseAgent   string                                  `json:"release_agent"`
+	Shipper        string                                  `json:"shipper" validate:"required_if=Draft false"`
+	Consignee      string                                  `json:"consignee" validate:"required_if=Draft false"`
+	ReleaseAgent   string                                  `json:"release_agent" validate:"required_if=Draft false"`
 	Note           string                                  `json:"note"`
-	Draft          *bool                                   `json:"draft"`
+	Draft          *bool                                   `json:"draft" validate:"required"`
 	EncryptContent bool                                    `json:"encrypt_content"`
 }
 
 type UpdateFileBasedEBLDraftRequest struct {
 	IssueFileBasedEBLRequest
-	ID string `json:"id"` // ID of the bill of lading pack to be updated.
+	ID string `json:"id" validate:"required"` // ID of the bill of lading pack to be updated.
 }
 
 type ReturnFileBasedEBLRequest struct {
-	Application      string                             `json:"application"`
-	BusinessUnit     string                             `json:"business_unit"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	BusinessUnit     string                             `json:"business_unit" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID   string `json:"id"`
+	ID   string `json:"id" validate:"required"`
 	Note string `json:"note"`
 }
 
 type ListFileBasedEBLRequest struct {
-	Application string `json:"application"`
-	RequestBy   string `json:"lister"`
+	Application string `json:"application" validate:"required"`
+	RequestBy   string `json:"lister" validate:"required"`
 
-	Offset  int    `json:"offset"`
-	Limit   int    `json:"limit"`
-	Status  string `json:"status"`
+	Offset  int    `json:"offset" validate:"min=0"`
+	Limit   int    `json:"limit" validate:"min=1"`
+	Status  string `json:"status" validate:"oneof=action_needed upcoming sent archive"`
 	Report  bool   `json:"report"`
 	Keyword string `json:"keyword"`
 }
@@ -103,86 +103,86 @@ type FileBasedBillOfLadingRecord struct {
 }
 
 type TransferEBLRequest struct {
-	Application      string                             `json:"application"`
-	TransferBy       string                             `json:"transfer_by"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	TransferBy       string                             `json:"transfer_by" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID   string `json:"id"`
+	ID   string `json:"id" validate:"required"`
 	Note string `json:"note"`
 }
 
 type AmendmentRequestEBLRequest struct {
-	Application      string                             `json:"application"`
-	RequestBy        string                             `json:"request_by"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	RequestBy        string                             `json:"request_by" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID   string `json:"id"`
-	Note string `json:"note"`
+	ID   string `json:"id" validate:"required"`
+	Note string `json:"note" validate:"required,notblank"`
 }
 
 type AmendFileBasedEBLRequest struct {
-	Application      string                             `json:"application"`
-	Issuer           string                             `json:"issuer"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	Issuer           string                             `json:"issuer" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID        string                                  `json:"id"`
-	File      File                                    `json:"file"`
-	BLNumber  string                                  `json:"bl_number"`
-	BLDocType bill_of_lading.BillOfLadingDocumentType `json:"bl_doc_type"`
+	ID        string                                  `json:"id" validate:"required"`
+	File      File                                    `json:"file" validate:"required"`
+	BLNumber  string                                  `json:"bl_number" validate:"required"`
+	BLDocType bill_of_lading.BillOfLadingDocumentType `json:"bl_doc_type" validate:"required,oneof=HouseBillOfLading"`
 	ToOrder   bool                                    `json:"to_order"`
-	POL       Location                                `json:"pol"`
-	POD       Location                                `json:"pod"`
+	POL       Location                                `json:"pol" validate:"required"`
+	POD       Location                                `json:"pod" validate:"required"`
 	ETA       *model.Date                             `json:"eta,omitempty"`
-	Note      string                                  `json:"note"`
+	Note      string                                  `json:"note" validate:"required,notblank"`
 }
 
 type SurrenderEBLRequest struct {
-	Application      string                             `json:"application"`
-	RequestBy        string                             `json:"request_by"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	RequestBy        string                             `json:"request_by" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID   string `json:"id"`
+	ID   string `json:"id" validate:"required"`
 	Note string `json:"note"`
 }
 
 type PrintFileBasedEBLToPaperRequest struct {
-	Application      string                             `json:"application"`
-	RequestBy        string                             `json:"request_by"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	RequestBy        string                             `json:"request_by" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID   string `json:"id"`
+	ID   string `json:"id" validate:"required"`
 	Note string `json:"note"`
 }
 
 type AccomplishEBLRequest struct {
-	Application      string                             `json:"application"`
-	RequestBy        string                             `json:"request_by"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	RequestBy        string                             `json:"request_by" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID   string `json:"id"`
+	ID   string `json:"id" validate:"required"`
 	Note string `json:"note"`
 }
 
 type GetFileBasedEBLRequest struct {
-	Requester   string `json:"requester"`
-	Application string `json:"application"`
+	Requester   string `json:"requester" validate:"required"`
+	Application string `json:"application" validate:"required"`
 
-	ID string `json:"id"`
+	ID string `json:"id" validate:"required"`
 }
 
 type DeleteEBLRequest struct {
-	Application      string                             `json:"application"`
-	RequestBy        string                             `json:"request_by"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	RequestBy        string                             `json:"request_by" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID   string `json:"id"`
+	ID   string `json:"id" validate:"required"`
 	Note string `json:"note"`
 }
 
@@ -225,7 +225,7 @@ func NewFileBaseEBLController(storage storage.TradeDocumentStorage, buCtrl busin
 
 func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request IssueFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateIssueFileBasedEBLRequest(request); err != nil {
+	if err := ValidateRequest(request); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -311,7 +311,7 @@ func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request I
 
 func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, request UpdateFileBasedEBLDraftRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateUpdateFileBasedEBLRequest(request); err != nil {
+	if err := ValidateRequest(request); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -407,7 +407,7 @@ func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, requ
 
 func (c *_FileBaseEBLController) Return(ctx context.Context, ts int64, req ReturnFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateReturnFileBasedEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -531,8 +531,8 @@ func AmendFileBasedBillOfLadingFromRequest(req AmendFileBasedEBLRequest, oldPack
 
 	parties := GetFileBaseEBLParticipatorsFromBLPack(&oldPack)
 	td := bl.BillOfLadingV3
-	SetPOL(td, req.POL)
-	SetPOD(td, req.POD)
+	SetPOL(td, &req.POL)
+	SetPOD(td, &req.POD)
 	if req.ETA != nil {
 		SetETA(td, *req.ETA)
 	}
@@ -562,7 +562,7 @@ func FallbackFileInfoFromOldBL(bl, oldBL *bill_of_lading.BillOfLading) {
 }
 
 func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLRequest) (ListFileBasedEBLRecord, error) {
-	if err := ValidateListFileBasedEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return ListFileBasedEBLRecord{}, err
 	}
 
@@ -617,7 +617,7 @@ func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLR
 
 func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req TransferEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateTransferEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -690,7 +690,7 @@ func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req Tra
 
 func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64, req AmendmentRequestEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateAmendmentRequestEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -763,7 +763,7 @@ func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64,
 
 func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateAmendFileBasedEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -835,7 +835,7 @@ func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendF
 
 func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req SurrenderEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateSurrenderEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -902,7 +902,7 @@ func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req Su
 }
 
 func (c *_FileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, req PrintFileBasedEBLToPaperRequest) (FileBasedBillOfLadingRecord, error) {
-	if err := ValidatePrintFileBasedEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -966,7 +966,7 @@ func (c *_FileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, req
 
 func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req AccomplishEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateAccomplishEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -1028,7 +1028,7 @@ func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req A
 
 func (c *_FileBaseEBLController) Delete(ctx context.Context, ts int64, req DeleteEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateDeleteEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -1081,6 +1081,10 @@ func (c *_FileBaseEBLController) Delete(ctx context.Context, ts int64, req Delet
 }
 
 func (c *_FileBaseEBLController) Get(ctx context.Context, request GetFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error) {
+	if err := ValidateRequest(request); err != nil {
+		return FileBasedBillOfLadingRecord{}, err
+	}
+
 	if err := c.checkBUExistence(ctx, request.Application, []string{request.Requester}); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -1124,6 +1128,9 @@ func (c *_FileBaseEBLController) Get(ctx context.Context, request GetFileBasedEB
 }
 
 func (c *_FileBaseEBLController) GetDocument(ctx context.Context, request GetFileBasedEBLRequest) (*model.File, error) {
+	if err := ValidateRequest(request); err != nil {
+		return nil, err
+	}
 	if err := c.checkBUExistence(ctx, request.Application, []string{request.Requester}); err != nil {
 		return nil, err
 	}
@@ -1356,14 +1363,28 @@ func ExtractBLPackFromTradeDocument(td storage.TradeDocument) (bill_of_lading.Bi
 	return res, nil
 }
 
-func SetPOL(td *dcsa_v3.TransportDocument, pol Location) {
+func SetPOL(td *dcsa_v3.TransportDocument, pol *Location) {
+	if pol == nil {
+		td.Transports.PortOfLoading = dcsa_v3.PortOfLoading{
+			UNLocationCode: lo.ToPtr(""),
+			LocationName:   lo.ToPtr(""),
+		}
+		return
+	}
 	td.Transports.PortOfLoading = dcsa_v3.PortOfLoading{
 		UNLocationCode: lo.ToPtr(pol.UNLocCode),
 		LocationName:   lo.ToPtr(pol.LocationName),
 	}
 }
 
-func SetPOD(td *dcsa_v3.TransportDocument, pod Location) {
+func SetPOD(td *dcsa_v3.TransportDocument, pod *Location) {
+	if pod == nil {
+		td.Transports.PortOfDischarge = dcsa_v3.PortOfDischarge{
+			UNLocationCode: lo.ToPtr(""),
+			LocationName:   lo.ToPtr(""),
+		}
+		return
+	}
 	td.Transports.PortOfDischarge = dcsa_v3.PortOfDischarge{
 		UNLocationCode: lo.ToPtr(pod.UNLocCode),
 		LocationName:   lo.ToPtr(pod.LocationName),

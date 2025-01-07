@@ -300,8 +300,8 @@ func tradeDocumentFromEvent(data []byte) (storage.TradeDocument, error) {
 		CreatedAt:    ts,
 		Meta:         meta,
 	}
-	if bl := trade_document.GetLastBillOfLading(&blPack); bl != nil {
-		td.DocReference = bl.BillOfLading.TransportDocumentReference
+	if mbl := trade_document.GetLastBillOfLading(&blPack).GetBillOfLadingV3(); mbl != nil {
+		td.DocReference = mbl.TransportDocumentReference
 	}
 	return td, nil
 }

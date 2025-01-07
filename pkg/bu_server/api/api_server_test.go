@@ -28,6 +28,7 @@ import (
 	mock_business_unit "github.com/openebl/openebl/test/mock/bu_server/business_unit"
 	mock_trade_document "github.com/openebl/openebl/test/mock/bu_server/trade_document"
 	mock_webhook "github.com/openebl/openebl/test/mock/bu_server/webhook"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -332,12 +333,12 @@ func (s *APITestSuite) TestCreateFileBasedEBL() {
 			LocationName: "Port of Discharge",
 			UNLocCode:    "POD",
 		},
-		ETA:          util.Ptr(model.NewDateTimeFromUnix(1708905600)),
+		ETA:          lo.ToPtr(model.NewDateFromStringNoError("2024-02-26")),
 		Shipper:      "shipper",
 		Consignee:    "consignee",
 		ReleaseAgent: "release agent",
 		Note:         "note",
-		Draft:        util.Ptr(true),
+		Draft:        lo.ToPtr(true),
 	}
 
 	expectedRequest := req
@@ -392,12 +393,12 @@ func (s *APITestSuite) TestUpdateFileBasedEBL() {
 				LocationName: "Port of Discharge",
 				UNLocCode:    "POD",
 			},
-			ETA:          util.Ptr(model.NewDateTimeFromUnix(1708905600)),
+			ETA:          lo.ToPtr(model.NewDateFromStringNoError("2024-02-26")),
 			Shipper:      "shipper",
 			Consignee:    "consignee",
 			ReleaseAgent: "release agent",
 			Note:         "note",
-			Draft:        util.Ptr(true),
+			Draft:        lo.ToPtr(true),
 		},
 	}
 
@@ -608,7 +609,7 @@ func (s *APITestSuite) TestAmendFileBasedEBL() {
 			LocationName: "New Port of Discharge",
 			UNLocCode:    "POD",
 		},
-		ETA:  util.Ptr(model.NewDateTimeFromUnix(1708905600)),
+		ETA:  lo.ToPtr(model.NewDateFromStringNoError("2024-02-26")),
 		Note: "amend note",
 	}
 

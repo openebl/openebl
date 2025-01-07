@@ -66,6 +66,10 @@ func (dt Date) Unix() int64 {
 	return dt.timeVal.Unix()
 }
 
+func (dt Date) GetTime() time.Time {
+	return dt.timeVal
+}
+
 func (dt Date) MarshalJSON() ([]byte, error) {
 	strVal := dt.timeVal.Format(time.DateOnly)
 	return json.Marshal(strVal)
@@ -94,4 +98,14 @@ func NewDateFromString(t string) (Date, error) {
 	return Date{
 		timeVal: ts,
 	}, nil
+}
+
+func NewDateFromStringNoError(t string) Date {
+	ts, err := time.ParseInLocation(time.DateOnly, t, time.UTC)
+	if err != nil {
+		panic(err)
+	}
+	return Date{
+		timeVal: ts,
+	}
 }

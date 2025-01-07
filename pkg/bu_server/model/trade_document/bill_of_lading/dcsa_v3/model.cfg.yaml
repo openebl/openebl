@@ -1,0 +1,6 @@
+package: dcsa_v3
+generate:
+  models: true
+  gorilla-server: false
+  strict-server: false
+output: dcsa_model.gen.go

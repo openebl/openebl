@@ -37,7 +37,6 @@ type BillOfLadingEvent struct {
 }
 
 type BillOfLading struct {
-	// BillOfLading        *dcsa_v2.TransportDocument `json:"bill_of_lading,omitempty"`
 	BillOfLadingV3 *dcsa_v3.TransportDocument `json:"bill_of_lading_v3,omitempty"`
 	File           *model.File                `json:"file,omitempty"`
 	DocType        BillOfLadingDocumentType   `json:"doc_type,omitempty"`

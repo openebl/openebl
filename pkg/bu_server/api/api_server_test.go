@@ -598,9 +598,7 @@ func (s *APITestSuite) TestAmendFileBasedEBL() {
 			Type:    "text/plain",
 			Content: []byte("new test content"),
 		},
-		BLNumber:  "new_bl_number",
-		BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
-		ToOrder:   false,
+		BLNumber: "new_bl_number",
 		POL: trade_document.Location{
 			LocationName: "New Port of Loading",
 			UNLocCode:    "POL",

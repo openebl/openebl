@@ -1254,6 +1254,10 @@ components:
           type: string
           format: byte
           description: base64-encoded content of the document
+      required:
+        - name
+        - type
+        - content
     BillOfLading:
       type: object
       description: Event of issuing the eB/L
@@ -1594,9 +1598,19 @@ components:
             consignee:
               type: string
               description: The consignee of the eB/L. It's a DID of the business unit. It's optional when draft is true.
+            endorsee:
+              type: string
+              description: The endorsee of the eB/L. It's a DID of the business unit. It's required when draft is false and to_order is true.
             release_agent:
               type: string
               description: The release agent of the eB/L. It's a DID of the business unit. It's optional when draft is true.
+            notify_parties:
+              type: array
+              items:
+                type: string
+              maxItems: 3
+              uniqueItems: true
+              description:  The notify parties of the eB/L. It's a DID of the business unit. It's required if to_order is true.
             note:
               type: string
               description: Any additional notes
@@ -1710,13 +1724,6 @@ components:
             bl_number:
               type: string
               description: The bill of lading number
-            bl_doc_type:
-              allOf:
-              - $ref: '#/components/schemas/BillOfLadingDocumentType'
-              description: The type of the bill of lading document
-            to_order:
-              type: boolean
-              description: Indicates if the request is to order
             pol:
               allOf:
                 - $ref: '#/components/schemas/Location'

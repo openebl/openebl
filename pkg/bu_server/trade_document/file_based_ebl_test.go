@@ -360,11 +360,11 @@ func (s *FileBasedEBLTestSuite) TestCreateEBL() {
 		BLNumber:  "bl_number",
 		BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
 		ToOrder:   false,
-		POL: trade_document.Location{
+		POL: &trade_document.Location{
 			LocationName: "Port of Loading",
 			UNLocCode:    "POL",
 		},
-		POD: trade_document.Location{
+		POD: &trade_document.Location{
 			LocationName: "Port of Discharge",
 			UNLocCode:    "POD",
 		},
@@ -609,11 +609,11 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBLToNonDraftEBL() {
 			BLNumber:  "bl_number",
 			BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
 			ToOrder:   false,
-			POL: trade_document.Location{
+			POL: &trade_document.Location{
 				LocationName: "Real Port of Loading",
 				UNLocCode:    "POL",
 			},
-			POD: trade_document.Location{
+			POD: &trade_document.Location{
 				LocationName: "Real Port of Discharge",
 				UNLocCode:    "POD",
 			},
@@ -824,8 +824,9 @@ func (s *FileBasedEBLTestSuite) TestUpdateDraftEBL_FileNotChange() {
 			Issuer:           "did:openebl:issuer",
 			AuthenticationID: "issuer_auth1",
 			File: trade_document.File{
-				Name: "test.txt",
-				Type: "text/plain",
+				Name:    "test.txt",
+				Type:    "text/plain",
+				Content: []byte("test content"),
 			},
 			BLNumber:  "new_bl_number",
 			BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
@@ -1584,9 +1585,7 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL() {
 			Type:    "text/plain",
 			Content: []byte("new test content"),
 		},
-		BLNumber:  "new_bl_number",
-		BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
-		ToOrder:   false,
+		BLNumber: "new_bl_number",
 		POL: trade_document.Location{
 			LocationName: "New Port of Loading",
 			UNLocCode:    "POL",
@@ -1696,9 +1695,7 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL_FileNotChange() {
 			Name: "test.txt",
 			Type: "text/plain",
 		},
-		BLNumber:  "new_bl_number",
-		BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
-		ToOrder:   false,
+		BLNumber: "new_bl_number",
 		POL: trade_document.Location{
 			LocationName: "New Port of Loading",
 			UNLocCode:    "POL",
@@ -1805,9 +1802,7 @@ func (s *FileBasedEBLTestSuite) TestAmendEBL_ReturnedByShipper() {
 			Type:    "text/plain",
 			Content: []byte("new test content"),
 		},
-		BLNumber:  "new_bl_number",
-		BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
-		ToOrder:   false,
+		BLNumber: "new_bl_number",
 		POL: trade_document.Location{
 			LocationName: "New Port of Loading",
 			UNLocCode:    "POL",
@@ -2328,11 +2323,11 @@ func (s *FileBasedEBLTestSuite) TestCreateEncryptedEBL() {
 		BLNumber:  "bl_number",
 		BLDocType: bill_of_lading.BillOfLadingDocumentTypeHouseBillOfLading,
 		ToOrder:   false,
-		POL: trade_document.Location{
+		POL: &trade_document.Location{
 			LocationName: "Port of Loading",
 			UNLocCode:    "POL",
 		},
-		POD: trade_document.Location{
+		POD: &trade_document.Location{
 			LocationName: "Port of Discharge",
 			UNLocCode:    "POD",
 		},

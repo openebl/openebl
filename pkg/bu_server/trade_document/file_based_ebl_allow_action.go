@@ -163,9 +163,9 @@ func IsFileEBLRequestAmendable(bl *bill_of_lading.BillOfLadingPack, bu string, w
 		return model.ErrEBLActionNotAllowed
 	}
 	parties := GetFileBaseEBLParticipatorsFromBLPack(bl)
-	if bu != parties.Shipper && bu != parties.Consignee && bu != parties.ReleaseAgent {
+	if bu != parties.Shipper && bu != parties.Consignee && bu != parties.Endorsee && bu != parties.ReleaseAgent {
 		if withDetail {
-			return fmt.Errorf("only [shipper, consignee, release_agent] can request amendment. %w", model.ErrEBLActionNotAllowed)
+			return fmt.Errorf("only [shipper, consignee, endorsee, release_agent] can request amendment. %w", model.ErrEBLActionNotAllowed)
 		}
 		return model.ErrEBLActionNotAllowed
 
@@ -238,9 +238,19 @@ func IsFileEBLTransferable(bl *bill_of_lading.BillOfLadingPack, bu string, withD
 	}
 
 	participants := GetFileBaseEBLParticipatorsFromBLPack(bl)
-	if bu != participants.Issuer && bu != participants.Shipper {
+	var isToOrder bool
+	if ptrIsToOrder := GetToOrder(bl); ptrIsToOrder != nil {
+		isToOrder = *ptrIsToOrder
+	}
+	if !isToOrder && bu != participants.Issuer && bu != participants.Shipper {
 		if withDetail {
 			return fmt.Errorf("not the [issuer, shipper]. %w", model.ErrEBLActionNotAllowed)
+		}
+		return model.ErrEBLActionNotAllowed
+	}
+	if isToOrder && bu != participants.Issuer && bu != participants.Shipper && bu != participants.Consignee {
+		if withDetail {
+			return fmt.Errorf("not the [issuer, shipper, consignee]. %w", model.ErrEBLActionNotAllowed)
 		}
 		return model.ErrEBLActionNotAllowed
 	}
@@ -332,9 +342,9 @@ func IsFileEBLSurrenderable(bl *bill_of_lading.BillOfLadingPack, bu string, with
 	}
 
 	participants := GetFileBaseEBLParticipatorsFromBLPack(bl)
-	if participants.Consignee != bu {
+	if participants.Consignee != bu && participants.Endorsee != bu {
 		if withDetail {
-			return fmt.Errorf("not the consignee%w", model.ErrEBLActionNotAllowed)
+			return fmt.Errorf("not the consignee or endorsee%w", model.ErrEBLActionNotAllowed)
 		}
 		return model.ErrEBLActionNotAllowed
 	}

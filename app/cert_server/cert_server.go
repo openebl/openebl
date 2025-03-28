@@ -7,6 +7,6 @@ import (
 
 func main() {
 	formatter.InitLogger()
-	cli := cli.App{}
-	cli.Run()
+	app := cli.NewCobraApp()
+	app.Run()
 }

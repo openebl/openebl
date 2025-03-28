@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/openebl/openebl/pkg/cert_server/api"
 	"github.com/openebl/openebl/pkg/cert_server/cert_authority"
@@ -13,6 +14,40 @@ import (
 	eblpkix "github.com/openebl/openebl/pkg/pkix"
 	"github.com/openebl/openebl/pkg/util"
 )
+
+// PrivateKeyOption defines options for private key generation
+type PrivateKeyOption struct {
+	KeyType   eblpkix.PrivateKeyType
+	BitLength int
+	CurveType eblpkix.ECDSACurveType
+}
+
+// CACertAddCmd represents a command to add a CA certificate
+type CACertAddCmd struct {
+	PrivateKeyOption
+	Requester  string
+	Country    []string
+	Org        []string
+	Unit       []string
+	CommonName string
+}
+
+// CertAddCmd represents a command to add a certificate
+type CertAddCmd struct {
+	Requester string
+	CertType  model.CertType
+	CSR       []byte
+}
+
+// CertIssueCmd represents a command to issue a certificate
+type CertIssueCmd struct {
+	Requester string
+	ID        string
+	CACertID  string
+	CertType  model.CertType
+	NotBefore time.Time
+	NotAfter  time.Time
+}
 
 type RestClient struct {
 	requester string
@@ -106,6 +141,7 @@ func (r *RestClient) AddCACert(cmd *CACertAddCmd) (model.Cert, error) {
 	path := "/ca_cert"
 
 	req := cert_authority.CreateCACertificateSigningRequestRequest{
+		Requester:          cmd.Requester,
 		Country:            cmd.Country,
 		Organization:       cmd.Org,
 		OrganizationalUnit: cmd.Unit,

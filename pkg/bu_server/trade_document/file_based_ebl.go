@@ -13,6 +13,7 @@ import (
 	"github.com/openebl/openebl/pkg/bu_server/business_unit"
 	"github.com/openebl/openebl/pkg/bu_server/model"
 	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading"
+	"github.com/openebl/openebl/pkg/bu_server/model/trade_document/bill_of_lading/dcsa_v3"
 	"github.com/openebl/openebl/pkg/bu_server/storage"
 	"github.com/openebl/openebl/pkg/bu_server/webhook"
 	"github.com/openebl/openebl/pkg/did"
@@ -23,6 +24,14 @@ import (
 	"github.com/samber/lo"
 )
 
+const (
+	CodeListName     = "DID"
+	CodeListProvider = "OEBL"
+
+	DRAFT  = "DRAFT"
+	ISSUED = "ISSUED"
+)
+
 type File struct {
 	Name    string `json:"name"`    // File name
 	Type    string `json:"type"`    // MIME type of the file.
@@ -30,53 +39,55 @@ type File struct {
 }
 
 type Location struct {
-	LocationName string `json:"locationName"`
-	UNLocCode    string `json:"UNLocationCode"`
+	LocationName string `json:"locationName" validate:"required"`
+	UNLocCode    string `json:"UNLocationCode" validate:"required"`
 }
 
 type IssueFileBasedEBLRequest struct {
-	Application      string                             `json:"application"`
-	Issuer           string                             `json:"issuer"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	Issuer           string                             `json:"issuer" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	File           File                                    `json:"file"`
-	BLNumber       string                                  `json:"bl_number"`
-	BLDocType      bill_of_lading.BillOfLadingDocumentType `json:"bl_doc_type"`
+	File           File                                    `json:"file" validate:"required"`
+	BLNumber       string                                  `json:"bl_number" validate:"required"`
+	BLDocType      bill_of_lading.BillOfLadingDocumentType `json:"bl_doc_type" validate:"required"`
 	ToOrder        bool                                    `json:"to_order"`
-	POL            Location                                `json:"pol"`
-	POD            Location                                `json:"pod"`
-	ETA            *model.DateTime                         `json:"eta,omitempty"`
-	Shipper        string                                  `json:"shipper"`
-	Consignee      string                                  `json:"consignee"`
-	ReleaseAgent   string                                  `json:"release_agent"`
+	POL            *Location                               `json:"pol" validate:"required_if=Draft false"`
+	POD            *Location                               `json:"pod" validate:"required_if=Draft false"`
+	ETA            *model.Date                             `json:"eta,omitempty"`
+	Shipper        string                                  `json:"shipper" validate:"required_if=Draft false"`
+	Consignee      string                                  `json:"consignee" validate:"required_if=Draft false"`
+	ReleaseAgent   string                                  `json:"release_agent" validate:"required_if=Draft false"`
+	Endorsee       string                                  `json:"endorsee" validate:"required_if=ToOrder true,excluded_if=ToOrder false"`
+	NotifyParties  []string                                `json:"notify_parties" validate:"required_if=ToOrder true,max=3,unique"`
 	Note           string                                  `json:"note"`
-	Draft          *bool                                   `json:"draft"`
+	Draft          *bool                                   `json:"draft" validate:"required"`
 	EncryptContent bool                                    `json:"encrypt_content"`
 }
 
 type UpdateFileBasedEBLDraftRequest struct {
 	IssueFileBasedEBLRequest
-	ID string `json:"id"` // ID of the bill of lading pack to be updated.
+	ID string `json:"id" validate:"required"` // ID of the bill of lading pack to be updated.
 }
 
 type ReturnFileBasedEBLRequest struct {
-	Application      string                             `json:"application"`
-	BusinessUnit     string                             `json:"business_unit"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	BusinessUnit     string                             `json:"business_unit" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID   string `json:"id"`
+	ID   string `json:"id" validate:"required"`
 	Note string `json:"note"`
 }
 
 type ListFileBasedEBLRequest struct {
-	Application string `json:"application"`
-	RequestBy   string `json:"lister"`
+	Application string `json:"application" validate:"required"`
+	RequestBy   string `json:"lister" validate:"required"`
 
-	Offset  int    `json:"offset"`
-	Limit   int    `json:"limit"`
-	Status  string `json:"status"`
+	Offset  int    `json:"offset" validate:"min=0"`
+	Limit   int    `json:"limit" validate:"min=1"`
+	Status  string `json:"status" validate:"oneof=action_needed upcoming sent archive"`
 	Report  bool   `json:"report"`
 	Keyword string `json:"keyword"`
 }
@@ -93,94 +104,94 @@ type FileBasedBillOfLadingRecord struct {
 }
 
 type TransferEBLRequest struct {
-	Application      string                             `json:"application"`
-	TransferBy       string                             `json:"transfer_by"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	TransferBy       string                             `json:"transfer_by" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID   string `json:"id"`
+	ID   string `json:"id" validate:"required"`
 	Note string `json:"note"`
 }
 
 type AmendmentRequestEBLRequest struct {
-	Application      string                             `json:"application"`
-	RequestBy        string                             `json:"request_by"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	RequestBy        string                             `json:"request_by" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID   string `json:"id"`
-	Note string `json:"note"`
+	ID   string `json:"id" validate:"required"`
+	Note string `json:"note" validate:"required,notblank"`
 }
 
 type AmendFileBasedEBLRequest struct {
-	Application      string                             `json:"application"`
-	Issuer           string                             `json:"issuer"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	Issuer           string                             `json:"issuer" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID        string                                  `json:"id"`
-	File      File                                    `json:"file"`
-	BLNumber  string                                  `json:"bl_number"`
-	BLDocType bill_of_lading.BillOfLadingDocumentType `json:"bl_doc_type"`
-	ToOrder   bool                                    `json:"to_order"`
-	POL       Location                                `json:"pol"`
-	POD       Location                                `json:"pod"`
-	ETA       *model.DateTime                         `json:"eta,omitempty"`
-	Note      string                                  `json:"note"`
+	ID       string      `json:"id" validate:"required"`
+	File     File        `json:"file" validate:"required"`
+	BLNumber string      `json:"bl_number" validate:"required"`
+	POL      Location    `json:"pol" validate:"required"`
+	POD      Location    `json:"pod" validate:"required"`
+	ETA      *model.Date `json:"eta,omitempty"`
+	Note     string      `json:"note" validate:"required,notblank"`
 }
 
 type SurrenderEBLRequest struct {
-	Application      string                             `json:"application"`
-	RequestBy        string                             `json:"request_by"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	RequestBy        string                             `json:"request_by" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID   string `json:"id"`
+	ID   string `json:"id" validate:"required"`
 	Note string `json:"note"`
 }
 
 type PrintFileBasedEBLToPaperRequest struct {
-	Application      string                             `json:"application"`
-	RequestBy        string                             `json:"request_by"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	RequestBy        string                             `json:"request_by" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID   string `json:"id"`
+	ID   string `json:"id" validate:"required"`
 	Note string `json:"note"`
 }
 
 type AccomplishEBLRequest struct {
-	Application      string                             `json:"application"`
-	RequestBy        string                             `json:"request_by"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	RequestBy        string                             `json:"request_by" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID   string `json:"id"`
+	ID   string `json:"id" validate:"required"`
 	Note string `json:"note"`
 }
 
 type GetFileBasedEBLRequest struct {
-	Requester   string `json:"requester"`
-	Application string `json:"application"`
+	Requester   string `json:"requester" validate:"required"`
+	Application string `json:"application" validate:"required"`
 
-	ID string `json:"id"`
+	ID string `json:"id" validate:"required"`
 }
 
 type DeleteEBLRequest struct {
-	Application      string                             `json:"application"`
-	RequestBy        string                             `json:"request_by"`
-	AuthenticationID string                             `json:"authentication_id"`
+	Application      string                             `json:"application" validate:"required"`
+	RequestBy        string                             `json:"request_by" validate:"required"`
+	AuthenticationID string                             `json:"authentication_id" validate:"required"`
 	MetaData         bill_of_lading.ApplicationMetaData `json:"metadata"`
 
-	ID   string `json:"id"`
+	ID   string `json:"id" validate:"required"`
 	Note string `json:"note"`
 }
 
 type FileBaseEBLParticipators struct {
-	Issuer       string `json:"issuer"`
-	Shipper      string `json:"shipper"`
-	Consignee    string `json:"consignee"`
-	ReleaseAgent string `json:"release_agent"`
+	Issuer        string   `json:"issuer"`
+	Shipper       string   `json:"shipper"`
+	Consignee     string   `json:"consignee"`
+	ReleaseAgent  string   `json:"release_agent"`
+	Endorsee      string   `json:"endorsee"`
+	NotifyParties []string `json:"notify_parties"`
 }
 
 type FileBaseEBLController interface {
@@ -215,13 +226,17 @@ func NewFileBaseEBLController(storage storage.TradeDocumentStorage, buCtrl busin
 
 func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request IssueFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateIssueFileBasedEBLRequest(request); err != nil {
+	if err := ValidateRequest(request); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	requiredBUList := []string{request.Issuer}
 	if !*request.Draft {
-		requiredBUList = append(requiredBUList, request.Shipper, request.Consignee, request.ReleaseAgent)
+		requiredBUList = append(requiredBUList, request.Shipper, request.Consignee, request.Endorsee, request.ReleaseAgent)
+		requiredBUList = append(requiredBUList, request.NotifyParties...)
+		requiredBUList = lo.Filter(requiredBUList, func(bu string, _ int) bool {
+			return bu != ""
+		})
 	}
 	if err := c.checkBUExistence(ctx, request.Application, requiredBUList); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
@@ -301,13 +316,17 @@ func (c *_FileBaseEBLController) Create(ctx context.Context, ts int64, request I
 
 func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, request UpdateFileBasedEBLDraftRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateUpdateFileBasedEBLRequest(request); err != nil {
+	if err := ValidateRequest(request); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
 	requiredBUList := []string{request.Issuer}
 	if !*request.Draft {
-		requiredBUList = append(requiredBUList, request.Shipper, request.Consignee, request.ReleaseAgent)
+		requiredBUList = append(requiredBUList, request.Shipper, request.Consignee, request.Endorsee, request.ReleaseAgent)
+		requiredBUList = append(requiredBUList, request.NotifyParties...)
+		requiredBUList = lo.Filter(requiredBUList, func(bu string, _ int) bool {
+			return bu != ""
+		})
 	}
 	if err := c.checkBUExistence(ctx, request.Application, requiredBUList); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
@@ -397,7 +416,7 @@ func (c *_FileBaseEBLController) UpdateDraft(ctx context.Context, ts int64, requ
 
 func (c *_FileBaseEBLController) Return(ctx context.Context, ts int64, req ReturnFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateReturnFileBasedEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -463,8 +482,9 @@ func (c *_FileBaseEBLController) Return(ctx context.Context, ts int64, req Retur
 
 func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, oldBL *bill_of_lading.BillOfLading, currentTime model.DateTime) *bill_of_lading.BillOfLading {
 	bl := &bill_of_lading.BillOfLading{
-		BillOfLading: &bill_of_lading.TransportDocument{
+		BillOfLadingV3: &dcsa_v3.TransportDocument{
 			TransportDocumentReference: request.BLNumber,
+			TransportDocumentTypeCode:  dcsa_v3.TransportDocumentTransportDocumentTypeCodeBOL,
 		},
 		File: &model.File{
 			Name:        request.File.Name,
@@ -480,7 +500,7 @@ func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, ol
 	}
 	FallbackFileInfoFromOldBL(bl, oldBL)
 
-	td := bl.BillOfLading
+	td := bl.BillOfLadingV3
 	SetPOL(td, request.POL)
 	SetPOD(td, request.POD)
 	if request.ETA != nil {
@@ -489,7 +509,9 @@ func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, ol
 	SetIssuer(td, request.Issuer)
 	SetShipper(td, request.Shipper)
 	SetConsignee(td, request.Consignee)
+	SetEndorsee(td, request.Endorsee)
 	SetReleaseAgent(td, request.ReleaseAgent)
+	SetNotifyParties(td, request.NotifyParties)
 	SetToOrder(td, request.ToOrder)
 	if request.Draft != nil {
 		SetDraft(td, *request.Draft)
@@ -498,9 +520,11 @@ func CreateFileBasedBillOfLadingFromRequest(request IssueFileBasedEBLRequest, ol
 }
 
 func AmendFileBasedBillOfLadingFromRequest(req AmendFileBasedEBLRequest, oldPack bill_of_lading.BillOfLadingPack, currentTime model.DateTime) *bill_of_lading.BillOfLading {
+	oldBL := GetLastBillOfLading(&oldPack)
 	bl := &bill_of_lading.BillOfLading{
-		BillOfLading: &bill_of_lading.TransportDocument{
+		BillOfLadingV3: &dcsa_v3.TransportDocument{
 			TransportDocumentReference: req.BLNumber,
+			TransportDocumentTypeCode:  dcsa_v3.TransportDocumentTransportDocumentTypeCodeBOL,
 		},
 		File: &model.File{
 			Name:        req.File.Name,
@@ -508,27 +532,30 @@ func AmendFileBasedBillOfLadingFromRequest(req AmendFileBasedEBLRequest, oldPack
 			Content:     req.File.Content,
 			CreatedDate: currentTime,
 		},
-		DocType:   req.BLDocType,
+		DocType:   oldBL.DocType,
 		CreatedBy: req.Issuer,
 		CreatedAt: &currentTime,
 		Note:      req.Note,
 		MetaData:  req.MetaData,
 	}
-	oldBL := GetLastBillOfLading(&oldPack)
+	if oldBL.BillOfLadingV3 != nil {
+		bl.BillOfLadingV3.IsToOrder = oldBL.BillOfLadingV3.IsToOrder
+	}
 	FallbackFileInfoFromOldBL(bl, oldBL)
 
 	parties := GetFileBaseEBLParticipatorsFromBLPack(&oldPack)
-	td := bl.BillOfLading
-	SetPOL(td, req.POL)
-	SetPOD(td, req.POD)
+	td := bl.BillOfLadingV3
+	SetPOL(td, &req.POL)
+	SetPOD(td, &req.POD)
 	if req.ETA != nil {
 		SetETA(td, *req.ETA)
 	}
 	SetIssuer(td, parties.Issuer)
 	SetShipper(td, parties.Shipper)
 	SetConsignee(td, parties.Consignee)
+	SetEndorsee(td, parties.Endorsee)
 	SetReleaseAgent(td, parties.ReleaseAgent)
-	SetToOrder(td, req.ToOrder)
+	SetNotifyParties(td, parties.NotifyParties)
 	SetDraft(td, false)
 	return bl
 }
@@ -550,7 +577,7 @@ func FallbackFileInfoFromOldBL(bl, oldBL *bill_of_lading.BillOfLading) {
 }
 
 func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLRequest) (ListFileBasedEBLRecord, error) {
-	if err := ValidateListFileBasedEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return ListFileBasedEBLRecord{}, err
 	}
 
@@ -605,7 +632,7 @@ func (c *_FileBaseEBLController) List(ctx context.Context, req ListFileBasedEBLR
 
 func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req TransferEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateTransferEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -665,7 +692,7 @@ func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req Tra
 	}
 
 	lo.ForEach(blPack.Events, func(e bill_of_lading.BillOfLadingEvent, _ int) {
-		if e.BillOfLading != nil {
+		if e.BillOfLading != nil && e.BillOfLading.File != nil {
 			e.BillOfLading.File.Content = nil
 		}
 	})
@@ -678,7 +705,7 @@ func (c *_FileBaseEBLController) Transfer(ctx context.Context, ts int64, req Tra
 
 func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64, req AmendmentRequestEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateAmendmentRequestEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -751,7 +778,7 @@ func (c *_FileBaseEBLController) AmendmentRequest(ctx context.Context, ts int64,
 
 func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateAmendFileBasedEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -823,7 +850,7 @@ func (c *_FileBaseEBLController) Amend(ctx context.Context, ts int64, req AmendF
 
 func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req SurrenderEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateSurrenderEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -890,7 +917,7 @@ func (c *_FileBaseEBLController) Surrender(ctx context.Context, ts int64, req Su
 }
 
 func (c *_FileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, req PrintFileBasedEBLToPaperRequest) (FileBasedBillOfLadingRecord, error) {
-	if err := ValidatePrintFileBasedEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -954,7 +981,7 @@ func (c *_FileBaseEBLController) PrintToPaper(ctx context.Context, ts int64, req
 
 func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req AccomplishEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateAccomplishEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -1016,7 +1043,7 @@ func (c *_FileBaseEBLController) Accomplish(ctx context.Context, ts int64, req A
 
 func (c *_FileBaseEBLController) Delete(ctx context.Context, ts int64, req DeleteEBLRequest) (FileBasedBillOfLadingRecord, error) {
 	currentTime := model.NewDateTimeFromUnix(ts)
-	if err := ValidateDeleteEBLRequest(req); err != nil {
+	if err := ValidateRequest(req); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
 
@@ -1069,6 +1096,10 @@ func (c *_FileBaseEBLController) Delete(ctx context.Context, ts int64, req Delet
 }
 
 func (c *_FileBaseEBLController) Get(ctx context.Context, request GetFileBasedEBLRequest) (FileBasedBillOfLadingRecord, error) {
+	if err := ValidateRequest(request); err != nil {
+		return FileBasedBillOfLadingRecord{}, err
+	}
+
 	if err := c.checkBUExistence(ctx, request.Application, []string{request.Requester}); err != nil {
 		return FileBasedBillOfLadingRecord{}, err
 	}
@@ -1112,6 +1143,9 @@ func (c *_FileBaseEBLController) Get(ctx context.Context, request GetFileBasedEB
 }
 
 func (c *_FileBaseEBLController) GetDocument(ctx context.Context, request GetFileBasedEBLRequest) (*model.File, error) {
+	if err := ValidateRequest(request); err != nil {
+		return nil, err
+	}
 	if err := c.checkBUExistence(ctx, request.Application, []string{request.Requester}); err != nil {
 		return nil, err
 	}
@@ -1221,7 +1255,7 @@ func (c *_FileBaseEBLController) signBillOfLadingPack(ctx context.Context, ts in
 			break
 		}
 	}
-	blNumber := bl.BillOfLading.TransportDocumentReference
+	blNumber := bl.BillOfLadingV3.TransportDocumentReference
 
 	td := storage.TradeDocument{
 		Kind:         kind,
@@ -1344,76 +1378,158 @@ func ExtractBLPackFromTradeDocument(td storage.TradeDocument) (bill_of_lading.Bi
 	return res, nil
 }
 
-func SetPOL(td *bill_of_lading.TransportDocument, pol Location) {
-	loc := bill_of_lading.ShipmentLocation{
-		Location: &bill_of_lading.Location{
-			LocationName:   pol.LocationName,
-			UNLocationCode: pol.UNLocCode,
-		},
-		ShipmentLocationTypeCode: bill_of_lading.POL_ShipmentLocationTypeCode,
-	}
-
-	ReplaceShipmentLocation(td, loc)
-}
-
-func SetPOD(td *bill_of_lading.TransportDocument, pod Location) {
-	loc := bill_of_lading.ShipmentLocation{
-		Location: &bill_of_lading.Location{
-			LocationName:   pod.LocationName,
-			UNLocationCode: pod.UNLocCode,
-		},
-		ShipmentLocationTypeCode: bill_of_lading.POD_ShipmentLocationTypeCode,
-	}
-
-	ReplaceShipmentLocation(td, loc)
-}
-
-func SetETA(td *bill_of_lading.TransportDocument, eta model.DateTime) {
-	for i := range td.ShipmentLocations {
-		if td.ShipmentLocations[i].ShipmentLocationTypeCode == bill_of_lading.POD_ShipmentLocationTypeCode {
-			td.ShipmentLocations[i].EventDateTime = &eta
-			return
+func SetPOL(td *dcsa_v3.TransportDocument, pol *Location) {
+	if pol == nil {
+		td.Transports.PortOfLoading = dcsa_v3.PortOfLoading{
+			UNLocationCode: lo.ToPtr(""),
+			LocationName:   lo.ToPtr(""),
 		}
+		return
+	}
+	td.Transports.PortOfLoading = dcsa_v3.PortOfLoading{
+		UNLocationCode: lo.ToPtr(pol.UNLocCode),
+		LocationName:   lo.ToPtr(pol.LocationName),
 	}
 }
 
-func SetIssuer(td *bill_of_lading.TransportDocument, issuer string) {
-	si := PrepareSI(td)
-	party := PrepareDocumentParty(issuer, bill_of_lading.DDR_PartyFunction)
-	td.IssuingParty = party.Party
-	ReplaceSIParty(si, party)
+func SetPOD(td *dcsa_v3.TransportDocument, pod *Location) {
+	if pod == nil {
+		td.Transports.PortOfDischarge = dcsa_v3.PortOfDischarge{
+			UNLocationCode: lo.ToPtr(""),
+			LocationName:   lo.ToPtr(""),
+		}
+		return
+	}
+	td.Transports.PortOfDischarge = dcsa_v3.PortOfDischarge{
+		UNLocationCode: lo.ToPtr(pod.UNLocCode),
+		LocationName:   lo.ToPtr(pod.LocationName),
+	}
 }
 
-func SetConsignee(td *bill_of_lading.TransportDocument, consignee string) {
-	si := PrepareSI(td)
-	party := PrepareDocumentParty(consignee, bill_of_lading.CN_PartyFunction)
-	ReplaceSIParty(si, party)
+func SetETA(td *dcsa_v3.TransportDocument, eta model.Date) {
+	td.Transports.PlannedArrivalDate.Time = eta.GetTime()
 }
 
-func SetShipper(td *bill_of_lading.TransportDocument, shipper string) {
-	si := PrepareSI(td)
-	party := PrepareDocumentParty(shipper, bill_of_lading.OS_PartyFunction)
-	ReplaceSIParty(si, party)
+func SetIssuer(td *dcsa_v3.TransportDocument, issuer string) {
+	td.DocumentParties.IssuingParty = dcsa_v3.IssuingParty{
+		IdentifyingCodes: &[]dcsa_v3.IdentifyingCode{
+			{
+				CodeListName:     lo.ToPtr(CodeListName),
+				CodeListProvider: CodeListProvider,
+				PartyCode:        issuer,
+			},
+		},
+	}
 }
 
-func SetReleaseAgent(td *bill_of_lading.TransportDocument, releaseAgent string) {
-	si := PrepareSI(td)
-	party := PrepareDocumentParty(releaseAgent, bill_of_lading.DDS_PartyFunction)
-	ReplaceSIParty(si, party)
+func SetConsignee(td *dcsa_v3.TransportDocument, consignee string) {
+	td.DocumentParties.Consignee = &dcsa_v3.Consignee{
+		IdentifyingCodes: []dcsa_v3.IdentifyingCode{
+			{
+				CodeListName:     lo.ToPtr(CodeListName),
+				CodeListProvider: CodeListProvider,
+				PartyCode:        consignee,
+			},
+		},
+	}
 }
 
-func SetToOrder(td *bill_of_lading.TransportDocument, toOrder bool) {
-	si := PrepareSI(td)
-	si.IsToOrder = toOrder
+func SetShipper(td *dcsa_v3.TransportDocument, shipper string) {
+	td.DocumentParties.Shipper = dcsa_v3.Shipper{
+		IdentifyingCodes: &[]dcsa_v3.IdentifyingCode{
+			{
+				CodeListName:     lo.ToPtr(CodeListName),
+				CodeListProvider: CodeListProvider,
+				PartyCode:        shipper,
+			},
+		},
+	}
 }
 
-func SetDraft(td *bill_of_lading.TransportDocument, draft bool) {
-	si := PrepareSI(td)
+func SetEndorsee(td *dcsa_v3.TransportDocument, endorsee string) {
+	if endorsee == "" {
+		td.DocumentParties.Endorsee = nil
+		return
+	}
 
+	td.DocumentParties.Endorsee = &dcsa_v3.Endorsee{
+		IdentifyingCodes: []dcsa_v3.IdentifyingCode{
+			{
+				CodeListName:     lo.ToPtr(CodeListName),
+				CodeListProvider: CodeListProvider,
+				PartyCode:        endorsee,
+			},
+		},
+	}
+}
+
+func SetNotifyParties(td *dcsa_v3.TransportDocument, notifyParties []string) {
+	if len(notifyParties) == 0 {
+		td.DocumentParties.NotifyParties = nil
+		return
+	}
+	td.DocumentParties.NotifyParties = &[]dcsa_v3.NotifyParty{}
+	for _, party := range notifyParties {
+		*td.DocumentParties.NotifyParties = append(*td.DocumentParties.NotifyParties, dcsa_v3.NotifyParty{
+			IdentifyingCodes: &[]dcsa_v3.IdentifyingCode{
+				{
+					CodeListName:     lo.ToPtr(CodeListName),
+					CodeListProvider: CodeListProvider,
+					PartyCode:        party,
+				},
+			},
+		})
+	}
+}
+
+func SetReleaseAgent(td *dcsa_v3.TransportDocument, releaseAgent string) {
+	replaceConsigneeForwarder := func(party dcsa_v3.OtherDocumentParty) {
+		if td.DocumentParties.Other == nil {
+			td.DocumentParties.Other = &[]dcsa_v3.OtherDocumentParty{}
+		}
+		for i := range *td.DocumentParties.Other {
+			oldParty := (*td.DocumentParties.Other)[i]
+			if oldParty.PartyFunction == party.PartyFunction {
+				(*td.DocumentParties.Other)[i] = party
+				return
+			}
+		}
+		*td.DocumentParties.Other = append(*td.DocumentParties.Other, party)
+	}
+
+	party := dcsa_v3.OtherDocumentParty{
+		PartyFunction: "DDS", // Consignee's freight forwarder
+		Party: dcsa_v3.Party{
+			IdentifyingCodes: &[]dcsa_v3.IdentifyingCode{
+				{
+					CodeListName:     lo.ToPtr(CodeListName),
+					CodeListProvider: CodeListProvider,
+					PartyCode:        releaseAgent,
+				},
+			},
+		},
+	}
+
+	replaceConsigneeForwarder(party)
+}
+
+func SetToOrder(td *dcsa_v3.TransportDocument, toOrder bool) {
+	td.IsToOrder = toOrder
+}
+
+func GetToOrder(blPack *bill_of_lading.BillOfLadingPack) *bool {
+	bl := GetLastBillOfLading(blPack)
+	if bl == nil || bl.BillOfLadingV3 == nil {
+		return nil
+	}
+	return lo.ToPtr(bl.BillOfLadingV3.IsToOrder)
+}
+
+func SetDraft(td *dcsa_v3.TransportDocument, draft bool) {
 	if draft {
-		si.DocumentStatus = bill_of_lading.DRFT_EblDocumentStatus
+		td.TransportDocumentStatus = DRAFT
 	} else {
-		si.DocumentStatus = bill_of_lading.ISSU_EblDocumentStatus
+		td.TransportDocumentStatus = ISSUED
 	}
 }
 
@@ -1425,17 +1541,15 @@ func GetDraft(blPack *bill_of_lading.BillOfLadingPack) *bool {
 		return util.Ptr(false)
 	}
 	firstEvent := blPack.Events[0]
-	if firstEvent.BillOfLading == nil ||
-		firstEvent.BillOfLading.BillOfLading == nil ||
-		firstEvent.BillOfLading.BillOfLading.ShippingInstruction == nil {
+	if firstEvent.BillOfLading == nil || firstEvent.BillOfLading.BillOfLadingV3 == nil {
 		return nil
 	}
 
-	status := firstEvent.BillOfLading.BillOfLading.ShippingInstruction.DocumentStatus
-	if status == bill_of_lading.DRFT_EblDocumentStatus {
+	status := firstEvent.BillOfLading.BillOfLadingV3.TransportDocumentStatus
+	if status == DRAFT {
 		return util.Ptr(true)
 	}
-	if status == bill_of_lading.ISSU_EblDocumentStatus {
+	if status == ISSUED {
 		return util.Ptr(false)
 	}
 	return nil
@@ -1447,21 +1561,15 @@ func GetIssuer(blPack *bill_of_lading.BillOfLadingPack) *string {
 	}
 
 	firstEvent := blPack.Events[0]
-	if firstEvent.BillOfLading == nil ||
-		firstEvent.BillOfLading.BillOfLading == nil ||
-		firstEvent.BillOfLading.BillOfLading.ShippingInstruction == nil {
+	if firstEvent.BillOfLading == nil || firstEvent.BillOfLading.BillOfLadingV3 == nil {
 		return nil
 	}
 
-	si := firstEvent.BillOfLading.BillOfLading.ShippingInstruction
-	for i := range si.DocumentParties {
-		party := si.DocumentParties[i]
-		if party.PartyFunction != nil && *party.PartyFunction == bill_of_lading.DDR_PartyFunction {
-			return util.Ptr(party.Party.IdentifyingCodes[0].PartyCode)
-		}
+	if firstEvent.BillOfLading.BillOfLadingV3.DocumentParties.IssuingParty.IdentifyingCodes == nil ||
+		len(*firstEvent.BillOfLading.BillOfLadingV3.DocumentParties.IssuingParty.IdentifyingCodes) == 0 {
+		return nil
 	}
-
-	return nil
+	return util.Ptr((*firstEvent.BillOfLading.BillOfLadingV3.DocumentParties.IssuingParty.IdentifyingCodes)[0].PartyCode)
 }
 
 func GetFileBaseEBLParticipatorsFromBLPack(blPack *bill_of_lading.BillOfLadingPack) FileBaseEBLParticipators {
@@ -1477,33 +1585,62 @@ func GetFileBaseEBLParticipatorsFromBLPack(blPack *bill_of_lading.BillOfLadingPa
 }
 
 func GetFileBaseEBLParticipatorFromBL(bl *bill_of_lading.BillOfLading) FileBaseEBLParticipators {
-	if bl.BillOfLading == nil {
+	td := bl.GetBillOfLadingV3()
+	if td == nil {
 		return FileBaseEBLParticipators{}
 	}
 
-	si := bl.BillOfLading.ShippingInstruction
-	if si == nil {
-		return FileBaseEBLParticipators{}
+	getIdentityCode := func(codes *[]dcsa_v3.IdentifyingCode) *string {
+		if codes == nil || len(*codes) == 0 {
+			return nil
+		}
+		return &(*codes)[0].PartyCode
 	}
 
 	result := FileBaseEBLParticipators{}
-	for i := len(si.DocumentParties) - 1; i >= 0; i-- {
-		if len(si.DocumentParties[i].Party.IdentifyingCodes) == 0 {
-			continue
+
+	if issuer := getIdentityCode(td.DocumentParties.IssuingParty.IdentifyingCodes); issuer != nil {
+		result.Issuer = *issuer
+	}
+	if shipper := getIdentityCode(td.DocumentParties.Shipper.IdentifyingCodes); shipper != nil {
+		result.Shipper = *shipper
+	}
+	consigneeParty := td.DocumentParties.Consignee
+	if consigneeParty != nil {
+		if consignee := getIdentityCode(&consigneeParty.IdentifyingCodes); consignee != nil {
+			result.Consignee = *consignee
 		}
-		partyFunction := si.DocumentParties[i].PartyFunction
-		if partyFunction == nil {
-			continue
+	}
+	endorseeParty := td.DocumentParties.Endorsee
+	if endorseeParty != nil {
+		if endorsee := getIdentityCode(&endorseeParty.IdentifyingCodes); endorsee != nil {
+			result.Endorsee = *endorsee
 		}
-		switch *partyFunction {
-		case bill_of_lading.DDR_PartyFunction: // Issuer
-			result.Issuer = si.DocumentParties[i].Party.IdentifyingCodes[0].PartyCode
-		case bill_of_lading.OS_PartyFunction: // Shipper
-			result.Shipper = si.DocumentParties[i].Party.IdentifyingCodes[0].PartyCode
-		case bill_of_lading.CN_PartyFunction: // Consignee
-			result.Consignee = si.DocumentParties[i].Party.IdentifyingCodes[0].PartyCode
-		case bill_of_lading.DDS_PartyFunction: // Release Agent
-			result.ReleaseAgent = si.DocumentParties[i].Party.IdentifyingCodes[0].PartyCode
+	}
+
+	// Release Agent.
+	var otherParties []dcsa_v3.OtherDocumentParty
+	if td.DocumentParties.Other != nil && len(*td.DocumentParties.Other) > 0 {
+		otherParties = *td.DocumentParties.Other
+	}
+	for i := range otherParties {
+		party := otherParties[i]
+		if party.PartyFunction == "DDS" {
+			if forwarder := getIdentityCode(party.Party.IdentifyingCodes); forwarder != nil {
+				result.ReleaseAgent = *forwarder
+			}
+		}
+	}
+
+	// Notify Parties.
+	var notifyParties []dcsa_v3.NotifyParty
+	if td.DocumentParties.NotifyParties != nil {
+		notifyParties = *td.DocumentParties.NotifyParties
+	}
+	for i := range notifyParties {
+		party := notifyParties[i]
+		if party.IdentifyingCodes != nil && len(*party.IdentifyingCodes) > 0 {
+			result.NotifyParties = append(result.NotifyParties, (*party.IdentifyingCodes)[0].PartyCode)
 		}
 	}
 	return result
@@ -1518,6 +1655,9 @@ func GetCurrentOwner(blPack *bill_of_lading.BillOfLadingPack) string {
 }
 
 func GetNextOwnerByAction(action FileBasedEBLAction, bu string, blPack *bill_of_lading.BillOfLadingPack) string {
+	if bu == "" {
+		return ""
+	}
 	parties := GetFileBaseEBLParticipatorsFromBLPack(blPack)
 	switch action {
 	case FILE_EBL_TRANSFER:
@@ -1530,8 +1670,18 @@ func GetNextOwnerByAction(action FileBasedEBLAction, bu string, blPack *bill_of_
 		if bu == parties.Shipper {
 			return parties.Consignee
 		}
+		if isToOrder := GetToOrder(blPack); isToOrder != nil && *isToOrder && bu == parties.Consignee {
+			return parties.Endorsee
+		}
 	case FILE_EBL_RETURN:
-		if bu == parties.ReleaseAgent {
+		lastEvent := GetLastEvent(blPack)
+		if lastEvent == nil {
+			return ""
+		}
+		if bu == parties.ReleaseAgent && lastEvent.Surrender != nil {
+			return lastEvent.Surrender.SurrenderBy
+		}
+		if bu == parties.Endorsee {
 			return parties.Consignee
 		}
 		if bu == parties.Consignee {
@@ -1547,7 +1697,7 @@ func GetNextOwnerByAction(action FileBasedEBLAction, bu string, blPack *bill_of_
 			}
 		}
 	case FILE_EBL_SURRENDER:
-		if bu == parties.Consignee {
+		if bu == parties.Consignee || bu == parties.Endorsee {
 			return parties.ReleaseAgent
 		}
 	case FILE_EBL_REQUEST_AMEND:
@@ -1623,52 +1773,6 @@ func GetOwnerShipTransferringByEvent(event *bill_of_lading.BillOfLadingEvent) (s
 	return "", ""
 }
 
-func PrepareSI(td *bill_of_lading.TransportDocument) *bill_of_lading.ShippingInstruction {
-	if td.ShippingInstruction != nil {
-		return td.ShippingInstruction
-	}
-
-	si := &bill_of_lading.ShippingInstruction{}
-
-	td.ShippingInstruction = si
-	return si
-}
-
-func ReplaceSIParty(si *bill_of_lading.ShippingInstruction, party bill_of_lading.DocumentParty) {
-	for i := range si.DocumentParties {
-		partyFunc := si.DocumentParties[i].PartyFunction
-		if partyFunc != nil && *partyFunc == *party.PartyFunction {
-			si.DocumentParties[i] = party
-			return
-		}
-	}
-	si.DocumentParties = append(si.DocumentParties, party)
-}
-
-func ReplaceShipmentLocation(td *bill_of_lading.TransportDocument, loc bill_of_lading.ShipmentLocation) {
-	for i := range td.ShipmentLocations {
-		if td.ShipmentLocations[i].ShipmentLocationTypeCode == loc.ShipmentLocationTypeCode {
-			td.ShipmentLocations[i] = loc
-			return
-		}
-	}
-	td.ShipmentLocations = append(td.ShipmentLocations, loc)
-}
-
-func PrepareDocumentParty(party string, partyFunction bill_of_lading.PartyFunction) bill_of_lading.DocumentParty {
-	return bill_of_lading.DocumentParty{
-		Party: &bill_of_lading.Party{
-			IdentifyingCodes: []bill_of_lading.IdentifyingCode{
-				{
-					DCSAResponsibleAgencyCode: bill_of_lading.DID_DcsaResponsibleAgencyCode,
-					PartyCode:                 party,
-				},
-			},
-		},
-		PartyFunction: util.Ptr(partyFunction),
-	}
-}
-
 func GetBillOfLadingPackMeta(blPack *bill_of_lading.BillOfLadingPack) (map[string]any, error) {
 	res := make(map[string]any)
 	if draft := GetDraft(blPack); draft != nil && *draft {
@@ -1678,14 +1782,25 @@ func GetBillOfLadingPackMeta(blPack *bill_of_lading.BillOfLadingPack) (map[strin
 	}
 
 	parties := GetFileBaseEBLParticipatorsFromBLPack(blPack)
-	partiesByOrder := []string{parties.Issuer, parties.Shipper, parties.Consignee, parties.ReleaseAgent}
+	var partiesByOrder []string
+	if parties.Endorsee != "" {
+		// Negotiable BL case - include endorsee between consignee and release agent
+		partiesByOrder = []string{parties.Issuer, parties.Shipper, parties.Consignee, parties.Endorsee, parties.ReleaseAgent}
+	} else {
+		// Non-negotiable BL case - original order without endorsee
+		partiesByOrder = []string{parties.Issuer, parties.Shipper, parties.Consignee, parties.ReleaseAgent}
+	}
+
+	// Add notify parties to visibility list - they will have same visibility as release agent
+	allVisibleParties := append([]string{}, partiesByOrder...)
+	allVisibleParties = append(allVisibleParties, parties.NotifyParties...)
 
 	lastEvent := GetLastEvent(blPack)
 	if lastEvent.Delete != nil {
 		res["visible_to_bu"] = []string{blPack.CurrentOwner}
 		res["deleted"] = true
 	} else if lastEvent.Accomplish != nil || lastEvent.PrintToPaper != nil {
-		res["visible_to_bu"] = partiesByOrder
+		res["visible_to_bu"] = allVisibleParties
 		res["archive"] = partiesByOrder
 	} else if lastEvent.AmendmentRequest != nil {
 		_, amendmentRequesterIdx, _ := lo.FindIndexOf(partiesByOrder, func(p string) bool {
@@ -1697,7 +1812,7 @@ func GetBillOfLadingPackMeta(blPack *bill_of_lading.BillOfLadingPack) (map[strin
 
 		from, _ := GetOwnerShipTransferringByEvent(lastEvent)
 		res["action_needed"] = []string{blPack.CurrentOwner}
-		res["visible_to_bu"] = partiesByOrder
+		res["visible_to_bu"] = allVisibleParties
 		res["sent"] = partiesByOrder[1:amendmentRequesterIdx]    // amendment requested eB/L is 'action_needed' for issuer
 		res["upcoming"] = partiesByOrder[amendmentRequesterIdx:] // amendment requested eB/L is 'upcoming' for requester
 		res["from"] = from                                       // amendment requested eB/L is 'from' requester
@@ -1708,7 +1823,7 @@ func GetBillOfLadingPackMeta(blPack *bill_of_lading.BillOfLadingPack) (map[strin
 
 		from, _ := GetOwnerShipTransferringByEvent(lastEvent)
 		res["action_needed"] = []string{blPack.CurrentOwner}
-		res["visible_to_bu"] = partiesByOrder
+		res["visible_to_bu"] = allVisibleParties
 		res["sent"] = partiesByOrder[:currentOwnerIdx]
 		res["upcoming"] = partiesByOrder[currentOwnerIdx+1:]
 		res["from"] = from

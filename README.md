@@ -9,15 +9,23 @@ The three components form the core stack of OpenEBL.
 3. Business Unit Server
    This provides business unit management and trade document management feature.
 
+![Component Architecture](ebl-architecture-Component.svg)
+
 ## How a business unit is onboarded
 
-A business unit is onboarded by the following steps.
+### Prerequisites
+
+- Relay servers already form the network. (Single instance of relay server is enough) [Relay Server](pkg/relay/server/README.md)
+- Certificate Authority Server is running and well initialized. [CA Server](pkg/cert_server/README.md)
+- Business Unit Server is running and well initialized. [BU Server](pkg/bu_server/README.md)
+  - Application is registered and its API Key is generated.
 
 ### Manual Onboarding Process
 
 To onboard a business unit without using the CLI, you need to perform these steps manually through API calls:
 
 1. **Create the business unit**
+
    - Make a request to the Business Unit Server to create a new business unit with required information:
      - Business unit name
      - Address(es)
@@ -28,6 +36,7 @@ To onboard a business unit without using the CLI, you need to perform these step
    - The server will respond with a business unit ID
 
 2. **Create authentication for the business unit**
+
    - Make a request to the Business Unit Server to create authentication for the business unit
    - Provide:
      - Business unit ID
@@ -36,10 +45,12 @@ To onboard a business unit without using the CLI, you need to perform these step
    - The server will generate a Certificate Signing Request (CSR) and private key
 
 3. **Submit the CSR to the CA server**
+
    - Make a request to the Certificate Authority Server to register the CSR
    - The CA server will respond with a certificate ID
 
 4. **Find an active CA certificate or use a specified one**
+
    - Query the CA Server to find active CA certificates
    - Select an appropriate CA certificate to use for signing
 
@@ -69,12 +80,14 @@ The OpenEBL CLI automates all the above steps in a single command:
 ```
 
 Required parameters:
+
 - `--name`: Name of the business unit
 - `--country`: Country code (e.g., US, TW, CN)
 - `--emails`: Email address(es)
 - `--requester`: Name of the requester
 
 Optional parameters:
+
 - `--addresses`: Physical address(es) of the business unit
 - `--phone-numbers`: Phone number(s)
 - `--status`: Status of business unit (default: active)
@@ -83,6 +96,7 @@ Optional parameters:
 - `--ca-cert-id`: ID of a specific CA certificate to use (if not provided, the CLI will try to find an active one)
 
 Example:
+
 ```bash
 ./openebl-cli onboard \
     -b http://openebl_bu_server:8080 \

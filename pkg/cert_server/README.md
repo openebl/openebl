@@ -18,7 +18,12 @@ There are four types of certificates in the service.
 1. Business Unit Certificate
    The certificate is used by the business unit to sign the data. The certificate is signed by the CA certificate. The service stores and publishes the certificate but not the private key of the certificate. The certificate is not allowed to issue another certificate.
 
-## Requirement of Root Certificate, CA Certificate and Third Party CA Certificate
+## Certificate Publishing
+
+1. Root Certificate
+   `Certificate Server` publishes the root certificates by providing a REST API. Refer to [api/api_doc.yaml](api/api_doc.yaml) for more details.
+1. Other Certificates
+   `Certificate Server` publishes other certificates by uploading them into TradeLink network after they are issued.
 
 ## Initialize
 
@@ -139,4 +144,3 @@ The CSR will be signed by the CA certificate.
 
 ```
 client cert revoke --server=http://localhost:9100 --requester=your_name --id=cert_id
-```
